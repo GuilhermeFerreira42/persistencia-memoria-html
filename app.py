@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, Response
 import json
 from datetime import datetime
@@ -83,7 +82,6 @@ def send_message():
 
 def process_with_ai(text):
     try:
-        # Configuração da requisição para a API
         payload = {
             "model": MODEL_NAME,
             "messages": [
@@ -109,7 +107,6 @@ def process_with_ai(text):
 
 def process_with_ai_stream(text):
     try:
-        # Configuração da requisição para streaming
         payload = {
             "model": MODEL_NAME,
             "messages": [
