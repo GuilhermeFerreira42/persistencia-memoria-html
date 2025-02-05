@@ -1,0 +1,75 @@
+.sidebar {
+    position: fixed;
+    width: 260px;
+    height: 100vh;
+    background-color: var(--sidebar-bg);
+    padding: 1rem;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-260px);
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-disabled) transparent;
+}
+
+.chat-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+    background-color: var(--text-disabled);
+    border-radius: 20px;
+}
+
+.chat-item {
+    padding: 0.75rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s;
+}
+
+.chat-item:hover {
+    background-color: var(--action-hover);
+}
+
+.chat-item .action-buttons {
+    display: none;
+    gap: 0.5rem;
+}
+
+.chat-item:hover .action-buttons {
+    display: flex;
+}
+
+.chat-item .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chat-item .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}

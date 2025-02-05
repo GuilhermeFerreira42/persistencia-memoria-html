@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Barra Lateral -->
+        <aside class="sidebar">
+            <button class="new-chat-btn">
+                <i class="fas fa-plus"></i>
+                Novo Chat
+            </button>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Pesquisar conversas...">
+            </div>
+            <div class="chat-list">
+                <!-- Lista de conversas será preenchida via JavaScript -->
+            </div>
+            <button class="settings-btn">
+                <i class="fas fa-cog"></i>
+                Configurações
+            </button>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <div class="top-bar">
+                <button class="header-sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="program-name">AI  </h1>
+                <div class="top-bar-actions">
+                    <button class="theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <select class="model-select">
+                        <option value="gemma2:2b">gemma2:2b</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tela de Boas-vindas -->
+            <div class="welcome-screen">
+                <h1>Como posso ajudar?</h1>
+                <form class="input-box" id="welcome-form">
+                    <textarea id="welcome-input" placeholder="Envie uma mensagem..." rows="1"></textarea>
+                    <button type="submit" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+                <div class="quick-actions">
+                    <button class="quick-action-btn">
+                        <i class="fas fa-lightbulb"></i>
+                        Sugerir ideias
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-file-alt"></i>
+                        Resumir texto
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-code"></i>
+                        Ajuda com código
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-question-circle"></i>
+                        Tirar dúvidas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Container de Chat -->
+            <div class="chat-container" style="display: none;">
+                <!-- Mensagens serão inseridas aqui -->
+            </div>
+
+            <!-- Container de Input -->
+            <div class="input-container" style="display: none;">
+                <form class="input-box" id="chat-form">
+                    <textarea id="chat-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+                    <button type="submit" class="send-btn" id="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

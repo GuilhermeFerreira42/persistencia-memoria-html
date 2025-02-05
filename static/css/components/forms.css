@@ -1,0 +1,86 @@
+.search-box {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.input-box {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.input-box textarea {
+    width: 100%;
+    padding: 1rem;
+    padding-right: 3.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: none;
+    min-height: 56px;
+    max-height: 200px;
+    line-height: 1.5;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.input-box textarea::-webkit-scrollbar {
+    display: none;
+}
+
+.input-box .send-btn,
+.input-box .stop-btn {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-box .send-btn:hover,
+.input-box .stop-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.input-box .stop-btn {
+    right: 5rem;
+    bottom: 0.5rem;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.model-select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}

@@ -1,0 +1,9 @@
+[data-theme="dark"] {
+    --bg-primary: #343541;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --msg-user: #444654;
+    --msg-bot: #444654;
+    --sidebar-bg: #202123;
+    --input-bg: #40414f;
+}

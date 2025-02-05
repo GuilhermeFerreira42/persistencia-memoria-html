@@ -1,0 +1,3342 @@
+Conteúdo de app.py:
+from flask import Flask, render_template, request, jsonify, Response
+import json
+from datetime import datetime
+import requests
+from backend.database.database import init_db
+from backend.utils.chat_history import save_conversation, get_conversation_history
+from backend.utils.text_processor import split_text
+from backend.routers.chats import chats_bp
+from backend.models.conversations import Conversation  # Importando o modelo de conversas
+
+app = Flask(__name__, static_folder='static')
+app.secret_key = 'sua_chave_secreta_aqui'
+
+# Inicializa o banco de dados
+init_db()
+
+# Registra o blueprint das rotas de chat
+app.register_blueprint(chats_bp, url_prefix='/api/chats')
+
+API_URL = "http://localhost:11434/v1/chat/completions"
+MODEL_NAME = "gemma2:2b"
+
+@app.route('/')
+def home():
+    conversations = get_conversation_history()
+    return render_template('index.html', conversations=conversations)
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    if len(message.split()) > 300:
+        chunks = split_text(message)
+        responses = []
+        for chunk in chunks:
+            response = process_with_ai(chunk)
+            responses.append(response)
+        final_response = " ".join(responses)
+    else:
+        final_response = None
+
+    def generate_streamed_response():
+        for part in process_with_ai_stream(message):
+            yield f"data: {json.dumps({'content': part})}\n\n"
+
+    response = Response(generate_streamed_response(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+
+    if final_response is not None:
+        if conversation_id is None:  # Verifica se o conversation_id é None
+            conversation_id = Conversation.create()  # Gera um novo conversation_id
+        conversation_id = save_conversation(message, final_response, conversation_id)
+
+    return response
+
+def process_with_ai(text):
+    try:
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "user", "content": text}
+            ],
+            "stream": False
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+
+        response_data = response.json()
+        if 'choices' in response_data and len(response_data['choices']) > 0:
+            return response_data['choices'][0]['message']['content']
+        return "Erro: Nenhuma resposta válida recebida da IA."
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisição HTTP: {str(e)}")
+        return "Ocorreu um erro ao se conectar com a IA."
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+        return "Ocorreu um erro inesperado ao processar sua mensagem."
+
+def process_with_ai_stream(text):
+    try:
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "user", "content": text}
+            ],
+            "stream": True
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+
+        for line in response.iter_lines(decode_unicode=True):
+            if line.strip() and line.startswith("data: "):
+                line = line[6:].strip()
+                try:
+                    response_data = json.loads(line)
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        delta = response_data['choices'][0]['delta']
+                        if "content" in delta:
+                            content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            yield content
+                except json.JSONDecodeError:
+                    print(f"[Debug] Erro ao decodificar JSON: {line}")
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisição HTTP: {str(e)}")
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+Conteúdo de atualiza-git.bat:
+@echo off
+
+:: Altere para o diretorio onde o script esta localizado
+cd /d %~dp0
+
+:menu
+cls
+echo Diretorio atual: %cd%
+echo =====================================
+echo     GIT AUTOMATION MENU
+echo =====================================
+echo 1. Verificar status do repositorio
+echo 2. Adicionar todas as alteracoes
+echo 3. Fazer commit
+echo 4. Fazer push para o GitHub
+echo 5. Fazer pull do repositorio
+echo 6. Mostrar log de commits
+echo 7. Outras opcoes
+echo 8. Sair
+echo =====================================
+set /p escolha="Escolha uma opcao: "
+
+if %escolha%==1 goto status
+if %escolha%==2 goto add
+if %escolha%==3 goto commit
+if %escolha%==4 goto push
+if %escolha%==5 goto pull
+if %escolha%==6 goto log
+if %escolha%==7 goto outras_opcoes
+if %escolha%==8 goto fim
+goto menu
+
+:status
+echo Diretorio atual: %cd%
+echo Verificando o status do repositorio...
+git status
+pause
+goto menu
+
+:add
+echo Diretorio atual: %cd%
+echo Adicionando todas as alteracoes...
+git add .
+pause
+goto menu
+
+:commit
+set /p comentario="Digite o comentario do commit: "
+echo Diretorio atual: %cd%
+git commit -m "%comentario%"
+pause
+goto menu
+
+:push
+echo Diretorio atual: %cd%
+echo Fazendo push para o GitHub...
+git push
+pause
+goto menu
+
+:pull
+echo Diretorio atual: %cd%
+echo Fazendo pull do repositorio...
+git pull
+pause
+goto menu
+
+:log
+echo Diretorio atual: %cd%
+echo Mostrando log de commits...
+git log
+pause
+goto menu
+
+:outras_opcoes
+cls
+echo Outras opcoes
+echo =====================================
+echo 1. Restaurar arquivos deletados
+echo 2. Sincronizar com repositorio
+echo 3. Fazer fetch do repositorio
+echo 4. Fazer merge de branches
+echo 5. Inicializar um novo repositorio (git init)
+echo 6. Desfazer alteracoes (git reset)
+echo 7. Listar branches (git branch)
+echo 8. Voltar ao menu principal
+echo =====================================
+set /p escolha_outras="Escolha uma opcao: "
+
+if %escolha_outras%==1 goto restaurar
+if %escolha_outras%==2 goto sincronizar
+if %escolha_outras%==3 goto fetch
+if %escolha_outras%==4 goto merge
+if %escolha_outras%==5 goto init
+if %escolha_outras%==6 goto reset
+if %escolha_outras%==7 goto branch
+if %escolha_outras%==8 goto menu
+goto outras_opcoes
+
+:restaurar
+echo Restaurando arquivos deletados...
+git checkout -- .
+pause
+goto outras_opcoes
+
+:sincronizar
+echo Sincronizando com repositorio...
+git fetch origin
+pause
+goto outras_opcoes
+
+:fetch
+echo Fazendo fetch do repositorio...
+git fetch
+pause
+goto outras_opcoes
+
+:merge
+echo Fazendo merge de branches...
+git merge
+pause
+goto outras_opcoes
+
+:init
+echo Inicializando um novo repositorio...
+git init
+pause
+goto outras_opcoes
+
+:reset
+echo Desfazendo alteracoes...
+git reset
+pause
+goto outras_opcoes
+
+:branch
+echo Listando branches...
+git branch
+pause
+goto outras_opcoes
+
+:fim
+echo Saindo...
+pause
+
+
+Conteúdo de database.py:
+import sqlite3
+from contextlib import contextmanager
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+DATABASE_PATH = 'backend/database/nosso_projeto.db'
+
+def ensure_data_directory():
+    """Garante que o diretório data/ existe"""
+    os.makedirs('backend/database', exist_ok=True)
+
+# Configuração SQLAlchemy
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def init_db():
+    """Inicializa o banco de dados e cria as tabelas se não existirem"""
+    ensure_data_directory()
+    Base.metadata.create_all(bind=engine)
+
+@contextmanager
+def get_db():
+    """Context manager para conexão com o banco"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+Conteúdo de nosso_projeto.db:
+SQLite format 3   @                                                                     .j
+ 
+ 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }tablemessagesmessagesCREATE TABLE messages (
+	id VARCHAR NOT NULL, 
+	conversation_id VARCHAR, 
+	role VARCHAR NOT NULL, 
+	content VARCHAR NOT NULL, 
+	timestamp DATETIME, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
+)/C indexsqlite_autoindex_messages_1messages+''tableconversationsconversationsCREATE TABLE conversations (
+	id VARCHAR NOT NULL, 
+	title VARCHAR NOT NULL, 
+	timestamp DATETIME, 
+	meta JSON, 
+	PRIMARY KEY (id)
+)9M' indexsqlite_autoindex_conversations_1conversations       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
+Conteúdo de conversations.py:
+from sqlalchemy import Column, String, DateTime, Text
+from backend.database.database import Base
+from datetime import datetime
+import uuid
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(255), nullable=False)
+    timestamp = Column(DateTime(timezone=True), default=datetime.utcnow)
+    meta = Column(Text, default='{}')
+
+    @staticmethod
+    def create(title="Nova Conversa"):
+        """Cria uma nova conversa"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            conversation = Conversation(title=title)
+            db.add(conversation)
+            db.commit()
+            db.refresh(conversation)
+            return conversation.id
+        finally:
+            db.close()
+
+    @staticmethod
+    def get_all():
+        """Retorna todas as conversas"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            return db.query(Conversation).order_by(Conversation.timestamp.desc()).all()
+        finally:
+            db.close()
+
+    @staticmethod
+    def get_by_id(conversation_id):
+        """Busca uma conversa específica pelo ID"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            return db.query(Conversation).filter_by(id=conversation_id).first()
+        finally:
+            db.close()
+
+    @staticmethod
+    def delete(conversation_id):
+        """Deleta uma conversa e suas mensagens"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            conversation = db.query(Conversation).filter_by(id=conversation_id).first()
+            if conversation:
+                db.delete(conversation)
+                db.commit()
+                return True
+            return False
+        finally:
+            db.close()
+
+Conteúdo de messages.py:
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text
+from sqlalchemy.orm import relationship
+from backend.database.database import Base
+from datetime import datetime
+import uuid
+
+class Message(Base):
+    __tablename__ = "messages"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String(36), ForeignKey('conversations.id', ondelete='CASCADE'))
+    role = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime(timezone=True), default=datetime.utcnow)
+    
+    conversation = relationship("Conversation", backref="messages")
+
+    @staticmethod
+    def create(conversation_id, role, content):
+        """Cria uma nova mensagem"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            message = Message(
+                conversation_id=conversation_id,
+                role=role,
+                content=content
+            )
+            db.add(message)
+            db.commit()
+            db.refresh(message)
+            return message.id
+        finally:
+            db.close()
+
+    @staticmethod
+    def get_by_conversation(conversation_id):
+        """Retorna todas as mensagens de uma conversa"""
+        from backend.database.database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            return db.query(Message)\
+                .filter_by(conversation_id=conversation_id)\
+                .order_by(Message.timestamp.asc())\
+                .all()
+        finally:
+            db.close()
+
+Conteúdo de chats.py:
+from flask import Blueprint, jsonify, request
+from backend.models.conversations import Conversation
+from backend.models.messages import Message
+
+chats_bp = Blueprint('chats', __name__)
+
+@chats_bp.route('/conversations', methods=['GET'])
+def get_conversations():
+    """Retorna lista de todas as conversas"""
+    conversations = Conversation.get_all()
+    return jsonify([dict(conv) for conv in conversations])
+
+@chats_bp.route('/conversations', methods=['POST'])
+def create_conversation():
+    """Cria uma nova conversa"""
+    data = request.json
+    title = data.get('title', 'Nova Conversa')
+    conversation_id = Conversation.create(title)
+    return jsonify({'id': conversation_id})
+
+@chats_bp.route('/conversations/<conversation_id>', methods=['GET'])
+def get_conversation(conversation_id):
+    """Retorna uma conversa específica com suas mensagens"""
+    conversation = Conversation.get_by_id(conversation_id)
+    if not conversation:
+        return jsonify({'error': 'Conversa não encontrada'}), 404
+        
+    messages = Message.get_by_conversation(conversation_id)
+    return jsonify({
+        'conversation': dict(conversation),
+        'messages': [dict(msg) for msg in messages]
+    })
+
+@chats_bp.route('/conversations/<conversation_id>/messages', methods=['POST'])
+def add_message(conversation_id):
+    """Adiciona uma nova mensagem a uma conversa"""
+    data = request.json
+    role = data.get('role')
+    content = data.get('content')
+    
+    if not all([role, content]):
+        return jsonify({'error': 'Dados incompletos'}), 400
+        
+    message_id = Message.create(conversation_id, role, content)
+    return jsonify({'id': message_id})
+
+@chats_bp.route('/conversations/<conversation_id>', methods=['DELETE'])
+def delete_conversation(conversation_id):
+    """Deleta uma conversa e suas mensagens"""
+    if Conversation.delete(conversation_id):
+        return jsonify({'success': True})
+    return jsonify({'error': 'Erro ao deletar conversa'}), 400
+
+Conteúdo de chat_history.py:
+from datetime import datetime
+from backend.models.conversations import Conversation
+from backend.models.messages import Message
+import logging
+
+logger = logging.getLogger(__name__)
+
+def save_conversation(message, response, conversation_id=None):
+    """
+    Salva ou atualiza uma conversa no banco de dados.
+    Se conversation_id for fornecido, adiciona mensagens à conversa existente.
+    Caso contrário, cria uma nova conversa.
+    """
+    try:
+        if not conversation_id:
+            conversation_id = Conversation.create()
+            logger.info(f"Nova conversa criada com ID: {conversation_id}")
+        
+        Message.create(conversation_id, 'user', message)
+        Message.create(conversation_id, 'assistant', response)
+        logger.info(f"Mensagens salvas na conversa {conversation_id}")
+        
+        return conversation_id
+    except Exception as e:
+        logger.error(f"Erro ao salvar conversa: {str(e)}")
+        raise
+
+def get_conversation_history():
+    """Retorna o histórico completo de conversas"""
+    try:
+        conversations = Conversation.get_all()
+        history = []
+        
+        for conv in conversations:
+            messages = Message.get_by_conversation(conv.id)
+            history.append({
+                'id': conv.id,
+                'timestamp': conv.timestamp.isoformat(),
+                'messages': [{
+                    'role': msg.role,
+                    'content': msg.content,
+                    'timestamp': msg.timestamp.isoformat()
+                } for msg in messages]
+            })
+        
+        return history
+    except Exception as e:
+        logger.error(f"Erro ao buscar histórico: {str(e)}")
+        return []
+
+def get_conversation_by_id(conversation_id):
+    """Busca uma conversa específica com suas mensagens"""
+    try:
+        conversation = Conversation.get_by_id(conversation_id)
+        if not conversation:
+            return None
+            
+        messages = Message.get_by_conversation(conversation_id)
+        return {
+            'id': conversation.id,
+            'timestamp': conversation.timestamp.isoformat(),
+            'messages': [{
+                'role': msg.role,
+                'content': msg.content,
+                'timestamp': msg.timestamp.isoformat()
+            } for msg in messages]
+        }
+    except Exception as e:
+        logger.error(f"Erro ao buscar conversa {conversation_id}: {str(e)}")
+        return None
+
+Conteúdo de text_processor.py:
+def split_text(text, words_per_chunk=300):
+    """
+    Divide um texto em chunks menores baseado no número de palavras.
+    """
+    words = text.split()
+    chunks = []
+    
+    for i in range(0, len(words), words_per_chunk):
+        chunk = ' '.join(words[i:i + words_per_chunk])
+        chunks.append(chunk)
+    
+    return chunks
+
+Conteúdo de __init__.py:
+# Este arquivo vazio torna o diretório utils um módulo Python
+
+Conteúdo de __init__.py:
+# Este arquivo vazio torna o diretório backend um módulo Python
+
+Conteúdo de codigo_completo.txt:
+Conteúdo de app.py:
+from flask import Flask, render_template, request, jsonify, Response
+import json
+from datetime import datetime
+import requests
+from backend.database.database import init_db
+from backend.utils.chat_history import save_conversation, get_conversation_history
+from backend.utils.text_processor import split_text
+from backend.routers.chats import chats_bp
+from backend.models.conversations import Conversation  # Importando o modelo de conversas
+
+app = Flask(__name__, static_folder='static')
+app.secret_key = 'sua_chave_secreta_aqui'
+
+# Inicializa o banco de dados
+init_db()
+
+# Registra o blueprint das rotas de chat
+app.register_blueprint(chats_bp, url_prefix='/api/chats')
+
+API_URL = "http://localhost:11434/v1/chat/completions"
+MODEL_NAME = "gemma2:2b"
+
+@app.route('/')
+def home():
+    conversations = get_conversation_history()
+    return render_template('index.html', conversations=conversations)
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    if len(message.split()) > 300:
+        chunks = split_text(message)
+        responses = []
+        for chunk in chunks:
+            response = process_with_ai(chunk)
+            responses.append(response)
+        final_response = " ".join(responses)
+    else:
+        final_response = None
+
+    def generate_streamed_response():
+        for part in process_with_ai_stream(message):
+            yield f"data: {json.dumps({'content': part})}\n\n"
+
+    response = Response(generate_streamed_response(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+
+    if final_response is not None:
+        if conversation_id is None:  # Verifica se o conversation_id é None
+            conversation_id = Conversation.create()  # Gera um novo conversation_id
+        conversation_id = save_conversation(message, final_response, conversation_id)
+
+    return response
+
+def process_with_ai(text):
+    try:
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "user", "content": text}
+            ],
+            "stream": False
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+
+        response_data = response.json()
+        if 'choices' in response_data and len(response_data['choices']) > 0:
+            return response_data['choices'][0]['message']['content']
+        return "Erro: Nenhuma resposta válida recebida da IA."
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisição HTTP: {str(e)}")
+        return "Ocorreu um erro ao se conectar com a IA."
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+        return "Ocorreu um erro inesperado ao processar sua mensagem."
+
+def process_with_ai_stream(text):
+    try:
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "user", "content": text}
+            ],
+            "stream": True
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+
+        for line in response.iter_lines(decode_unicode=True):
+            if line.strip() and line.startswith("data: "):
+                line = line[6:].strip()
+                try:
+                    response_data = json.loads(line)
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        delta = response_data['choices'][0]['delta']
+                        if "content" in delta:
+                            content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            yield content
+                except json.JSONDecodeError:
+                    print(f"[Debug] Erro ao decodificar JSON: {line}")
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisição HTTP: {str(e)}")
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+Conteúdo de atualiza-git.bat:
+@echo off
+
+:: Altere para o diretorio onde o script esta localizado
+cd /d %~dp0
+
+:menu
+cls
+echo Diretorio atual: %cd%
+echo =====================================
+echo     GIT AUTOMATION MENU
+echo =====================================
+echo 1. Verificar status do repositorio
+echo 2. Adicionar todas as alteracoes
+echo 3. Fazer commit
+echo 4. Fazer push para o GitHub
+echo 5. Fazer pull do repositorio
+echo 6. Mostrar log de commits
+echo 7. Outras opcoes
+echo 8. Sair
+echo =====================================
+set /p escolha="Escolha uma opcao: "
+
+if %escolha%==1 goto status
+if %escolha%==2 goto add
+if %escolha%==3 goto commit
+if %escolha%==4 goto push
+if %escolha%==5 goto pull
+if %escolha%==6 goto log
+if %escolha%==7 goto outras_opcoes
+if %escolha%==8 goto fim
+goto menu
+
+:status
+echo Diretorio atual: %cd%
+echo Verificando o status do repositorio...
+git status
+pause
+goto menu
+
+:add
+echo Diretorio atual: %cd%
+echo Adicionando todas as alteracoes...
+git add .
+pause
+goto menu
+
+:commit
+set /p comentario="Digite o comentario do commit: "
+echo Diretorio atual: %cd%
+git commit -m "%comentario%"
+pause
+goto menu
+
+:push
+echo Diretorio atual: %cd%
+echo Fazendo push para o GitHub...
+git push
+pause
+goto menu
+
+:pull
+echo Diretorio atual: %cd%
+echo Fazendo pull do repositorio...
+git pull
+pause
+goto menu
+
+:log
+echo Diretorio atual: %cd%
+echo Mostrando log de commits...
+git log
+pause
+goto menu
+
+:outras_opcoes
+cls
+echo Outras opcoes
+echo =====================================
+echo 1. Restaurar arquivos deletados
+echo 2. Sincronizar com repositorio
+echo 3. Fazer fetch do repositorio
+echo 4. Fazer merge de branches
+echo 5. Inicializar um novo repositorio (git init)
+echo 6. Desfazer alteracoes (git reset)
+echo 7. Listar branches (git branch)
+echo 8. Voltar ao menu principal
+echo =====================================
+set /p escolha_outras="Escolha uma opcao: "
+
+if %escolha_outras%==1 goto restaurar
+if %escolha_outras%==2 goto sincronizar
+if %escolha_outras%==3 goto fetch
+if %escolha_outras%==4 goto merge
+if %escolha_outras%==5 goto init
+if %escolha_outras%==6 goto reset
+if %escolha_outras%==7 goto branch
+if %escolha_outras%==8 goto menu
+goto outras_opcoes
+
+:restaurar
+echo Restaurando arquivos deletados...
+git checkout -- .
+pause
+goto outras_opcoes
+
+:sincronizar
+echo Sincronizando com repositorio...
+git fetch origin
+pause
+goto outras_opcoes
+
+:fetch
+echo Fazendo fetch do repositorio...
+git fetch
+pause
+goto outras_opcoes
+
+:merge
+echo Fazendo merge de branches...
+git merge
+pause
+goto outras_opcoes
+
+:init
+echo Inicializando um novo repositorio...
+git init
+pause
+goto outras_opcoes
+
+:reset
+echo Desfazendo alteracoes...
+git reset
+pause
+goto outras_opcoes
+
+:branch
+echo Listando branches...
+git branch
+pause
+goto outras_opcoes
+
+:fim
+echo Saindo...
+pause
+
+
+Conteúdo de database.py:
+import sqlite3
+from contextlib import contextmanager
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+DATABASE_PATH = 'backend/database/nosso_projeto.db'
+
+def ensure_data_directory():
+    """Garante que o diretório data/ existe"""
+    os.makedirs('backend/database', exist_ok=True)
+
+# Configuração SQLAlchemy
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def init_db():
+    """Inicializa o banco de dados e cria as tabelas se não existirem"""
+    ensure_data_directory()
+    Base.metadata.create_all(bind=engine)
+
+@contextmanager
+def get_db():
+    """Context manager para conexão com o banco"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+Conteúdo de nosso_projeto.db:
+SQLite format 3   @                                                                     .j
+ 
+ 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }tablemessagesmessagesCREATE TABLE messages (
+	id VARCHAR NOT NULL, 
+	conversation_id VARCHAR, 
+	role VARCHAR NOT NULL, 
+	content VARCHAR NOT NULL, 
+	timestamp DATETIME, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
+)/C indexsqlite_autoindex_messages_1messages+''tableconversationsconversationsCREATE TABLE conversations (
+	id VARCHAR NOT NULL, 
+	title VARCHAR NOT NULL, 
+	timestamp DATETIME, 
+	meta JSON, 
+	PRIMARY KEY (id)
+)9M' indexsqlite_autoindex_conversations_1conversations       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
+
+
+Conteúdo de desktop.ini:
+[.ShellClassInfo]
+IconResource=folderico-violet.ico,0
+
+
+Conteúdo de RESUMO_ALTERACOES.txt:
+
+# Resumo das Alterações no Sistema de Persistência
+Data: 03/03/2024
+Versão: 1.0.0
+
+## 1. Estrutura Atual
+O projeto atual é um clone do ChatGPT utilizando Open Web UI como referência,
+com foco na implementação do sistema de persistência de dados.
+
+## 2. Principais Componentes
+- Backend: Python com Flask/FastAPI
+- Banco de Dados: SQLite (com planos de migração para PostgreSQL)
+- ORM: SQLAlchemy
+- Estrutura de Dados: Conversas e Mensagens
+
+## 3. Problemas Identificados
+1. Conflito na criação de tabelas:
+   - Duplicidade entre ORM e SQL puro
+   - Tipos de dados incompatíveis (JSON no SQLite)
+   
+2. Persistência instável:
+   - UUIDs não padronizados
+   - Problemas com timestamps
+   
+3. Migrações inconsistentes:
+   - Conflito entre diferentes métodos de criação de tabelas
+
+## 4. Soluções Implementadas
+1. Padronização de Tipos:
+   - VARCHAR(36) para UUIDs
+   - TEXT para campos JSON
+   - TIMESTAMP para campos de data/hora
+
+2. Simplificação da Inicialização:
+   - Remoção da criação via SQL puro
+   - Uso exclusivo do SQLAlchemy ORM
+
+3. Melhorias na Estrutura:
+   - Diretórios organizados por funcionalidade
+   - Separação clara entre modelos e rotas
+
+## 5. Próximos Passos
+1. Implementar sistema de logging unificado
+2. Criar testes automatizados
+3. Preparar migração para PostgreSQL
+4. Implementar backup automático
+
+## 6. Notas Importantes
+- Manter backup regular do banco SQLite
+- Monitorar tamanho do banco de dados
+- Documentar todas as alterações de schema
+
+## 7. Comandos Úteis
+Para inicializar o banco:
+```bash
+python3 -c "from backend.database.database import init_db; init_db()"
+```
+
+Para backup:
+```bash
+sqlite3 nosso_projeto.db ".backup backup/$(date +%Y%m%d).db"
+```
+
+
+
+Conteúdo de RESUMO_IMPLEMENTACAO.txt:
+# Implementação do Sistema de Persistência
+Data: 03/03/2024
+
+## Alterações Realizadas
+
+1. Atualização do database.py:
+   - Removida criação de tabelas via SQL puro
+   - Implementada inicialização via SQLAlchemy ORM
+   - Adicionado context manager para gerenciamento de sessões
+
+2. Atualização do modelo Conversation:
+   - Tipo VARCHAR(36) para UUID
+   - Tipo TEXT para meta (substituindo JSON)
+   - Timestamp com timezone
+   - Métodos CRUD otimizados
+
+3. Atualização do modelo Message:
+   - Tipo VARCHAR(36) para UUID
+   - Relacionamento CASCADE com Conversation
+   - Tipo TEXT para content
+   - Timestamp com timezone
+
+## Como Testar
+
+1. Inicializar o banco:
+```bash
+python3 -c "from backend.database.database import init_db; init_db()"
+```
+
+2. Verificar schema:
+```bash
+sqlite3 backend/database/nosso_projeto.db ".schema"
+```
+
+## Próximos Passos
+
+1. Implementar testes automatizados
+2. Adicionar índices para otimização
+3. Configurar sistema de backup
+4. Preparar migração para PostgreSQL
+
+Conteúdo de folderico-violet.ico:
+           3     PNG
+
+   
+IHDR         \rf   	pHYs    +    IDATx}K&uީfHgrĈT{` @v첢E q(2)P)]MV	H2Vy]էNS3}uwj BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP([/n3}9Uc; p s39lߘ		3:gR01/rM c;9pƀ _7S
+E30~w  Ur~u TLLAeHeP=Lv9]~9ᢂ8p`w~v}t_ЗBwo pk8.H儴ya1R&,
+i")0-es{~OЕ| .ҎJg H2yHv"1q8K`a
+Y"Ѝ,}ت [_qκƦ_
+ )
+!ep ׋\5_E1
+Yn
+EOta k !vQ
+  I3QoD:R״gp~CP)1/fvW(`шss6`̄Rӽڏ~ok#;FSժϗ0KnOԔ
+ CKG_&/Zf
+`۫$:֛%`d 0}yJ\)ɞ6 "\"CÏi9d˼^
+E5 !9LXE<p2#:9q,{!xL^	~|;9hL[
+E31ӛztǎ:5AKX(gsM%37 <iw΁1fhL`  w퟿\B=| HHr?Xy8k/bI~(!H{_.7Pf30166Z'xDX>\~
+ 0^~:V:68`ݐs8q$Ճ:0j>ןmq1gq߭NW񭿾
+EgtP#ݢ;؃Z?w _ oLj'g6$gR6>?{ wήt
+10 Xg=0|/<g  a½hE.[onnQe`}vEcL{F?TtE'  ;_bQX}pb
+ yszQy=%l6!mK}j?CTD y=C>uA!~IPɞ`Q}Lzf;o;Q(	NB	VcT?zqgĞ/LЋos!v G P' .
+7'3Ou
+*z`l{=X#1zΟǄ#[{} ߘD7$ʓc9*1%d`sw)^k ̀	ؚ67'qho)cpdO=]8$80
+$
+2" v".+?U	]5œ%=WYiMs}.hr;"~BԴ@bVC}|?V;I2 &p[Kx `;lNM4uB]Gxѓ^.ED$8h$\7NAE5zh "7ve1x۞d-Mnd.0ek?w955oq9su
+*Ѓ](|	JZ ~ضFN>'ƆbUy2ND5z Lә:b 8i9_PcMIH,'mIqSN?B;	G!Uu
+*(^gۿL;TbDOlM;"b'qKNHXPX/
+cx{.	M5!C`&#s{+ i
+۶g`Kh?gcegr9 ڪv`S 4]w~G! 8I/!6(7DeVb;KLPdd1o0/"Y=	5##gFѲeɽ )0q?vcf@: &j<A5sCk{?<[z4ko>viNuJ.	kk$nq\;)aΆa|ylD<C8I
+jr*W@+qbbǿw	uz	Y~?^ʀ)Oݺ2
+c~o߂$cdkoF`bFċa5 D)Q3>X!ELK[Ǔ2>fR Ygg7)rhp 	|E,.4zq_ǂ'lB3h{r˖BwJľߙ#Us4_;!bDCHuf`t
+v81 {e
+F g/_DjϣskvrPIM:L2Xc[isF j: Lf
+*3S8vh_ 9䬳^e/nd`΢)P@1mr&L(I+G3&N}
+X 3	<||C8:םs߾ٌ iwV7s2;UTxuhLd_"VGB`Jn 0擙R!/X)['Uws׹~;DՋ^-/aEwAO>-X{'{?/~kWWZX'wxdWg ܝ1e& .xɋo<"~G˩6`\mlOAs|CpqRgat_&t֍/ވ})ðhw$0msM3~3/܄k݀<|s<~  N>\mWl[gm	X^@"tm/70cPpS,k
+x=eNc൛_n~9K"l߅}ECT&}H?'Ϧ3x?_?iBv?\:Z6:T
+k!:
+|L,?OƘ3?
+Lp}O~~R?dsn'f/zyz`N^Zj91>Q8>b1z|p7qW$w"5#{}S%;O@@Ɯz ƀCU	D'^B:|/pHA
+,}qffc	\"014=Nt7o6Էv8`1iܤlJ!hvEc) 3)y./x=N_:F3=i|VI Q87{'s֞c]<yN;j0 G-Ep$s/l>şAod)0MWW^|qFbI.Xy1f˴_ʨ3N2jxǟ\`ʝMgp;mX<ZN3YvXJtȳgd6pWOd(&Ke@ER);"k98р|McWB
+8 ˯ol} k!dګ =q`?LD_<Mgwĝt1HlgYw
+n! OZ2K@9᫚ι*!Cߦ1&N9NfݒB08%7[_nt:ߕTCf	#qHQ7U]fU{ `oi⾌sqws=Nk1 %LԔN|9d79pΜxL>x%'/qY8¹`6k	u:XB֝4ހ
+_TS*
+z<Y掴/Q81JOk~z^(A ]vs4|vu'p B1 q2Ky&0C5 &3cNRn&lwOC>>il% `pV޹=7g58ٓoՉƵ[oX9j{5~RlljN*H}2k3m=W4ڝ>5{CK=	~!V1~kWz2͚AX\,X㌙ړPu'CH$
+%[Z|bɗG3i:90䜵4M/W_4W</_
+מK|Ypf>zEQ"q8%P`8Rm,gWw<eXs2i\rn\]}z
+sIj/q
+-G4ra&i|V-.רIKJI)Lզɑ6>Kj RͪDv8N=g~n\&*5zS6ly"#gԄ~QR-| +QsjD/Ѫ Qf`);o7^ggW4Y޽;Z>=6KTx#QB!49W~ǼamYا7$OXj픍ELča=)kC,>OO#֞L`pK,NOaI/fYHlJ[_ZOjP58h*?&i\_i$m5q9tq^rt}{Kgf91߽~MQhXer%q_y9ֽ4UkO	 z]^I_$3sARJO5ELi>A9ܬ\rռ 0'^B$8HRߓ9)JtyyK,kjYp `/NxK
+J/k#T)ER?yT$0ryb#Xpk igEFiɶet\;%))jcA8e\ft^
+߀sthc&~*c_K	aQ]2
+Y4k gn#	v{gD+i?eh5RFN:?f
+D?:ms?{9Y:`;E\>Q%C@ (4ؚ	ֿ*f &UՕ^%R:Z]xw0;֓솚@=br#!s2sG {\\b?CCLBp	*9;?t\&(!=&7a&*;j<\%Py{{lلjsKvCҿy{@.[i:8ѕ⛫<;^)hJ{p.X\;}%c豏B	l	9'瞘|4*HڕddK(-WkwFnA+LkY'QCslRGw4}K7<M#"~i
+/#FK%< .(q5AOCJrFsNƚvF8 tԭ.k]W&^yZZW[FAGn_ܵF4@|*]FgEaRd?T<7W/BϙCăpn=wmAˑe0k=1JuDnߕ+/ 2
+mb	`@ېw)r)<C}XկلsD"O-j{QNfP)ߘK̵zȕ~"~3}T: tl_4NUYC_,;j՞|bJ< aBz4ODo -ʜljkNg E/1r?I`緌PN=k5qJ2&%H9{zzZ._\Nj_H
+/&|j=y/w~$jCqQZBHߠCz7è e$*0Lպ}RS`BNn^{_kQPO>'`|LE 56j .ҹWKwMڦľW@"
+C%!g%)_|YBqDz~ W\ƛ\ʡ*7~{_D*߇2!rҗ;_	l1r2T-@~J߽>CS椪toҾ)rKrZ_ WW88PaRqH_+wkR%gjrt0`O=D\Æ7-ZN+3Wf=B<Smj{3?"s`/LRNw/L4ȘGVt 0e ~H$¥g =vx#m>O5I< ᎻQUs7BOtO$Z1b^^z I5F>H4jSv7wy{R9}߽񵂆,
+ӥ]xG.iWCYl!CÍujgؤ~L~h;?r
+|Ԥr7INRbU{@K¨k&@O~Y׎awhLԯQkN [y&k #EđP
+Hxi[6JW,9*wwdLAc0
+gXImRG
+%z隁M6AS5v=,y
+u,S('hJ*.Yr5ozfVrl[oH0
+6B5&5\ߵT{NfL1nõpҷc	Wğχ9~cgXX!6O9oP>\5Zdh'5az }ڈVZÄۗ/h'܅.@U	"|a4_#U9"u8jPX,!O5Eu+~ͳkPǶ(yu<tRl8jN1ڜIANٱҾi ͺEu*%xk_)'M
+̪T{2<hBy	π ~;5z&ac=jIs~h3-KmEݗ\_sWk]TEUuխ4Lо'_HƳ!D}0QIn)&Vzk!AVc$o<VvsgG!xυ$ĳMh51}/JԪ5j%k+9{u|^jHZܓm1V;QKCM^y
+z$^C:{1vz:+%XMr蛁j$$2@Qg_	i]&uډ2*ν%6fX~-8m<WEG*ŸDJ/q%3Arک0CSFO0)57zhdU0n(OVFDJG<ݯ#ttHBO.Vڏ|~D^+LI_&({3y3WG'^)#(_M+CzRIIWޫ=Y'XՒKpy {.M٥c6?~6]'t  jIDAT{v0as~zVݯOo6.}8<R{7}jBMHZ3gZ%2ȤhFyh@qKAp'QuW\?Uvt%˲Y0s$N0T^:WŠ<]?0?8Ym5kFMġ.'D
+ƣ*e(8A>)$w!Ήgxyw?k%̈́ОbDnp{P+~B`
+z{"%H'T(-Pv筹Ba[6-wوƹWg׍Ez-ܴ|4'!\A[(^\,qb Mt*Ww]G/XS!ϩ0^/[?_وPVZ*p\OIXZ[vq\R9ٹ'sE}S\Vxb_Fc¥GY&I$	$=maHъ3dσOaqo	C5 mj\0RƝyI\۝8joc\v$UcZ;=tjb iߞeGԂZ`No#\u5j$G(@e,|)tkR+w$nHMihPGڭ}{B MN?_NҌaǌP/c0pz^'*I lH1t5'ex>{>=.ANկ]HPEI5)F?K)P5	.awlda=P"Az݄tw^Ul
+lx8ja4,(f .VKO%
+^&Pؤ-yO!&$
+p{'$aѐ$G'k~ %!%E}@,)ɵ/<j6S:B)\ܴ1`sc_ZM }jb5FCNuDaH]F&{Ngγ<F%pg"#)#pRl^X>&
+@`;I?O%.K%]2-H=Pꈊbǔ eD	>9W[GE{[Tv0t z[?{Kn2b)!`Ƚ "%ߐK:"A4e? Ì2zƜb4 ;JUdV/8>bcߡ?t<"߂n{:3d5**y g4LZ~?+ur#=~VSj~JY×\"OoPe/!~^s,0z7{k$yc,NCINf7fJ5?nk?+<]RѤzĎ)FXL)sk9G_
+LKcwvHZ5ӑ+0V~5"iC`RsrsfnbVeY߄Sʀ[A=10tG=T%0Iu$6ӿ_nܶ\}	ë!#̕M)١VTkl5iJ脮j5rk蓮8W'@h'uFy#Ś)[5[' kq -&vFRgۗh-I@J=Q b zڶ̔JR2k=y딆|N1ՠ6%i+oN{MY7
+U=wI&רrGM_ef|#߸3ϥѽ߾J M6Hٱ^}ê=:|;ReJ*af PW=їIgZWM'g1zx uvlIr	r;$Յt'xKiD5}H4)Y6I4˧&NB&ɟڂ;=C,>b(?^Iy$xotcxS{di/͕b/SgjϲqPSH&s	̰KtzZ7)ϾYc=h%T/msoYϩ#q|9P¯xf0_͂*R{[DRy4j"KƏ~O	9|9%[sqk'xSrXxG^ß;6y `QY*{ϝ5 &No|Õ?9˧|+Z!
+qh#<6ǪR ~LR[x@%|}}o~Ƀ̩K΍ZS7"{5Η ޗ?\PZɞC1l_+i-=j(e9%h]	g_
+5 ̃3
+{<Jez#@]+K؞Ơ߲sHC+(Hvda 98*;W護j͎#뎾W![Mq2#]J{ z{|R=R_bJ떫G8[%lNehhB@Îc^;Q04Ğ|t2EȁJQI=up:[J51}~Qx> sC81M:TF'erJb4<{f(8O6dOY}g/, ^c/T*>wK \SRiO	Yw_JI5Z!th |λ_rAG5ׯ0<L|׶[2ϸ/&qN
+e2o@md9,R!W͸j0.#!eW@1/NͤtTX&_XGǟk<%Q~oy@c oo,Ev\u[3VhX#llS!~/UKWތR[ɗ7u%P}rwHgO%픴/#bO茼C@j{KVϒ>غewQ_n4!!a>6S2E0awQpُ2$:U_63qaLWX.[0TjpaʌE::\.LRɗܙdʣ0~	X!2̃|C2S_R(ėug,G-ի
+efwp/n)|J0	زjwbϑľؔwu	QG6
+Gp^Ee;8$}2h6N#^o+끝i*+UR*~e_&" H-
+k Ot-..s6Hիa)Lm5=u?~>=}FG? K޸S
+LG[yewd=/9
+9/4 43O>}  R)aoOJTLKZժ6홸>۱WK N,ΫYY
+yǮ_C21px4,ˑ_T~I~nCIX&lf3'`Ak4o>p8(qrx@o`5yY*^D=W\:b!
+RSsp`O -HG CFusz\WY϶\e*d7ْaOvfs|$}X# 5aVԗػ_faQ3l<1jOH/ݓ+SFpw';  Z{jf ~Ƙ_cG~|Z[JZsۀn'(,+ܫe;*?%\5rHF)Cϴѣ ?^d: 6'k7Sw_"%*W=hH-_P/^>y)|7`Wa1mho_?o;
+<>NL0YW)L'(ۇH#~t"?zsIC|?O秧G<!8pk~ѣWtrr2Y19|_Ipƀ	Mƿq٫K˅2xrc1lAe܋p~9K;Ɨq=|<{;v|ێ1|`
+ss{2W(㬳&ڣ]X%0sks¶wѝ{믾e hȫG72=@۪	\$mƈ}ˌ:
+LaRO3
+?~O<״\#<7y!>R?<gfs|o1qgc̻˴-;ޙt >!-,ܝr\`	;R33@V;DB<2HojVj*au)qk
+7ORes0)bÙ{V)
+-9i2ܱ~ӏbQ 	   @Cc&戶rmP~Gj#3$L
+OB|R
+]s`|nNWne0#yuqx'(OW	~??;FX$9sf/~'
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP(
+BP|~2@u    IENDB`
+
+Conteúdo de README.md:
+
+Aqui está uma versão refinada da apresentação do Projeto Guilherme, estruturada para que possa ser utilizada em qualquer contexto, seja para explicar a um humano ou a outra IA. Também incluí as fases do desenvolvimento e os próximos passos, garantindo que todas as informações estejam bem organizadas.
+
+Projeto Guilherme – Clone de IA Conversacional Baseado em OpenWebUI
+Introdução
+O Projeto Guilherme é um sistema de inteligência artificial conversacional, inspirado no OpenWebUI, que tem como principal objetivo criar uma interface de chat interativa e persistente, semelhante ao ChatGPT. O foco inicial do projeto está na armazenagem do histórico de conversas utilizando um banco de dados relacional (SQLite e posteriormente PostgreSQL). No futuro, pretendemos integrar um sistema de RAG (Retrieval-Augmented Generation), que permitirá à IA recuperar informações relevantes e contextualizadas, aprimorando a qualidade das respostas.
+
+O Projeto Guilherme está sendo desenvolvido por três agentes:
+
+O usuário (você), que atua como arquiteto do sistema e toma decisões estratégicas.
+ChatGPT (eu), auxiliando na organização, estruturação e planejamento do projeto.
+IA Lovable, que analisa a estrutura do OpenWebUI e fornece insights sobre a implementação.
+O desenvolvimento segue um modelo iterativo, garantindo que cada etapa esteja funcional antes de avançarmos para a próxima.
+
+Objetivo do Projeto
+O Projeto Guilherme tem como objetivo principal desenvolver uma IA conversacional independente, capaz de interagir com os usuários de forma natural, armazenar o histórico de mensagens e fornecer respostas contextualizadas utilizando técnicas avançadas de recuperação de informações.
+
+Os principais desafios que buscamos resolver são:
+
+Persistência de Memória: Criar um banco de dados que armazene corretamente o histórico de conversas, garantindo que ele possa ser recuperado após o recarregamento da página.
+Gerenciamento Eficiente de Dados: Implementar um CRUD robusto e escalável para manter as interações do usuário.
+Implementação do RAG: Utilizar um banco de dados vetorial para buscar informações relevantes e melhorar o contexto das respostas.
+Escalabilidade: Construir um sistema modular e bem estruturado que possa crescer sem grandes reescritas.
+Segurança e Performance: Garantir a proteção dos dados, evitar vazamentos e otimizar o desempenho do sistema.
+Tecnologias Utilizadas
+O projeto está sendo desenvolvido com um stack tecnológico moderno, baseado em:
+
+Flask (Python) → Backend leve e eficiente para gerenciar as requisições e a lógica do chat.
+SQLAlchemy + SQLite (futuro PostgreSQL) → Banco de dados relacional para armazenar conversas e mensagens.
+JavaScript, HTML5, CSS → Construção da interface de usuário responsiva e dinâmica.
+FastAPI (possível migração futura) → Melhor desempenho para lidar com requisições assíncronas.
+Banco Vetorial (ChromaDB, Milvus ou PGVector - a definir) → Armazenamento de embeddings para melhorar o contexto da IA.
+Estrutura do Projeto
+O Projeto Guilherme segue uma estrutura modular, inspirada no OpenWebUI, para facilitar a manutenção e escalabilidade:
+
+graphql
+Copiar
+Editar
+Projeto Guilherme/
+├── app.py                     # Aplicação principal
+├── backend/
+│   ├── database/
+│   │   ├── __init__.py        # Torna a pasta um módulo
+│   │   ├── database.py        # Gerenciamento da conexão e operações com SQLite
+│   │   └── migrations/        # Scripts de migração (ex: Alembic)
+│   ├── models/
+│   │   ├── conversations.py   # Modelo de dados para conversas
+│   │   └── messages.py        # Modelo de dados para mensagens (vinculadas às conversas)
+│   ├── routers/
+│   │   └── chats.py           # Endpoints REST para manipulação de conversas e mensagens
+│   └── utils/
+│       ├── chat_history.py    # Funções para gerenciamento do histórico de conversas
+│       └── text_processor.py  # Utilitários para processamento de texto (ex: dividir mensagens longas)
+└── requirements.txt           # Lista de dependências do projeto
+Essa estrutura reflete a separação de responsabilidades, garantindo que cada funcionalidade tenha um módulo bem definido.
+
+Fases do Desenvolvimento e Etapas
+Estamos seguindo um planejamento em fases, garantindo que cada funcionalidade seja bem implementada antes de avançarmos para a próxima.
+
+Fase 1: Implementação do CRUD com SQLite (Em Andamento)
+✅ Criar um banco de dados para armazenar conversas e mensagens.
+✅ Criar endpoints REST para manipular o histórico de conversas.
+✅ Garantir que os dados sejam persistidos corretamente após o reload da página.
+🔹 Configurar Alembic para gerenciar as migrações do banco de dados.
+🔹 Testar e corrigir eventuais falhas no CRUD.
+
+Fase 2: Preparação para a Migração para PostgreSQL
+🔹 Configurar um ambiente PostgreSQL local para testes.
+🔹 Garantir que o código esteja preparado para a migração sem precisar de grandes reescritas.
+🔹 Migrar os dados do SQLite para o PostgreSQL gradualmente.
+
+Fase 3: Implementação do RAG com Banco de Dados Vetorial
+🔹 Escolher um banco de dados vetorial (ChromaDB, Milvus ou PGVector).
+🔹 Criar um sistema para transformar mensagens em embeddings.
+🔹 Integrar a recuperação de contexto ao fluxo da IA.
+🔹 Implementar um mecanismo de busca semântica para melhorar a precisão das respostas.
+
+Fase 4: Segurança, Performance e Testes
+🔹 Implementar autenticação e controle de acessos, se necessário.
+🔹 Adicionar cache para otimizar as buscas e evitar sobrecarga no banco.
+🔹 Criar testes automatizados para validar o funcionamento do sistema.
+🔹 Otimizar a performance para suportar múltiplas interações simultâneas.
+
+Status Atual do Desenvolvimento
+🚀 Atualmente, estamos na Fase 1 (CRUD com SQLite), e nosso foco é corrigir o problema de persistência de mensagens.
+
+🚨 Problema Atual:
+
+As mensagens estão sendo armazenadas temporariamente e desaparecem após o recarregamento da página.
+✅ O que já foi feito:
+
+Criamos as tabelas no SQLite.
+Implementamos o sistema CRUD para salvar e recuperar conversas.
+🔍 O que precisa ser corrigido:
+
+Revisar a configuração do Alembic para garantir que as migrações estejam funcionando corretamente.
+Testar se os dados estão realmente sendo persistidos no banco e corrigir falhas no carregamento das mensagens.
+Conclusão e Próximos Passos
+O Projeto Guilherme está sendo desenvolvido de forma estruturada e iterativa, garantindo que cada funcionalidade seja implementada corretamente antes de avançarmos para o próximo estágio.
+
+📌 Próximo Passo Imediato:
+
+Corrigir a persistência das mensagens no SQLite antes de iniciar a migração para PostgreSQL.
+📌 Próximo Grande Passo:
+
+Configurar um ambiente PostgreSQL para testes e preparar a transição do banco de dados.
+Com esse planejamento, garantimos que o projeto evolua de forma sólida, evitando retrabalho e garantindo que cada etapa seja bem implementada. Agora, podemos continuar nossa conversa no novo chat sem perder o contexto do desenvolvimento! 🚀
+
+# Documentação Técnica do ChatAI
+
+![Arquitetura do Sistema](https://via.placeholder.com/800x400?text=Diagrama+de+Arquitetura+do+Sistema)  
+*Diagrama simplificado do fluxo de dados e componentes principais*
+
+## 1. Visão Técnica do Sistema
+
+### 1.1 Stack Tecnológica
+- **Backend**: Flask 2.0.2
+- **Banco de Dados**: SQLite (Desenvolvimento), PostgreSQL (Produção)
+- **ORM**: SQLAlchemy 1.4
+- **Processamento de Texto**: NLTK 3.6.7
+- **Interface**: HTML5, Bootstrap 5.1, JavaScript ES6
+- **Gerenciamento de Pacotes**: Poetry 1.2
+
+### 1.2 Princípios de Design
+- Padrão MVC (Model-View-Controller)
+- Injeção de Dependência para gestão de banco de dados
+- RESTful API design
+- Princípios SOLID para estruturação de classes
+
+## 2. Estrutura do Projeto (Detalhada)
+
+```
+ChatAI/
+├── app.py                     # Ponto de entrada principal
+├── config/
+│   ├── __init__.py            # Configurações de ambiente
+│   ├── settings.py            # Parâmetros de configuração
+│   └── constants.py           # Constantes globais
+├── backend/
+│   ├── database/
+│   │   ├── connectors.py      # Implementações de conexão
+│   │   ├── crud.py            # Operações CRUD genéricas
+│   │   └── migrations/        # Alembic migrations
+│   ├── models/
+│   │   ├── base.py            # Modelo base SQLAlchemy
+│   │   ├── conversation.py    # Entidade Conversation
+│   │   └── message.py         # Entidade Message
+│   ├── routes/
+│   │   ├── api/
+│   │   │   └── v1/           # Versionamento de API
+│   │   │       └── chats.py   # Endpoints REST
+│   │   └── web.py             # Rotas web
+│   ├── services/
+│   │   ├── ai_processor.py    # Integração com IA
+│   │   └── history_manager.py # Gestão de histórico
+│   └── utils/
+│       ├── decorators.py      # Decoradores customizados
+│       └── validators.py      # Validação de dados
+├── static/
+│   ├── css/                   # Estilos customizados
+│   ├── js/                    # Lógica frontend
+│   └── assets/                # Imagens e recursos
+├── templates/                 # Jinja2 templates
+│   ├── layouts/               # Layouts base
+│   └── pages/                 # Páginas específicas
+├── tests/                     # Testes automatizados
+├── pyproject.toml             # Configuração Poetry
+└── .env.example               # Variáveis de ambiente
+```
+
+## 3. Configuração do Ambiente
+
+### 3.1 Pré-requisitos
+- Python 3.9+
+- SQLite3
+- Node.js (para assets build)
+
+### 3.2 Instalação
+```bash
+# Clonar repositório
+git clone https://github.com/seu-usuario/chat-ai.git
+cd chat-ai
+
+# Configurar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Linux/MacOS
+venv\Scripts\activate     # Windows
+
+# Instalar dependências
+poetry install
+
+# Configurar variáveis de ambiente
+cp .env.example .env
+```
+
+### 3.3 Configuração do Banco de Dados
+```python
+# config/settings.py
+class Config:
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///../data/chat.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+```
+
+## 4. Modelos de Dados
+
+### 4.1 Diagrama ER
+![Diagrama Entidade-Relacionamento](https://via.placeholder.com/600x300?text=Diagrama+ER+do+Banco+de+Dados)
+
+### 4.2 Esquema do Banco
+**Conversation**
+- id: Integer (PK)
+- title: String(255)
+- created_at: DateTime
+- updated_at: DateTime
+
+**Message**
+- id: Integer (PK)
+- content: Text
+- role: Enum('user','assistant')
+- conversation_id: Integer (FK)
+- created_at: DateTime
+
+## 5. API Reference (v1)
+
+### 5.1 Endpoints Principais
+
+#### `GET /api/v1/conversations`
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "title": "Discussão sobre IA",
+      "message_count": 5,
+      "created_at": "2023-08-20T12:34:56Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total_items": 1
+  }
+}
+```
+
+#### `POST /api/v1/conversations`
+**Request:**
+```json
+{
+  "title": "Nova Conversa",
+  "initial_message": "Olá, como posso ajudar?"
+}
+```
+
+#### `POST /api/v1/conversations/{id}/messages`
+**Request:**
+```json
+{
+  "content": "Explique o que é machine learning",
+  "role": "user"
+}
+```
+
+## 6. Fluxo de Processamento
+
+```mermaid
+sequenceDiagram
+    participant Usuário
+    participant Frontend
+    participant Backend
+    participant IA
+    participant Banco de Dados
+    
+    Usuário->>Frontend: Envia mensagem
+    Frontend->>Backend: POST /api/v1/messages
+    Backend->>Banco de Dados: Registra mensagem
+    Backend->>IA: Envia para processamento
+    IA->>Backend: Retorna resposta
+    Backend->>Banco de Dados: Registra resposta
+    Backend->>Frontend: Retorna resposta formatada
+    Frontend->>Usuário: Exibe resposta
+```
+
+## 7. Testes e Qualidade
+
+### 7.1 Executando Testes
+```bash
+pytest tests/ --cov=backend --cov-report=html
+```
+
+### 7.2 Tipos de Testes
+- **Testes Unitários**: Validação de modelos e utilitários
+- **Testes de Integração**: Testes de API com requests mockados
+- **Testes E2E**: Testes completos com Selenium
+
+## 8. Deployment
+
+### 8.1 Requisitos de Produção
+- Gunicorn ou Waitress
+- Reverse Proxy (Nginx)
+- PostgreSQL
+- Redis para cache
+
+### 8.2 Dockerização
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY . .
+RUN pip install poetry && poetry install --no-dev
+
+EXPOSE 5000
+CMD ["poetry", "run", "gunicorn", "app:app", "-b", "0.0.0.0:5000"]
+```
+
+## 9. Segurança
+
+### 9.1 Boas Práticas Implementadas
+- Validação de entrada em todos os endpoints
+- Sanitização de HTML nas mensagens
+- Rate limiting (100 requests/minuto)
+- Criptografia de dados sensíveis no banco
+
+### 9.2 Melhorias Planejadas
+- Implementação de OAuth2
+- Adição de Web Application Firewall
+- Auditoria de segurança periódica
+
+## 10. Monitoramento
+
+### 10.1 Métricas Chave
+```python
+# Exemplo de métrica com Prometheus
+from prometheus_flask_exporter import PrometheusMetrics
+
+metrics = PrometheusMetrics(app)
+metrics.info('app_info', 'Application info', version='1.0.3')
+```
+
+### 10.2 Log Estruturado
+```json
+{
+  "timestamp": "2023-08-20T12:34:56Z",
+  "level": "INFO",
+  "module": "database.connectors",
+  "message": "Conexão estabelecida com sucesso",
+  "duration_ms": 45.2,
+  "conversation_id": 123
+}
+```
+
+## 11. Referências e Links Úteis
+- [Documentação Flask](https://flask.palletsprojects.com/)
+- [Guia SQLAlchemy](https://docs.sqlalchemy.org/)
+- [Políticas de Segurança](https://owasp.org/www-project-top-ten/)
+
+---
+
+Esta documentação oferece uma visão completa do sistema, desde a configuração inicial até considerações avançadas de produção. Para detalhes específicos de implementação, consulte os comentários no código e a documentação gerada automaticamente via Sphinx.
+
+Conteúdo de backup.cssx:
+:root {
+    --bg-primary: #f7f7f8;
+    --text-primary: #000000;
+    --text-secondary: rgba(0, 0, 0, 0.7);
+    --text-disabled: rgba(0, 0, 0, 0.5);
+    --action-active: #000000;
+    --action-hover: rgba(0, 0, 0, 0.08);
+    --action-selected: rgba(0, 0, 0, 0.16);
+    --action-disabled: rgba(0, 0, 0, 0.3);
+    --action-disabled-background: rgba(0, 0, 0, 0.12);
+    --msg-user: #e6e6e6;
+    --msg-bot: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #343541;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-disabled: rgba(255, 255, 255, 0.5);
+    --action-active: #fff;
+    --action-hover: rgba(255, 255, 255, 0.08);
+    --action-selected: rgba(255, 255, 255, 0.16);
+    --action-disabled: rgba(255, 255, 255, 0.3);
+    --action-disabled-background: rgba(255, 255, 255, 0.12);
+    --msg-user: #444654;  /* Cor alterada para melhor contraste no modo escuro */
+    --msg-bot: #444654;
+    --sidebar-bg: #202123;
+    --input-bg: #40414f;
+    --border-color: rgba(255, 255, 255, 0.12);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+    position: relative;
+}
+
+/* Barra Lateral */
+.sidebar {
+    position: fixed;
+    width: 260px;
+    height: 100vh;
+    background-color: var(--sidebar-bg);
+    padding: 1rem;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-260px);
+}
+
+.main-content {
+    flex: 1;
+    margin-left: 260px;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.main-content.expanded {
+    margin-left: 0;
+}
+
+.new-chat-btn {
+    background-color: #19c37d;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.new-chat-btn:hover {
+    background-color: #15a76c;
+}
+
+.settings-btn {
+    margin-top: auto;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    background-color: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.settings-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-disabled) transparent;
+}
+
+.chat-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+    background-color: var(--text-disabled);
+    border-radius: 20px;
+}
+
+.chat-item {
+    padding: 0.75rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s;
+}
+
+.chat-item:hover {
+    background-color: var(--action-hover);
+}
+
+.chat-item .action-buttons {
+    display: none;
+    gap: 0.5rem;
+}
+
+.chat-item:hover .action-buttons {
+    display: flex;
+}
+
+.chat-item .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chat-item .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+/* Top Bar */
+.top-bar {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+}
+
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.theme-toggle, .header-sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--action-hover);
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.theme-toggle:hover, .header-sidebar-toggle:hover {
+    background: var(--action-selected);
+}
+
+.model-select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* Welcome Screen */
+.welcome-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.welcome-screen h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+}
+
+.input-box {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    max-width: 800px;  /* Aumentado de 600px para 800px */
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.input-box textarea {
+    width: 100%;
+    padding: 1rem;  /* Aumentado de 0.75rem para 1rem */
+    padding-right: 3.5rem;  /* Aumentado para dar mais espaço ao botão */
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: none;
+    min-height: 56px;  /* Aumentado de 44px para 56px */
+    max-height: 200px;
+    line-height: 1.5;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.input-box textarea::-webkit-scrollbar {
+    display: none;
+}
+
+.input-box .send-btn,
+.input-box .stop-btn {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-box .send-btn:hover,
+.input-box .stop-btn:hover {
+    background-color: var(--action-hover);
+}
+
+/* Estilo do botão de Stop */
+.input-box .stop-btn {
+    position: absolute;
+    right: 5rem; /* Ajuste a posição conforme necessário */
+    bottom: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.input-box .stop-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.quick-action-btn {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    background-color: var(--action-hover);
+}
+
+/* Chat Container */
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chat-container::-webkit-scrollbar {
+    display: none;
+}
+
+.message {
+    position: relative;
+    max-width: 80%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+}
+
+.message.user {
+    background-color: var(--msg-user);
+    margin-left: auto;
+    color: var(--text-primary);
+}
+
+.message.assistant {
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+}
+
+.message .message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+.message .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.message .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+/* Input Container */
+.input-container {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Loading Animation */
+.loading {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 1rem;
+}
+
+.loading span {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-primary);
+    border-radius: 50%;
+    animation: bounce 0.5s alternate infinite;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+@keyframes bounce {
+    to {
+        transform: translateY(-4px);
+    }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .chat-container,
+    .input-container,
+    .welcome-screen {
+        padding: 1rem;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+Conteúdo de .gitkeep:
+
+
+Conteúdo de reset.css:
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+Conteúdo de typography.css:
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+Conteúdo de variables.css:
+:root {
+    --bg-primary: #f7f7f8;
+    --text-primary: #000000;
+    --text-secondary: rgba(0, 0, 0, 0.7);
+    --text-disabled: rgba(0, 0, 0, 0.5);
+    --action-active: #000000;
+    --action-hover: rgba(0, 0, 0, 0.08);
+    --action-selected: rgba(0, 0, 0, 0.16);
+    --action-disabled: rgba(0, 0, 0, 0.3);
+    --action-disabled-background: rgba(0, 0, 0, 0.12);
+    --msg-user: #e6e6e6;
+    --msg-bot: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #343541;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-disabled: rgba(255, 255, 255, 0.5);
+    --action-active: #fff;
+    --action-hover: rgba(255, 255, 255, 0.08);
+    --action-selected: rgba(255, 255, 255, 0.16);
+    --action-disabled: rgba(255, 255, 255, 0.3);
+    --action-disabled-background: rgba(255, 255, 255, 0.12);
+    --msg-user: #444654;
+    --msg-bot: #444654;
+    --sidebar-bg: #202123;
+    --input-bg: #40414f;
+    --border-color: rgba(255, 255, 255, 0.12);
+}
+
+Conteúdo de .gitkeep:
+
+
+Conteúdo de buttons.css:
+.new-chat-btn {
+    background-color: #19c37d;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.new-chat-btn:hover {
+    background-color: #15a76c;
+}
+
+.settings-btn {
+    margin-top: auto;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    background-color: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.settings-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.theme-toggle, .header-sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--action-hover);
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.theme-toggle:hover, .header-sidebar-toggle:hover {
+    background: var(--action-selected);
+}
+
+.quick-action-btn {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    background-color: var(--action-hover);
+}
+
+Conteúdo de forms.css:
+.search-box {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.input-box {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.input-box textarea {
+    width: 100%;
+    padding: 1rem;
+    padding-right: 3.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: none;
+    min-height: 56px;
+    max-height: 200px;
+    line-height: 1.5;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.input-box textarea::-webkit-scrollbar {
+    display: none;
+}
+
+.input-box .send-btn,
+.input-box .stop-btn {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-box .send-btn:hover,
+.input-box .stop-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.input-box .stop-btn {
+    right: 5rem;
+    bottom: 0.5rem;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.model-select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+}
+
+Conteúdo de .gitkeep:
+
+
+Conteúdo de container.css:
+.container {
+    display: flex;
+    height: 100vh;
+    position: relative;
+}
+
+.input-container {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Loading Animation */
+.loading {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 1rem;
+}
+
+.loading span {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-primary);
+    border-radius: 50%;
+    animation: bounce 0.5s alternate infinite;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+@keyframes bounce {
+    to {
+        transform: translateY(-4px);
+    }
+}
+
+Conteúdo de main-content.css:
+.main-content {
+    flex: 1;
+    margin-left: 260px;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.main-content.expanded {
+    margin-left: 0;
+}
+
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chat-container::-webkit-scrollbar {
+    display: none;
+}
+
+.message {
+    position: relative;
+    max-width: 80%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+}
+
+.message.user {
+    background-color: var(--msg-user);
+    margin-left: auto;
+    color: var(--text-primary);
+}
+
+.message.assistant {
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+}
+
+.message .message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+.message .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.message .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+/* Top Bar */
+.top-bar {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+}
+
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Welcome Screen */
+.welcome-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.welcome-screen h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+}
+
+Conteúdo de sidebar.css:
+.sidebar {
+    position: fixed;
+    width: 260px;
+    height: 100vh;
+    background-color: var(--sidebar-bg);
+    padding: 1rem;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-260px);
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-disabled) transparent;
+}
+
+.chat-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+    background-color: var(--text-disabled);
+    border-radius: 20px;
+}
+
+.chat-item {
+    padding: 0.75rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s;
+}
+
+.chat-item:hover {
+    background-color: var(--action-hover);
+}
+
+.chat-item .action-buttons {
+    display: none;
+    gap: 0.5rem;
+}
+
+.chat-item:hover .action-buttons {
+    display: flex;
+}
+
+.chat-item .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chat-item .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+Conteúdo de styles.css:
+/* Reset e variáveis base */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/typography.css';
+
+/* Layouts principais */
+@import './layout/container.css';
+@import './layout/sidebar.css';
+@import './layout/main-content.css';
+
+/* Componentes */
+@import './components/buttons.css';
+@import './components/forms.css';
+
+/* Temas */
+@import './themes/light-theme.css';
+@import './themes/dark-theme.css';
+
+Conteúdo de .gitkeep:
+
+
+Conteúdo de dark-theme.css:
+[data-theme="dark"] {
+    --bg-primary: #343541;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --msg-user: #444654;
+    --msg-bot: #444654;
+    --sidebar-bg: #202123;
+    --input-bg: #40414f;
+}
+
+Conteúdo de light-theme.css:
+:root {
+    --bg-primary: #f7f7f8;
+    --text-primary: #000000;
+    --text-secondary: rgba(0, 0, 0, 0.7);
+    --msg-user: #e6e6e6;
+    --msg-bot: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+}
+
+Conteúdo de chatActions.js:
+import { mostrarCarregamento } from './chatUI.js';
+import { adicionarMensagem } from './chatUI.js';
+import { adicionarMensagemAoHistorico } from './chatStorage.js';
+
+let abortController = null;
+
+export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
+    if (!mensagem.trim()) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    
+    const loadingDiv = mostrarCarregamento(chatContainer);
+    let accumulatedMessage = '';
+
+    sendBtn.style.display = 'none';
+    stopBtn.style.display = 'flex';
+
+    abortController = new AbortController();
+
+    try {
+        const response = await fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: mensagem,
+                conversation_id: window.conversaAtual?.id
+            }),
+            signal: abortController.signal
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const jsonData = JSON.parse(line.slice(6));
+                        if (jsonData.content) {
+                            accumulatedMessage += jsonData.content;
+                            loadingDiv.innerHTML = `<p>${accumulatedMessage.replace(/\n/g, '<br>')}</p>`;
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar chunk:', e);
+                    }
+                }
+            }
+        }
+
+        loadingDiv.remove();
+        adicionarMensagem(chatContainer, accumulatedMessage, 'assistant');
+        adicionarMensagemAoHistorico(accumulatedMessage, 'assistant');
+        
+    } catch (erro) {
+        if (erro.name === 'AbortError') {
+            console.log('Geração de resposta interrompida pelo usuário');
+            loadingDiv.remove();
+            if (accumulatedMessage) {
+                adicionarMensagem(chatContainer, accumulatedMessage, 'assistant');
+                adicionarMensagemAoHistorico(accumulatedMessage, 'assistant');
+            }
+        } else {
+            console.error('Erro:', erro);
+            loadingDiv.remove();
+            const mensagemErro = 'Erro ao conectar com o servidor. Por favor, tente novamente.';
+            adicionarMensagem(chatContainer, mensagemErro, 'assistant');
+            adicionarMensagemAoHistorico(mensagemErro, 'assistant');
+        }
+    } finally {
+        sendBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+        abortController = null;
+    }
+}
+
+export function interromperResposta() {
+    if (abortController) {
+        abortController.abort();
+    }
+}
+
+Conteúdo de chatStorage.js:
+import { adicionarMensagem } from './chatUI.js';
+
+export function carregarConversa(id) {
+    const conversa = window.conversas.find(c => c.id === id);
+    if (!conversa) return;
+
+    window.conversaAtual = conversa;
+    const chatContainer = document.querySelector('.chat-container');
+    const welcomeScreen = document.querySelector('.welcome-screen');
+    const inputContainer = document.querySelector('.input-container');
+    
+    welcomeScreen.style.display = 'none';
+    chatContainer.style.display = 'block';
+    inputContainer.style.display = 'block';
+    chatContainer.innerHTML = '';
+    
+    conversa.mensagens.forEach(msg => {
+        adicionarMensagem(chatContainer, msg.conteudo, msg.tipo);
+    });
+}
+
+export function atualizarListaConversas() {
+    const chatList = document.querySelector('.chat-list');
+    if (!chatList) return;
+
+    chatList.innerHTML = '';
+    window.conversas.forEach(conversa => {
+        const conversaElement = document.createElement('div');
+        conversaElement.className = 'chat-item';
+        if (window.conversaAtual && window.conversaAtual.id === conversa.id) {
+            conversaElement.classList.add('active');
+        }
+        
+        conversaElement.onclick = () => carregarConversa(conversa.id);
+        
+        const primeiraMsg = conversa.mensagens.find(m => m.tipo === 'user')?.conteudo || 'Nova conversa';
+        const titulo = conversa.titulo || primeiraMsg.substring(0, 30) + (primeiraMsg.length > 30 ? '...' : '');
+        
+        conversaElement.innerHTML = `
+            <span>${titulo}</span>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="event.stopPropagation(); window.renomearConversa('${conversa.id}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn" onclick="event.stopPropagation(); window.excluirConversa('${conversa.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        chatList.appendChild(conversaElement);
+    });
+}
+
+export function criarNovaConversa() {
+    const novaConversa = {
+        id: Date.now().toString(),
+        titulo: 'Nova conversa',
+        mensagens: []
+    };
+    
+    window.conversas.unshift(novaConversa);
+    window.conversaAtual = null;
+    atualizarListaConversas();
+}
+
+export function adicionarMensagemAoHistorico(mensagem, tipo) {
+    if (!window.conversaAtual) {
+        const novaConversa = {
+            id: Date.now().toString(),
+            titulo: 'Nova conversa',
+            mensagens: []
+        };
+        window.conversas.unshift(novaConversa);
+        window.conversaAtual = novaConversa;
+    }
+    
+    window.conversaAtual.mensagens.push({
+        tipo,
+        conteudo: mensagem,
+        timestamp: new Date().toISOString()
+    });
+    
+    atualizarListaConversas();
+}
+
+export function renomearConversa(id) {
+    const conversa = window.conversas.find(c => c.id === id);
+    if (!conversa) return;
+
+    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.titulo);
+    if (novoTitulo && novoTitulo.trim()) {
+        conversa.titulo = novoTitulo.trim();
+        atualizarListaConversas();
+    }
+}
+
+export function excluirConversa(id) {
+    if (!confirm('Tem certeza que deseja excluir esta conversa?')) return;
+    
+    window.conversas = window.conversas.filter(c => c.id !== id);
+    
+    if (window.conversaAtual && window.conversaAtual.id === id) {
+        window.conversaAtual = null;
+        const welcomeScreen = document.querySelector('.welcome-screen');
+        const chatContainer = document.querySelector('.chat-container');
+        const inputContainer = document.querySelector('.input-container');
+        
+        welcomeScreen.style.display = 'flex';
+        chatContainer.style.display = 'none';
+        inputContainer.style.display = 'none';
+        
+        document.querySelector('#welcome-input').value = '';
+        document.querySelector('#chat-input').value = '';
+    }
+    
+    atualizarListaConversas();
+}
+
+Conteúdo de chatUI.js:
+import { escapeHTML } from './chatUtils.js';
+
+export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
+    welcomeScreen.style.display = 'none';
+    chatContainer.style.display = 'block';
+    inputContainer.style.display = 'block';
+    chatContainer.innerHTML = '';
+}
+
+export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer, welcomeInput, chatInput) {
+    welcomeScreen.style.display = 'flex';
+    chatContainer.style.display = 'none';
+    inputContainer.style.display = 'none';
+    welcomeInput.value = '';
+    chatInput.value = '';
+}
+
+export function adicionarMensagem(chatContainer, texto, tipo) {
+    const mensagemDiv = document.createElement('div');
+    mensagemDiv.className = `message ${tipo}`;
+    mensagemDiv.innerHTML = `
+        <p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>
+        <div class="message-actions">
+            <button class="action-btn" onclick="copiarMensagem(this)">
+                <i class="fas fa-copy"></i>
+            </button>
+            ${tipo === 'assistant' ? `
+                <button class="action-btn" onclick="regenerarResposta(this)">
+                    <i class="fas fa-redo"></i>
+                </button>
+            ` : ''}
+        </div>
+    `;
+    chatContainer.appendChild(mensagemDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+export function mostrarCarregamento(chatContainer) {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading message assistant';
+    loadingDiv.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
+    chatContainer.appendChild(loadingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    return loadingDiv;
+}
+
+Conteúdo de chatUtils.js:
+export function escapeHTML(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
+
+export function copiarMensagem(button) {
+    const mensagem = button.closest('.message').querySelector('p').textContent;
+    navigator.clipboard.writeText(mensagem);
+}
+
+export function regenerarResposta(button) {
+    const mensagem = button.closest('.message').previousElementSibling.querySelector('p').textContent;
+    const chatContainer = button.closest('.chat-container');
+    const chatInput = document.querySelector('#chat-input');
+    const sendBtn = document.querySelector('#send-btn');
+    const stopBtn = document.querySelector('#stop-btn');
+    
+    if (chatInput && sendBtn && stopBtn) {
+        chatInput.value = mensagem;
+        const form = chatInput.closest('form');
+        if (form) {
+            form.dispatchEvent(new Event('submit'));
+        }
+    }
+}
+
+Conteúdo de chat.js:
+import { 
+    iniciarChat,
+    mostrarTelaInicial,
+    adicionarMensagem,
+    mostrarCarregamento
+} from './chat/chatUI.js';
+
+import {
+    enviarMensagem,
+    interromperResposta
+} from './chat/chatActions.js';
+
+import {
+    carregarConversa,
+    atualizarListaConversas,
+    criarNovaConversa,
+    adicionarMensagemAoHistorico,
+    renomearConversa,
+    excluirConversa
+} from './chat/chatStorage.js';
+
+export {
+    iniciarChat,
+    mostrarTelaInicial,
+    adicionarMensagem,
+    enviarMensagem,
+    interromperResposta,
+    carregarConversa,
+    atualizarListaConversas,
+    criarNovaConversa,
+    adicionarMensagemAoHistorico,
+    renomearConversa,
+    excluirConversa
+};
+
+Conteúdo de events.js:
+// Importações necessárias
+import { toggleTheme } from './theme.js';
+import { toggleSidebar } from './sidebar.js';
+import { configureTextarea } from './textarea.js';
+import { enviarMensagem } from './chat/chatActions.js'; // Importando a função enviarMensagem
+
+export function configureEventListeners() {
+    const themeToggle = document.querySelector('.theme-toggle');
+    const modelSelect = document.querySelector('.model-select');
+    const sidebarToggle = document.querySelector('.sidebar-toggle');
+    const headerSidebarToggle = document.querySelector('.header-sidebar-toggle');
+    const chatInput = document.querySelector('#chat-input'); // Campo de entrada de chat
+    const sendButton = document.querySelector('#send-button'); // Botão de envio
+
+    // Event Listeners
+    themeToggle?.addEventListener('click', toggleTheme);
+    sidebarToggle?.addEventListener('click', toggleSidebar);
+    headerSidebarToggle?.addEventListener('click', toggleSidebar);
+
+    modelSelect?.addEventListener('change', (e) => {
+        window.currentModel = e.target.value;
+    });
+
+    // Configurar textareas
+    configureTextarea(chatInput);
+    configureTextarea(document.querySelector('#welcome-input'));
+
+    // Adicionando evento de envio de mensagem
+    sendButton?.addEventListener('click', () => {
+        const mensagem = chatInput.value;
+        enviarMensagem(mensagem, chatInput, document.querySelector('.chat-container'), sendButton, document.querySelector('#stop-button'));
+    });
+
+    chatInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const mensagem = chatInput.value;
+            enviarMensagem(mensagem, chatInput, document.querySelector('.chat-container'), sendButton, document.querySelector('#stop-button'));
+            e.preventDefault(); // Evita a quebra de linha
+        }
+    });
+}
+
+
+Conteúdo de init.js:
+import { initializeTheme } from './theme.js';
+import { configureEventListeners } from './events.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
+    configureEventListeners();
+});
+
+Conteúdo de main.js:
+import './init.js';
+import { 
+    iniciarChat,
+    mostrarTelaInicial,
+    adicionarMensagem,
+    enviarMensagem,
+    interromperResposta,
+    carregarConversa,
+    atualizarListaConversas,
+    criarNovaConversa,
+    adicionarMensagemAoHistorico,
+    renomearConversa,
+    excluirConversa
+} from './chat.js';
+
+// Estado global
+window.currentModel = 'gemma2:2b';
+window.conversas = [];
+window.conversaAtual = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const welcomeForm = document.getElementById('welcome-form');
+    const chatForm = document.getElementById('chat-form');
+    const chatContainer = document.querySelector('.chat-container');
+    const welcomeInput = document.getElementById('welcome-input');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const newChatBtn = document.querySelector('.new-chat-btn');
+
+    // Configurar botão de nova conversa
+    newChatBtn?.addEventListener('click', () => {
+        window.conversaAtual = null;
+        mostrarTelaInicial(
+            document.querySelector('.welcome-screen'),
+            chatContainer,
+            document.querySelector('.input-container'),
+            welcomeInput,
+            chatInput
+        );
+    });
+
+    welcomeForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = welcomeInput.value.trim();
+        if (!message) return;
+
+        // Criar nova conversa se não existir
+        if (!window.conversaAtual) {
+            const novaConversa = {
+                id: Date.now().toString(),
+                titulo: 'Nova conversa',
+                mensagens: []
+            };
+            window.conversas.unshift(novaConversa);
+            window.conversaAtual = novaConversa;
+            atualizarListaConversas();
+        }
+
+        iniciarChat(
+            document.querySelector('.welcome-screen'),
+            chatContainer,
+            document.querySelector('.input-container')
+        );
+
+        adicionarMensagem(chatContainer, message, 'user');
+        adicionarMensagemAoHistorico(message, 'user');
+        
+        await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
+    });
+
+    chatForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        adicionarMensagem(chatContainer, message, 'user');
+        adicionarMensagemAoHistorico(message, 'user');
+        
+        await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
+    });
+
+    // Configurar botão de parar resposta
+    stopBtn?.addEventListener('click', () => {
+        interromperResposta();
+    });
+
+    // Inicializar lista de conversas
+    atualizarListaConversas();
+});
+
+// Expor funções globalmente
+window.carregarConversa = carregarConversa;
+window.criarNovaConversa = criarNovaConversa;
+window.adicionarMensagemAoHistorico = adicionarMensagemAoHistorico;
+window.interromperResposta = interromperResposta;
+window.renomearConversa = renomearConversa;
+window.excluirConversa = excluirConversa;
+
+Conteúdo de sidebar.js:
+export function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+    
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('expanded');
+}
+
+Conteúdo de textarea.js:
+export function configureTextarea(textarea) {
+    if (!textarea) return;
+
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const form = this.closest('form');
+            if (form) {
+                const event = new Event('submit', {
+                    'bubbles': true,
+                    'cancelable': true
+                });
+                form.dispatchEvent(event);
+            }
+        }
+    });
+}
+
+Conteúdo de theme.js:
+// Estado do tema
+let currentTheme = 'light';
+
+// Função para alternar o tema
+export function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('theme', currentTheme);
+    
+    const themeToggle = document.querySelector('.theme-toggle');
+    if (themeToggle) {
+        themeToggle.innerHTML = currentTheme === 'light' 
+            ? '<i class="fas fa-moon"></i>' 
+            : '<i class="fas fa-sun"></i>';
+    }
+}
+
+// Função para inicializar o tema
+export function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        toggleTheme();
+    }
+}
+
+Conteúdo de utils.js:
+export function escapeHTML(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
+
+export function mostrarCarregamento(chatContainer) {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading message assistant';
+    loadingDiv.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
+    chatContainer.appendChild(loadingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    return loadingDiv;
+}
+
+Conteúdo de index.html:
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Barra Lateral -->
+        <aside class="sidebar">
+            <button class="new-chat-btn">
+                <i class="fas fa-plus"></i>
+                Novo Chat
+            </button>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Pesquisar conversas...">
+            </div>
+            <div class="chat-list">
+                <!-- Lista de conversas será preenchida via JavaScript -->
+            </div>
+            <button class="settings-btn">
+                <i class="fas fa-cog"></i>
+                Configurações
+            </button>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <div class="top-bar">
+                <button class="header-sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="program-name">AI  </h1>
+                <div class="top-bar-actions">
+                    <button class="theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <select class="model-select">
+                        <option value="gemma2:2b">gemma2:2b</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tela de Boas-vindas -->
+            <div class="welcome-screen">
+                <h1>Como posso ajudar?</h1>
+                <form class="input-box" id="welcome-form">
+                    <textarea id="welcome-input" placeholder="Envie uma mensagem..." rows="1"></textarea>
+                    <button type="submit" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+                <div class="quick-actions">
+                    <button class="quick-action-btn">
+                        <i class="fas fa-lightbulb"></i>
+                        Sugerir ideias
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-file-alt"></i>
+                        Resumir texto
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-code"></i>
+                        Ajuda com código
+                    </button>
+                    <button class="quick-action-btn">
+                        <i class="fas fa-question-circle"></i>
+                        Tirar dúvidas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Container de Chat -->
+            <div class="chat-container" style="display: none;">
+                <!-- Mensagens serão inseridas aqui -->
+            </div>
+
+            <!-- Container de Input -->
+            <div class="input-container" style="display: none;">
+                <form class="input-box" id="chat-form">
+                    <textarea id="chat-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+                    <button type="submit" class="send-btn" id="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+
+
+Conteúdo de chat_history.py:
+import json
+from datetime import datetime
+import os
+
+HISTORY_FILE = 'data/chat_history.json'
+
+def ensure_data_directory():
+    os.makedirs('data', exist_ok=True)
+
+def get_conversation_history():
+    ensure_data_directory()
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Erro ao carregar histórico: {str(e)}")
+        return []  # Retorna uma lista vazia em caso de erro
+    except Exception as e:
+        print(f"Erro ao carregar histórico: {str(e)}")
+        return []  # Retorna uma lista vazia em caso de erro
+
+def get_conversation_by_id(conversation_id):
+    """Busca uma conversa específica pelo ID"""
+    conversations = get_conversation_history()
+    for conversation in conversations:
+        if conversation['id'] == conversation_id:
+            return conversation
+    return None
+  
+def save_conversation(message, response, conversation_id=None):
+    """
+    Salva ou atualiza uma conversa no histórico.
+    Se conversation_id for fornecido, atualiza a conversa existente.
+    Caso contrário, cria uma nova conversa.
+    """
+    ensure_data_directory()
+    try:
+        # Carrega o histórico atual
+        conversations = get_conversation_history()
+        
+        if conversation_id:
+            # Atualiza conversa existente
+            updated = False
+            for conversation in conversations:
+                if conversation['id'] == conversation_id:
+                    conversation['messages'].extend([
+                        {'role': 'user', 'content': message},
+                        {'role': 'assistant', 'content': response}
+                    ])
+                    conversation['timestamp'] = datetime.now().isoformat()
+                    updated = True
+                    break
+            
+            # Se não encontrou o ID, cria uma nova conversa (backup seguro)
+            if not updated:
+                conversation_id = str(len(conversations) + 1)
+                new_conversation = {
+                    'id': conversation_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'messages': [
+                        {'role': 'user', 'content': message},
+                        {'role': 'assistant', 'content': response}
+                    ]
+                }
+                conversations.append(new_conversation)
+        else:
+            # Cria nova conversa
+            conversation_id = str(len(conversations) + 1)
+            new_conversation = {
+                'id': conversation_id,
+                'timestamp': datetime.now().isoformat(),
+                'messages': [
+                    {'role': 'user', 'content': message},
+                    {'role': 'assistant', 'content': response}
+                ]
+            }
+            conversations.append(new_conversation)
+        
+        # Salva as conversas atualizadas
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(conversations, f, ensure_ascii=False, indent=2)
+        
+        return conversation_id
+    except Exception as e:
+        print(f"Erro ao salvar conversa: {str(e)}")
+        return None
+ 
+
+Conteúdo de text_processor.py:
+def split_text(text, words_per_chunk=300):
+    """
+    Divide um texto em chunks menores baseado no número de palavras.
+    """
+    words = text.split()
+    chunks = []
+    
+    for i in range(0, len(words), words_per_chunk):
+        chunk = ' '.join(words[i:i + words_per_chunk])
+        chunks.append(chunk)
+    
+    return chunks
+
+
+==========================================
+Estrutura de pastas:
+==========================================
+conversational-nexus
+    app.py
+    atualiza-git.bat
+    backend
+        database
+            database.py
+            nosso_projeto.db
+        models
+            conversations.py
+            messages.py
+        routers
+            chats.py
+        utils
+            chat_history.py
+            text_processor.py
+            __init__.py
+        __init__.py
+    codigo_completo.txt
+    desktop.ini
+    docs
+        RESUMO_ALTERACOES.txt
+        RESUMO_IMPLEMENTACAO.txt
+    folderico-violet.ico
+    README.md
+    static
+        css
+            backup.cssx
+            base
+                .gitkeep
+                reset.css
+                typography.css
+                variables.css
+            components
+                .gitkeep
+                buttons.css
+                forms.css
+            layout
+                .gitkeep
+                container.css
+                main-content.css
+                sidebar.css
+            styles.css
+            themes
+                .gitkeep
+                dark-theme.css
+                light-theme.css
+        js
+            chat
+                chatActions.js
+                chatStorage.js
+                chatUI.js
+                chatUtils.js
+            chat.js
+            events.js
+            init.js
+            main.js
+            sidebar.js
+            textarea.js
+            theme.js
+            utils.js
+    templates
+        index.html
+    utils
+        chat_history.py
+        text_processor.py

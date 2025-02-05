@@ -1,0 +1,17 @@
+/* Reset e variáveis base */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/typography.css';
+
+/* Layouts principais */
+@import './layout/container.css';
+@import './layout/sidebar.css';
+@import './layout/main-content.css';
+
+/* Componentes */
+@import './components/buttons.css';
+@import './components/forms.css';
+
+/* Temas */
+@import './themes/light-theme.css';
+@import './themes/dark-theme.css';

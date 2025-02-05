@@ -1,0 +1,33 @@
+:root {
+    --bg-primary: #f7f7f8;
+    --text-primary: #000000;
+    --text-secondary: rgba(0, 0, 0, 0.7);
+    --text-disabled: rgba(0, 0, 0, 0.5);
+    --action-active: #000000;
+    --action-hover: rgba(0, 0, 0, 0.08);
+    --action-selected: rgba(0, 0, 0, 0.16);
+    --action-disabled: rgba(0, 0, 0, 0.3);
+    --action-disabled-background: rgba(0, 0, 0, 0.12);
+    --msg-user: #e6e6e6;
+    --msg-bot: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #343541;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-disabled: rgba(255, 255, 255, 0.5);
+    --action-active: #fff;
+    --action-hover: rgba(255, 255, 255, 0.08);
+    --action-selected: rgba(255, 255, 255, 0.16);
+    --action-disabled: rgba(255, 255, 255, 0.3);
+    --action-disabled-background: rgba(255, 255, 255, 0.12);
+    --msg-user: #444654;
+    --msg-bot: #444654;
+    --sidebar-bg: #202123;
+    --input-bg: #40414f;
+    --border-color: rgba(255, 255, 255, 0.12);
+}
