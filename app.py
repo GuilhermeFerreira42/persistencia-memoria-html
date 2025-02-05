@@ -2,11 +2,16 @@ from flask import Flask, render_template, request, jsonify, Response
 import json
 from datetime import datetime
 import requests
-from backend.database.database import init_db
+from backend.database.database import init_db, get_db
 from backend.utils.chat_history import save_conversation, get_conversation_history
 from backend.utils.text_processor import split_text
 from backend.routers.chats import chats_bp
-from backend.models.conversations import Conversation  # Importando o modelo de conversas
+from backend.models.conversations import Conversation
+import logging
+
+# Configuração de logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
@@ -22,38 +27,50 @@ MODEL_NAME = "gemma2:2b"
 
 @app.route('/')
 def home():
-    conversations = get_conversation_history()
-    return render_template('index.html', conversations=conversations)
+    try:
+        conversations = get_conversation_history()
+        logger.debug(f"Carregando histórico de conversas: {len(conversations)} conversas encontradas")
+        return render_template('index.html', conversations=conversations)
+    except Exception as e:
+        logger.error(f"Erro ao carregar histórico de conversas: {str(e)}")
+        return render_template('index.html', conversations=[])
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    data = request.json
-    message = data.get('message', '')
-    conversation_id = data.get('conversation_id')
+    try:
+        data = request.json
+        message = data.get('message', '')
+        conversation_id = data.get('conversation_id')
+        
+        logger.debug(f"Recebida mensagem para conversation_id: {conversation_id}")
 
-    if len(message.split()) > 300:
-        chunks = split_text(message)
-        responses = []
-        for chunk in chunks:
-            response = process_with_ai(chunk)
-            responses.append(response)
-        final_response = " ".join(responses)
-    else:
-        final_response = None
+        if not conversation_id:
+            # Cria nova conversa se não existir
+            conversation = Conversation(title="Nova Conversa")
+            with get_db() as db:
+                db.add(conversation)
+                db.commit()
+                conversation_id = conversation.id
+                logger.debug(f"Nova conversa criada com ID: {conversation_id}")
 
-    def generate_streamed_response():
-        for part in process_with_ai_stream(message):
-            yield f"data: {json.dumps({'content': part})}\n\n"
+        def generate_streamed_response():
+            accumulated_response = ""
+            for part in process_with_ai_stream(message):
+                accumulated_response += part
+                yield f"data: {json.dumps({'content': part})}\n\n"
+            
+            # Salva a conversa após acumular toda a resposta
+            logger.debug(f"Salvando conversa {conversation_id} com mensagem: {message}")
+            saved_id = save_conversation(message, accumulated_response, conversation_id)
+            logger.debug(f"Conversa salva com ID: {saved_id}")
 
-    response = Response(generate_streamed_response(), content_type="text/event-stream")
-    response.headers['Cache-Control'] = 'no-cache'
+        response = Response(generate_streamed_response(), content_type="text/event-stream")
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
 
-    if final_response is not None:
-        if conversation_id is None:  # Verifica se o conversation_id é None
-            conversation_id = Conversation.create()  # Gera um novo conversation_id
-        conversation_id = save_conversation(message, final_response, conversation_id)
-
-    return response
+    except Exception as e:
+        logger.error(f"Erro ao processar mensagem: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 def process_with_ai(text):
     try:
