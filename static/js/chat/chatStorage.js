@@ -1,33 +1,21 @@
 import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
-    console.log("Tentando carregar conversa:", id);
     const conversa = window.conversas.find(c => c.id === id);
-    if (!conversa) {
-        console.warn("Conversa não encontrada:", id);
-        return;
-    }
+    if (!conversa) return;
 
-    console.log("Conversa encontrada:", conversa);
     window.conversaAtual = conversa;
-    
     const chatContainer = document.querySelector('.chat-container');
     const welcomeScreen = document.querySelector('.welcome-screen');
     const inputContainer = document.querySelector('.input-container');
-    
-    if (!chatContainer || !welcomeScreen || !inputContainer) {
-        console.error("Elementos do DOM não encontrados");
-        return;
-    }
     
     welcomeScreen.style.display = 'none';
     chatContainer.style.display = 'block';
     inputContainer.style.display = 'block';
     chatContainer.innerHTML = '';
     
-    console.log("Renderizando mensagens da conversa:", conversa.messages);
-    conversa.messages.forEach(msg => {
-        adicionarMensagem(chatContainer, msg.content, msg.role);
+    conversa.mensagens.forEach(msg => {
+        adicionarMensagem(chatContainer, msg.conteudo, msg.tipo);
     });
 }
 

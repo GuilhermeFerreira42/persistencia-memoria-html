@@ -15,12 +15,11 @@ import {
 
 // Estado global
 window.currentModel = 'gemma2:2b';
-window.conversas = window.conversas || [];
+window.conversas = [];
 window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Página carregada, iniciando configuração...");
-    console.log("Estado inicial das conversas:", window.conversas);
     
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
@@ -41,18 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
         stopBtn: !!stopBtn,
         newChatBtn: !!newChatBtn
     });
-
-    // Carregar conversas iniciais
-    if (window.conversas && window.conversas.length > 0) {
-        console.log("Carregando conversas iniciais...");
-        atualizarListaConversas();
-        
-        // Carrega a primeira conversa se existir
-        if (!window.conversaAtual && window.conversas[0]) {
-            console.log("Carregando primeira conversa:", window.conversas[0]);
-            carregarConversa(window.conversas[0].id);
-        }
-    }
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
