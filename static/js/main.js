@@ -19,6 +19,8 @@ window.conversas = [];
 window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("Página carregada, iniciando configuração...");
+    
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
     const chatContainer = document.querySelector('.chat-container');
@@ -28,8 +30,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
 
+    console.log("Elementos do DOM carregados:", {
+        welcomeForm: !!welcomeForm,
+        chatForm: !!chatForm,
+        chatContainer: !!chatContainer,
+        welcomeInput: !!welcomeInput,
+        chatInput: !!chatInput,
+        sendBtn: !!sendBtn,
+        stopBtn: !!stopBtn,
+        newChatBtn: !!newChatBtn
+    });
+
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
+        console.log("Iniciando nova conversa...");
         window.conversaAtual = null;
         mostrarTelaInicial(
             document.querySelector('.welcome-screen'),
@@ -45,8 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = welcomeInput.value.trim();
         if (!message) return;
 
-        // Criar nova conversa se não existir
+        console.log("Processando mensagem inicial:", message);
+
         if (!window.conversaAtual) {
+            console.log("Criando nova conversa...");
             const novaConversa = {
                 id: Date.now().toString(),
                 titulo: 'Nova conversa',
@@ -54,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             window.conversas.unshift(novaConversa);
             window.conversaAtual = novaConversa;
+            console.log("Nova conversa criada:", novaConversa);
             atualizarListaConversas();
         }
 
@@ -74,19 +91,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = chatInput.value.trim();
         if (!message) return;
 
+        console.log("Processando mensagem do chat:", message);
+
         adicionarMensagem(chatContainer, message, 'user');
         adicionarMensagemAoHistorico(message, 'user');
         
         await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
     });
 
-    // Configurar botão de parar resposta
     stopBtn?.addEventListener('click', () => {
+        console.log("Interrompendo resposta...");
         interromperResposta();
     });
 
     // Inicializar lista de conversas
+    console.log("Inicializando lista de conversas...");
     atualizarListaConversas();
+    console.log("Estado inicial das conversas:", window.conversas);
 });
 
 // Expor funções globalmente

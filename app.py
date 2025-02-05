@@ -9,8 +9,11 @@ from backend.routers.chats import chats_bp
 from backend.models.conversations import Conversation
 import logging
 
-# Configuração de logging
-logging.basicConfig(level=logging.DEBUG)
+# Configuração de logging mais detalhada
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
@@ -28,11 +31,13 @@ MODEL_NAME = "gemma2:2b"
 @app.route('/')
 def home():
     try:
+        logger.debug("Iniciando carregamento do histórico de conversas...")
         conversations = get_conversation_history()
-        logger.debug(f"Carregando histórico de conversas: {len(conversations)} conversas encontradas")
+        logger.debug(f"Histórico carregado com sucesso: {len(conversations)} conversas encontradas")
+        logger.debug(f"Dados das conversas: {json.dumps(conversations, indent=2)}")
         return render_template('index.html', conversations=conversations)
     except Exception as e:
-        logger.error(f"Erro ao carregar histórico de conversas: {str(e)}")
+        logger.error(f"Erro ao carregar histórico de conversas: {str(e)}", exc_info=True)
         return render_template('index.html', conversations=[])
 
 @app.route('/send_message', methods=['POST'])
@@ -43,9 +48,10 @@ def send_message():
         conversation_id = data.get('conversation_id')
         
         logger.debug(f"Recebida mensagem para conversation_id: {conversation_id}")
+        logger.debug(f"Conteúdo da mensagem: {message}")
 
         if not conversation_id:
-            # Cria nova conversa se não existir
+            logger.debug("Criando nova conversa...")
             conversation = Conversation(title="Nova Conversa")
             with get_db() as db:
                 db.add(conversation)
@@ -59,8 +65,10 @@ def send_message():
                 accumulated_response += part
                 yield f"data: {json.dumps({'content': part})}\n\n"
             
-            # Salva a conversa após acumular toda a resposta
-            logger.debug(f"Salvando conversa {conversation_id} com mensagem: {message}")
+            logger.debug(f"Salvando conversa {conversation_id}")
+            logger.debug(f"Mensagem do usuário: {message}")
+            logger.debug(f"Resposta acumulada: {accumulated_response}")
+            
             saved_id = save_conversation(message, accumulated_response, conversation_id)
             logger.debug(f"Conversa salva com ID: {saved_id}")
 
@@ -69,7 +77,7 @@ def send_message():
         return response
 
     except Exception as e:
-        logger.error(f"Erro ao processar mensagem: {str(e)}")
+        logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 def process_with_ai(text):
