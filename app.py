@@ -9,7 +9,6 @@ from backend.routers.chats import chats_bp
 from backend.models.conversations import Conversation
 import logging
 
-# Configuração de logging mais detalhada
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -19,10 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
 
-# Inicializa o banco de dados
 init_db()
-
-# Registra o blueprint das rotas de chat
 app.register_blueprint(chats_bp, url_prefix='/api/chats')
 
 API_URL = "http://localhost:11434/v1/chat/completions"
