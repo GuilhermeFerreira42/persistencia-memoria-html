@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -8,7 +9,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
     <script>
-        // Inicializa as conversas com os dados do backend
+        // Inicializa as conversas com os dados do backend e adiciona logs
         window.conversas = {{ conversations|tojson|safe }};
         console.log("Conversas carregadas do backend:", window.conversas);
     </script>
