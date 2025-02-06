@@ -1,8 +1,12 @@
 import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
+    console.log("Carregando conversa:", id);
     const conversa = window.conversas.find(c => c.id === id);
-    if (!conversa) return;
+    if (!conversa) {
+        console.error(`Conversa com ID ${id} não encontrada.`);
+        return;
+    }
 
     window.conversaAtual = conversa;
     const chatContainer = document.querySelector('.chat-container');
@@ -14,16 +18,28 @@ export function carregarConversa(id) {
     inputContainer.style.display = 'block';
     chatContainer.innerHTML = '';
     
+    console.log("Carregando mensagens da conversa:", conversa.mensagens);
     conversa.mensagens.forEach(msg => {
-        adicionarMensagem(chatContainer, msg.conteudo, msg.tipo);
+        adicionarMensagem(chatContainer, msg.content, msg.role);
     });
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 export function atualizarListaConversas() {
     const chatList = document.querySelector('.chat-list');
-    if (!chatList) return;
+    if (!chatList) {
+        console.error("Elemento .chat-list não encontrado.");
+        return;
+    }
 
     chatList.innerHTML = '';
+    
+    if (!Array.isArray(window.conversas)) {
+        console.error("window.conversas não é um array");
+        return;
+    }
+
     window.conversas.forEach(conversa => {
         const conversaElement = document.createElement('div');
         conversaElement.className = 'chat-item';
@@ -33,7 +49,7 @@ export function atualizarListaConversas() {
         
         conversaElement.onclick = () => carregarConversa(conversa.id);
         
-        const primeiraMsg = conversa.mensagens.find(m => m.tipo === 'user')?.conteudo || 'Nova conversa';
+        const primeiraMsg = conversa.mensagens.find(m => m.role === 'user')?.content || 'Nova conversa';
         const titulo = conversa.titulo || primeiraMsg.substring(0, 30) + (primeiraMsg.length > 30 ? '...' : '');
         
         conversaElement.innerHTML = `

@@ -36,16 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
 
-    console.log("Elementos do DOM carregados:", {
-        welcomeForm: !!welcomeForm,
-        chatForm: !!chatForm,
-        chatContainer: !!chatContainer,
-        welcomeInput: !!welcomeInput,
-        chatInput: !!chatInput,
-        sendBtn: !!sendBtn,
-        stopBtn: !!stopBtn,
-        newChatBtn: !!newChatBtn
-    });
+    // Se houver conversas, carrega a mais recente
+    if (window.conversas && window.conversas.length > 0) {
+        console.log("Carregando última conversa ativa...");
+        carregarConversa(window.conversas[0].id);
+    }
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
@@ -71,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Criando nova conversa...");
             const novaConversa = {
                 id: Date.now().toString(),
-                titulo: 'Nova conversa',
+                titulo: 'Nova Conversa',
                 mensagens: []
             };
             window.conversas.unshift(novaConversa);
@@ -113,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar lista de conversas
     console.log("Inicializando lista de conversas...");
     atualizarListaConversas();
-    console.log("Estado inicial das conversas:", window.conversas);
 });
 
 // Expor funções globalmente
