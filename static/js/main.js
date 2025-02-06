@@ -13,8 +13,6 @@ import {
     excluirConversa
 } from './chat.js';
 
-import { recuperarEstadoLocal } from './chat/chatStorage.js';
-
 // Estado global
 window.currentModel = 'gemma2:2b';
 window.conversas = [];
@@ -22,10 +20,6 @@ window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Página carregada, iniciando configuração...");
-    
-    // Tenta recuperar o estado do localStorage
-    const estadoRecuperado = recuperarEstadoLocal();
-    console.log("Estado recuperado do localStorage:", estadoRecuperado);
     
     if (!Array.isArray(window.conversas)) {
         console.error("Erro: window.conversas não é um array.");

@@ -1,35 +1,5 @@
 import { adicionarMensagem } from './chatUI.js';
 
-const STORAGE_KEY = 'chat_state';
-
-function salvarEstadoLocal() {
-    const estado = {
-        conversaAtual: window.conversaAtual?.id,
-        conversas: window.conversas
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
-    console.log("Estado salvo localmente:", estado);
-}
-
-function recuperarEstadoLocal() {
-    const estadoSalvo = localStorage.getItem(STORAGE_KEY);
-    if (estadoSalvo) {
-        try {
-            const estado = JSON.parse(estadoSalvo);
-            window.conversas = estado.conversas || [];
-            if (estado.conversaAtual) {
-                window.conversaAtual = window.conversas.find(c => c.id === estado.conversaAtual) || null;
-            }
-            console.log("Estado recuperado do localStorage:", estado);
-            return true;
-        } catch (e) {
-            console.error("Erro ao recuperar estado:", e);
-            return false;
-        }
-    }
-    return false;
-}
-
 export function carregarConversa(id) {
     console.log("Carregando conversa:", id);
     const conversa = window.conversas.find(c => c.id === id);
@@ -54,7 +24,6 @@ export function carregarConversa(id) {
     });
 
     chatContainer.scrollTop = chatContainer.scrollHeight;
-    salvarEstadoLocal();
 }
 
 export function atualizarListaConversas() {
@@ -96,8 +65,18 @@ export function atualizarListaConversas() {
         `;
         chatList.appendChild(conversaElement);
     });
+}
+
+export function criarNovaConversa() {
+    const novaConversa = {
+        id: Date.now().toString(),
+        titulo: 'Nova conversa',
+        mensagens: []
+    };
     
-    salvarEstadoLocal();
+    window.conversas.unshift(novaConversa);
+    window.conversaAtual = null;
+    atualizarListaConversas();
 }
 
 export function adicionarMensagemAoHistorico(mensagem, tipo) {
@@ -118,7 +97,37 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
     });
     
     atualizarListaConversas();
-    salvarEstadoLocal();
 }
 
-export { recuperarEstadoLocal };
+export function renomearConversa(id) {
+    const conversa = window.conversas.find(c => c.id === id);
+    if (!conversa) return;
+
+    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.titulo);
+    if (novoTitulo && novoTitulo.trim()) {
+        conversa.titulo = novoTitulo.trim();
+        atualizarListaConversas();
+    }
+}
+
+export function excluirConversa(id) {
+    if (!confirm('Tem certeza que deseja excluir esta conversa?')) return;
+    
+    window.conversas = window.conversas.filter(c => c.id !== id);
+    
+    if (window.conversaAtual && window.conversaAtual.id === id) {
+        window.conversaAtual = null;
+        const welcomeScreen = document.querySelector('.welcome-screen');
+        const chatContainer = document.querySelector('.chat-container');
+        const inputContainer = document.querySelector('.input-container');
+        
+        welcomeScreen.style.display = 'flex';
+        chatContainer.style.display = 'none';
+        inputContainer.style.display = 'none';
+        
+        document.querySelector('#welcome-input').value = '';
+        document.querySelector('#chat-input').value = '';
+    }
+    
+    atualizarListaConversas();
+}
