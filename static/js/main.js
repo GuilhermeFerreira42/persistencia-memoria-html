@@ -20,6 +20,12 @@ window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Página carregada, iniciando configuração...");
+    console.log("Estado inicial das conversas:", window.conversas);
+    
+    if (!Array.isArray(window.conversas)) {
+        console.error("Erro: window.conversas não é um array.");
+        window.conversas = [];
+    }
     
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');

@@ -9,6 +9,7 @@ from backend.routers.chats import chats_bp
 from backend.models.conversations import Conversation
 import logging
 
+# Configuração de logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
 
+# Inicialização do banco de dados
 init_db()
 app.register_blueprint(chats_bp, url_prefix='/api/chats')
 
