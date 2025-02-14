@@ -1,4 +1,4 @@
-// static/js/main.js
+
 import './init.js';
 import { 
     iniciarChat,
@@ -13,7 +13,7 @@ import {
     renomearConversa,
     excluirConversa
 } from './chat.js';
-import { initCommandMenu } from './commandMenu.js';
+import { initCommandMenu } from './modules/commandMenu.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
