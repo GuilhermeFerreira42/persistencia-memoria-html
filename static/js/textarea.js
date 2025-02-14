@@ -1,4 +1,3 @@
-
 export function configureTextarea(textarea) {
     if (!textarea) return;
 
@@ -8,23 +7,7 @@ export function configureTextarea(textarea) {
     });
 
     textarea.addEventListener('keydown', function(e) {
-        const nearestCommandMenu = document.querySelector('#command-menu, #chat-command-menu');
-        const isMenuVisible = nearestCommandMenu && 
-                            nearestCommandMenu.style.display === 'block';
-
-        // Permitir nova linha com Shift+Enter
-        if (e.key === 'Enter' && e.shiftKey) {
-            return;
-        }
-
-        // Impedir submit se o menu estiver visível
-        if (e.key === 'Enter' && isMenuVisible) {
-            e.preventDefault();
-            return;
-        }
-
-        // Submit normal se não houver menu visível e não for Shift+Enter
-        if (e.key === 'Enter' && !e.shiftKey && !isMenuVisible) {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             const form = this.closest('form');
             if (form) {

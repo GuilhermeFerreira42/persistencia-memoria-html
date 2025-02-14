@@ -1,4 +1,4 @@
-
+// Importações necessárias
 import { toggleTheme } from './theme.js';
 import { toggleSidebar } from './sidebar.js';
 import { configureTextarea } from './textarea.js';
@@ -19,14 +19,6 @@ export function configureEventListeners() {
     });
 
     // Configurar textareas
-    const welcomeInput = document.querySelector('#welcome-input');
-    const chatInput = document.querySelector('#chat-input');
-
-    if (welcomeInput) {
-        configureTextarea(welcomeInput);
-    }
-
-    if (chatInput) {
-        configureTextarea(chatInput);
-    }
+    configureTextarea(document.querySelector('#chat-input'));
+    configureTextarea(document.querySelector('#welcome-input'));
 }
