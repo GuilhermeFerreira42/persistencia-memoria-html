@@ -1,3 +1,4 @@
+// static/js/main.js
 import './init.js';
 import { 
     iniciarChat,
@@ -12,6 +13,7 @@ import {
     renomearConversa,
     excluirConversa
 } from './chat.js';
+import { initCommandMenu } from './commandMenu.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
@@ -19,13 +21,6 @@ window.conversas = [];
 window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Página carregada, iniciando configuração...");
-    
-    if (!Array.isArray(window.conversas)) {
-        console.error("Erro: window.conversas não é um array.");
-        window.conversas = [];
-    }
-    
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
     const chatContainer = document.querySelector('.chat-container');
@@ -35,15 +30,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
 
-    // Se houver conversas, carrega a mais recente
-    if (window.conversas && window.conversas.length > 0) {
-        console.log("Carregando última conversa ativa...");
-        carregarConversa(window.conversas[0].id);
+    // Configurar menus de comando usando o módulo criado
+    const welcomeCommandMenu = document.getElementById('command-menu');
+    const chatCommandMenu = document.getElementById('chat-command-menu');
+
+    const COMMANDS = [
+        { command: '/youtube', description: 'Processar vídeo do YouTube' },
+        { command: '/salvar', description: 'Salvar conversa atual' },
+        { command: '/historico', description: 'Ver histórico completo' },
+        { command: '/config', description: 'Abrir configurações' }
+    ];
+
+    if (welcomeInput && welcomeCommandMenu) {
+        initCommandMenu(welcomeInput, welcomeCommandMenu, COMMANDS.map(c => c.command));
+    }
+    if (chatInput && chatCommandMenu) {
+        initCommandMenu(chatInput, chatCommandMenu, COMMANDS.map(c => c.command));
     }
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
-        console.log("Iniciando nova conversa...");
         window.conversaAtual = null;
         mostrarTelaInicial(
             document.querySelector('.welcome-screen'),
@@ -59,18 +65,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = welcomeInput.value.trim();
         if (!message) return;
 
-        console.log("Processando mensagem inicial:", message);
+        // Se o texto começar com '/' e não for um comando completo
+        if (message.startsWith('/') && !message.includes(' ')) {
+            // Não enviar, apenas mostrar menu
+            return;
+        }
 
+        // Criar nova conversa se não existir
         if (!window.conversaAtual) {
-            console.log("Criando nova conversa...");
             const novaConversa = {
                 id: Date.now().toString(),
-                titulo: 'Nova Conversa',
+                titulo: 'Nova conversa',
                 mensagens: []
             };
             window.conversas.unshift(novaConversa);
             window.conversaAtual = novaConversa;
-            console.log("Nova conversa criada:", novaConversa);
             atualizarListaConversas();
         }
 
@@ -91,21 +100,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = chatInput.value.trim();
         if (!message) return;
 
-        console.log("Processando mensagem do chat:", message);
-
         adicionarMensagem(chatContainer, message, 'user');
         adicionarMensagemAoHistorico(message, 'user');
         
         await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
     });
 
+    // Configurar botão de parar resposta
     stopBtn?.addEventListener('click', () => {
-        console.log("Interrompendo resposta...");
         interromperResposta();
     });
 
     // Inicializar lista de conversas
-    console.log("Inicializando lista de conversas...");
     atualizarListaConversas();
 });
 

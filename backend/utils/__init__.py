@@ -1,1 +1,0 @@
-# Este arquivo vazio torna o diretório utils um módulo Python

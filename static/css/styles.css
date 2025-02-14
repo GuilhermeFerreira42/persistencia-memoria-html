@@ -1,5 +1,9 @@
+
+@import './components/command-menu.css';
+
 /* Reset e variáveis base */
 @import './base/variables.css';
+
 @import './base/reset.css';
 @import './base/typography.css';
 
@@ -15,3 +19,59 @@
 /* Temas */
 @import './themes/light-theme.css';
 @import './themes/dark-theme.css';
+
+/* Estilos do Menu de Comandos */
+.command-menu {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 200px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.command-menu.visible {
+    display: block !important;
+}
+
+.command-item {
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.command-item:hover {
+    background-color: var(--action-hover);
+}
+
+.command-icon {
+    color: var(--text-secondary);
+    width: 20px;
+}
+
+.command-text {
+    font-weight: 500;
+}
+
+.command-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.command-menu {
+    display: none;
+    position: absolute;
+    /* outras propriedades de estilo */
+}
+.command-menu.visible {
+    display: block;
+}

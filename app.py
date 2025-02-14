@@ -1,82 +1,70 @@
 from flask import Flask, render_template, request, jsonify, Response
 import json
+import os
 from datetime import datetime
 import requests
-from backend.database.database import init_db, get_db
-from backend.utils.chat_history import save_conversation, get_conversation_history
-from backend.utils.text_processor import split_text
-from backend.routers.chats import chats_bp
-from backend.models.conversations import Conversation
-import logging
-
-# Configuração de logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+from utils.text_processor import split_text, clean_and_format_text
+from youtube_handler import YoutubeHandler
+from utils.chat_storage import (
+    create_new_conversation,
+    add_message_to_conversation,
+    get_conversation_by_id,
+    get_conversation_history
 )
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
 
-# Inicialização do banco de dados
-init_db()
-app.register_blueprint(chats_bp, url_prefix='/api/chats')
-
 API_URL = "http://localhost:11434/v1/chat/completions"
 MODEL_NAME = "gemma2:2b"
+youtube_handler = YoutubeHandler()
 
 @app.route('/')
 def home():
-    try:
-        logger.debug("Iniciando carregamento do histórico de conversas...")
-        conversations = get_conversation_history()
-        logger.debug(f"Histórico carregado com sucesso: {len(conversations)} conversas encontradas")
-        logger.debug(f"Dados das conversas: {json.dumps(conversations, indent=2)}")
-        return render_template('index.html', conversations=conversations)
-    except Exception as e:
-        logger.error(f"Erro ao carregar histórico de conversas: {str(e)}", exc_info=True)
-        return render_template('index.html', conversations=[])
+    conversations = get_conversation_history()
+    return render_template('index.html', conversations=conversations)
+
+@app.route('/get_conversation_history')
+def conversation_history():
+    conversations = get_conversation_history()
+    return jsonify(conversations)
+
+@app.route('/get_conversation/<conversation_id>')
+def get_conversation(conversation_id):
+    conversation = get_conversation_by_id(conversation_id)
+    if conversation:
+        return jsonify(conversation)
+    return jsonify({'error': 'Conversa não encontrada'}), 404
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    try:
-        data = request.json
-        message = data.get('message', '')
-        conversation_id = data.get('conversation_id')
-        
-        logger.debug(f"Recebida mensagem para conversation_id: {conversation_id}")
-        logger.debug(f"Conteúdo da mensagem: {message}")
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
 
-        if not conversation_id:
-            logger.debug("Criando nova conversa...")
-            conversation = Conversation(title="Nova Conversa")
-            with get_db() as db:
-                db.add(conversation)
-                db.commit()
-                conversation_id = conversation.id
-                logger.debug(f"Nova conversa criada com ID: {conversation_id}")
+    if not conversation_id:
+        conversation_id = create_new_conversation()
 
-        def generate_streamed_response():
-            accumulated_response = ""
-            for part in process_with_ai_stream(message):
-                accumulated_response += part
+    # Salvar mensagem do usuário
+    add_message_to_conversation(conversation_id, message, "user")
+
+    # Processar resposta da IA
+    accumulated_response = []
+    
+    def generate_streamed_response():
+        for part in process_with_ai_stream(message):
+            if part:
+                accumulated_response.append(part)
                 yield f"data: {json.dumps({'content': part})}\n\n"
-            
-            logger.debug(f"Salvando conversa {conversation_id}")
-            logger.debug(f"Mensagem do usuário: {message}")
-            logger.debug(f"Resposta acumulada: {accumulated_response}")
-            
-            saved_id = save_conversation(message, accumulated_response, conversation_id)
-            logger.debug(f"Conversa salva com ID: {saved_id}")
+        
+        # Salvar a resposta completa da IA
+        if accumulated_response:
+            complete_response = ''.join(accumulated_response)
+            add_message_to_conversation(conversation_id, complete_response, "assistant")
 
-        response = Response(generate_streamed_response(), content_type="text/event-stream")
-        response.headers['Cache-Control'] = 'no-cache'
-        return response
-
-    except Exception as e:
-        logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+    response = Response(generate_streamed_response(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 def process_with_ai(text):
     try:
@@ -133,6 +121,43 @@ def process_with_ai_stream(text):
         print(f"[Debug] Erro na requisição HTTP: {str(e)}")
     except Exception as e:
         print(f"[Debug] Erro inesperado: {str(e)}")
+
+@app.route('/process_youtube', methods=['POST'])
+def process_youtube():
+    data = request.json
+    video_url = data.get('video_url')
+    
+    if not video_url:
+        return jsonify({'error': 'URL do vídeo não fornecida'}), 400
+        
+    # Baixa as legendas
+    subtitle_file = youtube_handler.download_subtitles(video_url)
+    if not subtitle_file:
+        return jsonify({'error': 'Não foi possível baixar as legendas'}), 400
+        
+    # Limpa as legendas
+    subtitle_text = youtube_handler.clean_subtitles(subtitle_file)
+    if not subtitle_text:
+        return jsonify({'error': 'Erro ao processar legendas'}), 500
+        
+    # Limpa e formata o texto
+    cleaned_text = clean_and_format_text(subtitle_text)
+    
+    # Divide em chunks
+    chunks = split_text(cleaned_text)
+    
+    # Cria uma nova conversa
+    conversation_id = create_new_conversation()
+    
+    # Salva os chunks para processamento
+    for chunk in chunks:
+        add_message_to_conversation(conversation_id, chunk, 'user')
+    
+    return jsonify({
+        'status': 'success',
+        'conversation_id': conversation_id,
+        'message': 'Legendas processadas com sucesso'
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

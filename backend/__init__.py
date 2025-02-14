@@ -1,1 +1,0 @@
-# Este arquivo vazio torna o diretório backend um módulo Python

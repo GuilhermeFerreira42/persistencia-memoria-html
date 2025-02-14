@@ -1,70 +1,68 @@
 import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
-    console.log("Carregando conversa:", id);
-    const conversa = window.conversas.find(c => c.id === id);
-    if (!conversa) {
-        console.error(`Conversa com ID ${id} não encontrada.`);
-        return;
-    }
+    fetch(`/get_conversation/${id}`)
+        .then(response => response.json())
+        .then(conversa => {
+            if (conversa.error) {
+                console.error('Erro ao carregar conversa:', conversa.error);
+                return;
+            }
+            
+            window.conversaAtual = conversa;
+            const chatContainer = document.querySelector('.chat-container');
+            const welcomeScreen = document.querySelector('.welcome-screen');
+            const inputContainer = document.querySelector('.input-container');
+            
+            welcomeScreen.style.display = 'none';
+            chatContainer.style.display = 'block';
+            inputContainer.style.display = 'block';
+            chatContainer.innerHTML = '';
+            
+            conversa.messages.forEach(msg => {
+                adicionarMensagem(chatContainer, msg.content, msg.role === 'assistant' ? 'assistant' : 'user');
+            });
 
-    window.conversaAtual = conversa;
-    const chatContainer = document.querySelector('.chat-container');
-    const welcomeScreen = document.querySelector('.welcome-screen');
-    const inputContainer = document.querySelector('.input-container');
-    
-    welcomeScreen.style.display = 'none';
-    chatContainer.style.display = 'block';
-    inputContainer.style.display = 'block';
-    chatContainer.innerHTML = '';
-    
-    console.log("Carregando mensagens da conversa:", conversa.mensagens);
-    conversa.mensagens.forEach(msg => {
-        adicionarMensagem(chatContainer, msg.content, msg.role);
-    });
-
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Rolar para a última mensagem
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        })
+        .catch(error => console.error('Erro ao carregar conversa:', error));
 }
 
 export function atualizarListaConversas() {
     const chatList = document.querySelector('.chat-list');
-    if (!chatList) {
-        console.error("Elemento .chat-list não encontrado.");
-        return;
-    }
+    if (!chatList) return;
 
-    chatList.innerHTML = '';
-    
-    if (!Array.isArray(window.conversas)) {
-        console.error("window.conversas não é um array");
-        window.conversas = [];
-    }
-
-    window.conversas.forEach(conversa => {
-        const conversaElement = document.createElement('div');
-        conversaElement.className = 'chat-item';
-        if (window.conversaAtual && window.conversaAtual.id === conversa.id) {
-            conversaElement.classList.add('active');
-        }
-        
-        conversaElement.onclick = () => carregarConversa(conversa.id);
-        
-        const primeiraMsg = conversa.mensagens.find(m => m.role === 'user')?.content || 'Nova conversa';
-        const titulo = conversa.titulo || primeiraMsg.substring(0, 30) + (primeiraMsg.length > 30 ? '...' : '');
-        
-        conversaElement.innerHTML = `
-            <span>${titulo}</span>
-            <div class="action-buttons">
-                <button class="action-btn" onclick="event.stopPropagation(); window.renomearConversa('${conversa.id}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="action-btn" onclick="event.stopPropagation(); window.excluirConversa('${conversa.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `;
-        chatList.appendChild(conversaElement);
-    });
+    fetch('/get_conversation_history')
+        .then(response => response.json())
+        .then(conversas => {
+            chatList.innerHTML = '';
+            conversas.forEach(conversa => {
+                const conversaElement = document.createElement('div');
+                conversaElement.className = 'chat-item';
+                if (window.conversaAtual && window.conversaAtual.id === conversa.id) {
+                    conversaElement.classList.add('active');
+                }
+                
+                conversaElement.onclick = () => carregarConversa(conversa.id);
+                
+                const titulo = conversa.title || 'Nova conversa';
+                
+                conversaElement.innerHTML = `
+                    <span>${titulo}</span>
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="event.stopPropagation(); window.renomearConversa('${conversa.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn" onclick="event.stopPropagation(); window.excluirConversa('${conversa.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                chatList.appendChild(conversaElement);
+            });
+        })
+        .catch(error => console.error('Erro ao atualizar lista de conversas:', error));
 }
 
 export function criarNovaConversa() {
@@ -83,7 +81,7 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
     if (!window.conversaAtual) {
         const novaConversa = {
             id: Date.now().toString(),
-            titulo: 'Nova Conversa',
+            titulo: 'Nova conversa',
             mensagens: []
         };
         window.conversas.unshift(novaConversa);
@@ -91,8 +89,8 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
     }
     
     window.conversaAtual.mensagens.push({
-        role: tipo,
-        content: mensagem,
+        tipo,
+        conteudo: mensagem,
         timestamp: new Date().toISOString()
     });
     

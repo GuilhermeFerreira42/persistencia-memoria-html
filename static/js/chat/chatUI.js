@@ -1,7 +1,6 @@
 import { escapeHTML } from './chatUtils.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
-    console.log("Iniciando chat...");
     welcomeScreen.style.display = 'none';
     chatContainer.style.display = 'block';
     inputContainer.style.display = 'block';
@@ -9,7 +8,6 @@ export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
 }
 
 export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer, welcomeInput, chatInput) {
-    console.log("Mostrando tela inicial...");
     welcomeScreen.style.display = 'flex';
     chatContainer.style.display = 'none';
     inputContainer.style.display = 'none';
@@ -18,7 +16,6 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
 }
 
 export function adicionarMensagem(chatContainer, texto, tipo) {
-    console.log(`Adicionando mensagem do tipo ${tipo}`);
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
     mensagemDiv.innerHTML = `

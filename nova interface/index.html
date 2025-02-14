@@ -1,0 +1,150 @@
+<html lang="pt">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>
+   ChatGPT
+  </title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css">
+ </head>
+ <body class="h-screen flex flex-col justify-between">
+  <header class="flex items-center justify-between p-4">
+   <div class="flex items-center space-x-2">
+    <i class="fas fa-bars text-xl">
+    </i>
+    <span class="text-lg font-semibold">
+     ChatGPT
+    </span>
+    <i class="fas fa-chevron-down text-sm">
+    </i>
+   </div>
+   <img alt="User profile picture" class="rounded-full w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/8rCKnRnqyWBqlZtOM2vfxUw5Nl267X3dS381dhrXGOU.jpg" width="40"/>
+  </header>
+  <main class="flex flex-col items-center justify-center flex-grow">
+   <h1 class="text-3xl font-semibold mb-6">
+    Como posso ajudar?
+   </h1>
+   <div class="input-container w-full max-w-2xl flex flex-col space-y-4">
+    <div class="flex items-center space-x-2 relative">
+     <input 
+        id="chat-input"
+        class="bg-transparent flex-grow text-white placeholder-gray-400 focus:outline-none rounded-lg p-2" 
+        placeholder="Digite / para ver os comandos disponíveis" 
+        type="text"
+     />
+     <div id="command-menu" class="command-menu">
+        <div class="command-item" data-command="/youtube">
+            <i class="fas fa-youtube command-icon"></i>
+            <div>
+                <div class="command-text">/youtube</div>
+                <div class="command-description">Resumir vídeo do YouTube</div>
+            </div>
+        </div>
+     </div>
+     <button class="send-button">
+      <i class="fas fa-microphone text-black">
+      </i>
+     </button>
+     <button class="send-button" id="send-button">
+      <i class="fas fa-arrow-up text-black">
+      </i>
+     </button>
+    </div>
+    <div class="flex items-center space-x-2">
+     <button class="button flex items-center space-x-1">
+      <i class="fas fa-globe">
+      </i>
+      <span>
+       Buscar
+      </span>
+     </button>
+     <button class="button flex items-center space-x-1">
+      <i class="fas fa-map-marker-alt">
+      </i>
+      <span>
+       Refletir
+      </span>
+     </button>
+    </div>
+   </div>
+   <div class="flex space-x-4 mt-4">
+    <button class="button flex items-center space-x-2">
+     <i class="fas fa-image text-green-500">
+     </i>
+     <span>
+      Criar imagem
+     </span>
+    </button>
+    <button class="button flex items-center space-x-2">
+     <i class="fas fa-images text-blue-500">
+     </i>
+     <span>
+      Analisar imagens
+     </span>
+    </button>
+    <button class="button flex items-center space-x-2">
+     <i class="fas fa-code text-purple-500">
+     </i>
+     <span>
+      Programar
+     </span>
+    </button>
+    <button class="button flex items-center space-x-2">
+     <i class="fas fa-align-left text-orange-500">
+     </i>
+     <span>
+      Resumir texto
+     </span>
+    </button>
+    <button class="button flex items-center space-x-2">
+     <i class="fas fa-ellipsis-h">
+     </i>
+     <span>
+      Mais
+     </span>
+    </button>
+   </div>
+  </main>
+  <footer class="text-center text-gray-500 text-sm p-4">
+   O ChatGPT pode cometer erros. Considere verificar informações importantes.
+  </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('chat-input');
+        const menu = document.getElementById('command-menu');
+        const commandItems = document.querySelectorAll('.command-item');
+
+        input.addEventListener('input', function() {
+            const text = this.value;
+            if (text.startsWith('/')) {
+                const rect = input.getBoundingClientRect();
+                menu.style.top = `${rect.bottom + 5}px`;
+                menu.style.left = `${rect.left}px`;
+                menu.classList.add('visible');
+            } else {
+                menu.classList.remove('visible');
+            }
+        });
+
+        commandItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const command = this.dataset.command;
+                input.value = command + ' ';
+                menu.classList.remove('visible');
+                input.focus();
+            });
+        });
+
+        // Fechar menu ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.remove('visible');
+            }
+        });
+    });
+  </script>
+ </body>
+</html>
