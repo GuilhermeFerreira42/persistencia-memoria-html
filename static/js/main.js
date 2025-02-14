@@ -14,6 +14,7 @@ import {
     excluirConversa
 } from './chat.js';
 import { initCommandMenu } from './modules/commandMenu.js';
+import { COMMANDS } from './modules/commands.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
@@ -33,13 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar menus de comando usando o módulo criado
     const welcomeCommandMenu = document.getElementById('command-menu');
     const chatCommandMenu = document.getElementById('chat-command-menu');
-
-    const COMMANDS = [
-        { command: '/youtube', description: 'Processar vídeo do YouTube' },
-        { command: '/salvar', description: 'Salvar conversa atual' },
-        { command: '/historico', description: 'Ver histórico completo' },
-        { command: '/config', description: 'Abrir configurações' }
-    ];
 
     if (welcomeInput && welcomeCommandMenu) {
         initCommandMenu(welcomeInput, welcomeCommandMenu, COMMANDS.map(c => c.command));

@@ -17,4 +17,16 @@ export function configureEventListeners() {
     modelSelect?.addEventListener('change', (e) => {
         window.currentModel = e.target.value;
     });
+
+    // Configurar textareas
+    const welcomeInput = document.querySelector('#welcome-input');
+    const chatInput = document.querySelector('#chat-input');
+
+    if (welcomeInput) {
+        configureTextarea(welcomeInput);
+    }
+
+    if (chatInput) {
+        configureTextarea(chatInput);
+    }
 }
