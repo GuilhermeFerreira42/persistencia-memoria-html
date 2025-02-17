@@ -1,11 +1,16 @@
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
-import { adicionarMensagemAoHistorico } from './chatStorage.js';
+import { adicionarMensagemAoHistorico, criarNovaConversa } from './chatStorage.js';
 
 let abortController = null;
 
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
     if (!mensagem.trim()) return;
+
+    if (!window.conversaAtual) {
+        console.warn("Nenhuma conversa ativa. Criando uma nova.");
+        criarNovaConversa();
+    }
 
     input.value = '';
     input.style.height = 'auto';

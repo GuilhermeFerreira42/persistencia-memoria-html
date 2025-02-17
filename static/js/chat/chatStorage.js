@@ -2,14 +2,35 @@ import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
     fetch(`/get_conversation/${id}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('Erro ao carregar conversa');
+            return response.json();
+        })
         .then(conversa => {
             if (conversa.error) {
                 console.error('Erro ao carregar conversa:', conversa.error);
                 return;
             }
             
+            // Debug 4: Verificar dados recebidos
+            console.log('[DEBUG] Conversa carregada:', conversa);
+            
+            // Validação crítica
+            if (!conversa.messages || !Array.isArray(conversa.messages)) {
+                console.error('[ERRO] Conversa inválida, recriando...');
+                conversa.messages = [];
+            }
+            
+            // Converter 'mensagens' se necessário
+            if (conversa.mensagens && !conversa.messages.length) {
+                conversa.messages = conversa.mensagens;
+                delete conversa.mensagens;
+            }
+            
+            console.log("Conversa após padronização:", conversa);
+            
             window.conversaAtual = conversa;
+
             const chatContainer = document.querySelector('.chat-container');
             const welcomeScreen = document.querySelector('.welcome-screen');
             const inputContainer = document.querySelector('.input-container');
@@ -23,7 +44,6 @@ export function carregarConversa(id) {
                 adicionarMensagem(chatContainer, msg.content, msg.role === 'assistant' ? 'assistant' : 'user');
             });
 
-            // Rolar para a última mensagem
             chatContainer.scrollTop = chatContainer.scrollHeight;
         })
         .catch(error => console.error('Erro ao carregar conversa:', error));
@@ -51,7 +71,7 @@ export function atualizarListaConversas() {
                 conversaElement.innerHTML = `
                     <span>${titulo}</span>
                     <div class="action-buttons">
-                        <button class="action-btn" onclick="event.stopPropagation(); window.renomearConversa('${conversa.id}')">
+                        <button class="action-btn" onclick="event stopPropagation(); window.renomearConversa('${conversa.id}')">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="action-btn" onclick="event.stopPropagation(); window.excluirConversa('${conversa.id}')">
@@ -68,32 +88,47 @@ export function atualizarListaConversas() {
 export function criarNovaConversa() {
     const novaConversa = {
         id: Date.now().toString(),
-        titulo: 'Nova conversa',
-        mensagens: []
+        title: "Nova Conversa",
+        messages: [] // Garantir que seja um array
     };
-    
+    console.log('Nova conversa criada:', novaConversa);
+
+    if (!window.conversas) {
+        window.conversas = [];
+    }
+
     window.conversas.unshift(novaConversa);
-    window.conversaAtual = null;
-    atualizarListaConversas();
+    window.conversaAtual = novaConversa;
+    return novaConversa.id;
 }
 
 export function adicionarMensagemAoHistorico(mensagem, tipo) {
-    if (!window.conversaAtual) {
-        const novaConversa = {
+    // Debug 1: Verificar estado da conversa
+    console.log('[DEBUG] Estado da conversaAtual:', window.conversaAtual);
+    
+    // Verificação reforçada
+    if (!window.conversaAtual || !window.conversaAtual.messages || !Array.isArray(window.conversaAtual.messages)) {
+        console.error('[ERRO CRÍTICO] ConversaAtual inválida:', window.conversaAtual);
+        window.conversaAtual = { 
             id: Date.now().toString(),
-            titulo: 'Nova conversa',
-            mensagens: []
+            title: "Nova conversa (emergência)",
+            messages: [] 
         };
-        window.conversas.unshift(novaConversa);
-        window.conversaAtual = novaConversa;
     }
     
-    window.conversaAtual.mensagens.push({
-        tipo,
-        conteudo: mensagem,
-        timestamp: new Date().toISOString()
-    });
+    // Debug 2: Verificar mensagem sendo adicionada
+    console.log('[DEBUG] Adicionando mensagem:', { tipo, mensagem });
     
+    try {
+        window.conversaAtual.messages.push({
+            content: mensagem,
+            role: tipo, // 'user' ou 'assistant'
+            timestamp: new Date().toISOString()
+        });
+        console.log("Mensagem adicionada ao histórico:", mensagem);
+    } catch (err) {
+        console.error("Erro ao adicionar mensagem:", err);
+    }
     atualizarListaConversas();
 }
 
@@ -101,9 +136,9 @@ export function renomearConversa(id) {
     const conversa = window.conversas.find(c => c.id === id);
     if (!conversa) return;
 
-    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.titulo);
+    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.title);
     if (novoTitulo && novoTitulo.trim()) {
-        conversa.titulo = novoTitulo.trim();
+        conversa.title = novoTitulo.trim();
         atualizarListaConversas();
     }
 }
