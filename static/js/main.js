@@ -24,8 +24,10 @@ window.conversaAtual = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const welcomeForm = document.getElementById('welcome-form');
+    const chatForm = document.getElementById('chat-form');
     const chatContainer = document.querySelector('.chat-container');
     const welcomeInput = document.getElementById('welcome-input');
+    const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
@@ -45,6 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
         configureTextarea(welcomeInput);
     }
 
+    if (chatInput) {
+        configureTextarea(chatInput);
+    }
+
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
         window.conversaAtual = null;
@@ -52,7 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.welcome-screen'),
             chatContainer,
             document.querySelector('.input-container'),
-            welcomeInput
+            welcomeInput,
+            chatInput
         );
     });
 
@@ -89,6 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
         adicionarMensagemAoHistorico(message, 'user');
         
         await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
+    });
+
+    chatForm?.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Impede o refresh da página
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        adicionarMensagem(chatContainer, message, 'user');
+        adicionarMensagemAoHistorico(message, 'user');
+        
+        await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
     });
 
     // Configurar botão de parar resposta
