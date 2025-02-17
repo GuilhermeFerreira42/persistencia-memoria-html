@@ -18,10 +18,7 @@ export function initializeInputBar(inputElement, menuElement, commands) {
     const form = inputElement.closest('form');
     if (form) {
         // Remover evento anterior se existir
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
-        
-        newForm.addEventListener('submit', (e) => {
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
             const message = inputElement.value.trim();
             
@@ -35,7 +32,7 @@ export function initializeInputBar(inputElement, menuElement, commands) {
                     detail: { message },
                     bubbles: true 
                 });
-                newForm.dispatchEvent(submitEvent);
+                form.dispatchEvent(submitEvent);
             }
         });
     }

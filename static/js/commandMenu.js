@@ -1,3 +1,4 @@
+
 // static/js/commandMenu.js
 export function initCommandMenu(inputElement, menuElement, commands = ['/youtube', '/google', '/help', '/settings']) {
     let selectedIndex = -1;
@@ -19,7 +20,7 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
         const text = this.value;
         
         // Mostrar menu apenas quando o '/' estiver no início
-        if (text.startsWith('/') && (text === '/' || text.endsWith(' '))) {
+        if (text.startsWith('/')) {
             const filtered = commands.filter(cmd => cmd.toLowerCase().startsWith(text.toLowerCase()));
             menuElement.innerHTML = filtered.map(cmd => `
                 <div class="command-item" data-command="${cmd}">
@@ -115,6 +116,3 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
 
     observer.observe(menuElement, { childList: true, subtree: true });
 }
-
-// Expor a função globalmente (fora da definição da função)
-window.initCommandMenu = initCommandMenu;
