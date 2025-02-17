@@ -1,3 +1,4 @@
+
 export function configureTextarea(textarea) {
     if (!textarea) return;
 

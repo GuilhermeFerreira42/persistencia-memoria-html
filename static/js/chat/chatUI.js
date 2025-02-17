@@ -1,3 +1,4 @@
+
 import { escapeHTML } from './chatUtils.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
@@ -12,7 +13,7 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     chatContainer.style.display = 'none';
     inputContainer.style.display = 'none';
     welcomeInput.value = '';
-    chatInput.value = '';
+    if (chatInput) chatInput.value = '';
 }
 
 export function adicionarMensagem(chatContainer, texto, tipo) {
