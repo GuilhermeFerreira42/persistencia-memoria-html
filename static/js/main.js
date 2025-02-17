@@ -14,8 +14,7 @@ import {
     renomearConversa,
     excluirConversa
 } from './chat/chatStorage.js';
-import { initCommandMenu } from './commandMenu.js';
-import { configureTextarea } from './textarea.js';
+import { initializeInputBar } from './modules/inputBar.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
@@ -34,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar menu de comando usando o módulo criado
     const welcomeCommandMenu = document.getElementById('command-menu');
+    const chatCommandMenu = document.getElementById('chat-command-menu');
 
     const COMMANDS = [
         { command: '/youtube', description: 'Processar vídeo do YouTube' },
@@ -42,13 +42,59 @@ document.addEventListener('DOMContentLoaded', () => {
         { command: '/config', description: 'Abrir configurações' }
     ];
 
+    // Inicializar barra de entrada da tela inicial
     if (welcomeInput && welcomeCommandMenu) {
-        initCommandMenu(welcomeInput, welcomeCommandMenu, COMMANDS.map(c => c.command));
-        configureTextarea(welcomeInput);
+        const welcomeBar = initializeInputBar(
+            welcomeInput, 
+            welcomeCommandMenu, 
+            COMMANDS.map(c => c.command)
+        );
+
+        welcomeForm?.addEventListener('customSubmit', async (e) => {
+            const message = e.detail.message;
+            
+            // Criar nova conversa se não existir
+            if (!window.conversaAtual) {
+                const novaConversa = {
+                    id: Date.now().toString(),
+                    titulo: 'Nova conversa',
+                    mensagens: []
+                };
+                window.conversas.unshift(novaConversa);
+                window.conversaAtual = novaConversa;
+                atualizarListaConversas();
+            }
+
+            iniciarChat(
+                document.querySelector('.welcome-screen'),
+                chatContainer,
+                document.querySelector('.input-container')
+            );
+
+            adicionarMensagem(chatContainer, message, 'user');
+            adicionarMensagemAoHistorico(message, 'user');
+            welcomeBar.clear();
+            
+            await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
+        });
     }
 
-    if (chatInput) {
-        configureTextarea(chatInput);
+    // Inicializar barra de entrada do chat
+    if (chatInput && chatCommandMenu) {
+        const chatBar = initializeInputBar(
+            chatInput, 
+            chatCommandMenu, 
+            COMMANDS.map(c => c.command)
+        );
+
+        chatForm?.addEventListener('customSubmit', async (e) => {
+            const message = e.detail.message;
+            adicionarMensagem(chatContainer, message, 'user');
+            adicionarMensagemAoHistorico(message, 'user');
+            chatBar.clear();
+            
+            await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
+        });
     }
 
     // Configurar botão de nova conversa
@@ -61,52 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
             welcomeInput,
             chatInput
         );
-    });
-
-    welcomeForm?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const message = welcomeInput.value.trim();
-        if (!message) return;
-
-        // Se o texto começar com '/' e não for um comando completo
-        if (message.startsWith('/') && !message.includes(' ')) {
-            // Não enviar, apenas mostrar menu
-            return;
-        }
-
-        // Criar nova conversa se não existir
-        if (!window.conversaAtual) {
-            const novaConversa = {
-                id: Date.now().toString(),
-                titulo: 'Nova conversa',
-                mensagens: []
-            };
-            window.conversas.unshift(novaConversa);
-            window.conversaAtual = novaConversa;
-            atualizarListaConversas();
-        }
-
-        iniciarChat(
-            document.querySelector('.welcome-screen'),
-            chatContainer,
-            document.querySelector('.input-container')
-        );
-
-        adicionarMensagem(chatContainer, message, 'user');
-        adicionarMensagemAoHistorico(message, 'user');
-        
-        await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
-    });
-
-    chatForm?.addEventListener('submit', async (e) => {
-        e.preventDefault(); // Impede o refresh da página
-        const message = chatInput.value.trim();
-        if (!message) return;
-
-        adicionarMensagem(chatContainer, message, 'user');
-        adicionarMensagemAoHistorico(message, 'user');
-        
-        await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
     });
 
     // Configurar botão de parar resposta
