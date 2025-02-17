@@ -14,12 +14,15 @@ import {
     renomearConversa,
     excluirConversa
 } from './chat/chatStorage.js';
-import { initializeInputBar } from './modules/inputBar.js';
+import { initializeInputBar, destroyInputBar } from './modules/inputBar.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
 window.conversas = [];
 window.conversaAtual = null;
+
+let welcomeBar = null;
+let chatBar = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const welcomeForm = document.getElementById('welcome-form');
@@ -44,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inicializar barra de entrada da tela inicial
     if (welcomeInput && welcomeCommandMenu) {
-        const welcomeBar = initializeInputBar(
+        welcomeBar = initializeInputBar(
             welcomeInput, 
             welcomeCommandMenu, 
             COMMANDS.map(c => c.command)
@@ -65,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarListaConversas();
             }
 
+            // Limpar barra de boas-vindas antes de trocar de tela
+            welcomeBar?.destroy();
+
             iniciarChat(
                 document.querySelector('.welcome-screen'),
                 chatContainer,
@@ -73,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             adicionarMensagem(chatContainer, message, 'user');
             adicionarMensagemAoHistorico(message, 'user');
-            welcomeBar.clear();
             
             await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
         });
@@ -81,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inicializar barra de entrada do chat
     if (chatInput && chatCommandMenu) {
-        const chatBar = initializeInputBar(
+        chatBar = initializeInputBar(
             chatInput, 
             chatCommandMenu, 
             COMMANDS.map(c => c.command)
@@ -99,6 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
+        // Limpar barra do chat antes de trocar de tela
+        chatBar?.destroy();
+        
         window.conversaAtual = null;
         mostrarTelaInicial(
             document.querySelector('.welcome-screen'),
@@ -107,6 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
             welcomeInput,
             chatInput
         );
+
+        // Reinicializar barra de boas-vindas
+        if (welcomeInput && welcomeCommandMenu) {
+            welcomeBar = initializeInputBar(
+                welcomeInput, 
+                welcomeCommandMenu, 
+                COMMANDS.map(c => c.command)
+            );
+        }
     });
 
     // Configurar botão de parar resposta

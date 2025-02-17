@@ -1,40 +1,54 @@
 
 /* Prefixo único para evitar conflitos */
-.cmd-menu {
-    /* Mantenha as propriedades existentes */
-    position: absolute;
-    background: #2d2d2d;
+.command-menu {
+    position: fixed; /* Mudado de absolute para fixed para melhor posicionamento */
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 8px;
     min-width: 200px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 9999;
-    display: none !important; /* Força prioridade */
+    display: none;
     transform: translateY(-100%); /* Move o menu para cima */
     margin-top: -8px; /* Espaçamento entre o menu e o campo */
 }
 
-
-.cmd-menu.visible {
-    display: block !important;
+.command-menu.visible {
+    display: block;
 }
 
-.command-menu .command-item.selected {
-    background-color: var(--action-hover);
-    border-radius: 4px;
-}
-
-.command-menu .command-item {
+.command-item {
     cursor: pointer;
     padding: 8px 12px;
     transition: background-color 0.2s;
+    border-radius: 4px;
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-
-.cmd-item:hover {
-    background: #3d3d3d;
+.command-item:hover,
+.command-item.selected {
+    background-color: var(--action-hover);
 }
 
-.command-menu {
-    z-index: 9999;
+.command-text {
+    font-weight: 500;
+}
+
+.command-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Acessibilidade */
+.command-item {
+    role: option;
+    aria-selected: false;
+}
+
+.command-item.selected {
+    aria-selected: true;
 }
