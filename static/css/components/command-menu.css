@@ -1,27 +1,27 @@
-
 .command-menu {
-    position: fixed;
+    position: absolute;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 8px;
     min-width: 200px;
+    max-width: 300px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 9999;
     display: none;
-    overflow: hidden; /* Oculta a scrollbar */
-    transform: translateY(-100%); /* Move o menu para cima */
-    margin-top: -8px; /* Espaçamento entre o menu e o campo */
+    overflow: hidden;
+    bottom: calc(100% + 5px);
+    left: 0;
+    width: 100%;
+    margin-bottom: 5px;
 }
 
-/* Ocultar scrollbar em diferentes navegadores */
-.command-menu::-webkit-scrollbar {
-    display: none;
-}
-
-.command-menu {
-    -ms-overflow-style: none;  /* IE e Edge */
-    scrollbar-width: none;  /* Firefox */
+/* Mobile: Se o menu não couber pra cima, abre pra baixo */
+@media (max-height: 600px) {
+    .command-menu {
+        bottom: auto;
+        top: calc(100% + 5px);
+    }
 }
 
 .command-menu.visible {
@@ -37,7 +37,10 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    text-align: left; /* Alinha o texto à esquerda */
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .command-item:hover,
@@ -47,13 +50,13 @@
 
 .command-text {
     font-weight: 500;
-    text-align: left; /* Garante alinhamento à esquerda */
+    text-align: left;
 }
 
 .command-description {
     font-size: 0.875rem;
     color: var(--text-secondary);
-    text-align: left; /* Garante alinhamento à esquerda */
+    text-align: left;
 }
 
 /* Acessibilidade */

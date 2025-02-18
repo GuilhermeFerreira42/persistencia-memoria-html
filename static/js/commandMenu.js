@@ -1,4 +1,3 @@
-
 export function initCommandMenu(inputElement, menuElement, commands = ['/youtube', '/google', '/help', '/settings']) {
     let selectedIndex = -1;
     const items = [];
@@ -12,7 +11,7 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
     // Resetar estilos inline que podem estar causando problemas
     menuElement.style.display = 'none';
     menuElement.style.visibility = 'hidden';
-    menuElement.style.position = 'fixed';
+    menuElement.style.position = 'absolute';
     menuElement.classList.remove('visible');
 
     if (!inputElement || !menuElement) {
@@ -24,13 +23,18 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
         requestAnimationFrame(() => {
             const rect = inputElement.getBoundingClientRect();
             const menuHeight = menuElement.offsetHeight || 200;
-            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top - menuHeight;
+
+            // Se não tem espaço acima, abre pra baixo
+            if (spaceAbove < 10) {
+                menuElement.style.bottom = 'auto';
+                menuElement.style.top = `${rect.bottom + 5}px`;
+            } else {
+                menuElement.style.top = 'auto';
+                menuElement.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+            }
             
-            // Sempre posicionar acima do input
-            const topPosition = rect.top - menuHeight - 5; // 5px de margem
-            
-            menuElement.style.top = `${topPosition + window.scrollY}px`;
-            menuElement.style.left = `${rect.left + window.scrollX}px`;
+            menuElement.style.left = `${rect.left}px`;
             menuElement.style.width = `${rect.width}px`;
             menuElement.style.visibility = 'visible';
         });
