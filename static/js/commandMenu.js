@@ -1,3 +1,4 @@
+
 export function initCommandMenu(inputElement, menuElement, commands = ['/youtube', '/google', '/help', '/settings']) {
     let selectedIndex = -1;
     const items = [];
