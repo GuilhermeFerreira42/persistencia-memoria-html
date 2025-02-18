@@ -143,19 +143,6 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
         });
         console.log("[DEBUG] Mensagem adicionada com sucesso");
         
-        // Persistir no backend
-        fetch('/save_message', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                conversation_id: window.conversaAtual.id,
-                content: mensagem,
-                role: tipo
-            })
-        }).catch(error => console.error('Erro ao salvar mensagem:', error));
-        
     } catch (err) {
         console.error("[ERRO CRÍTICO] Falha ao adicionar mensagem:", err);
     }
