@@ -66,6 +66,23 @@ def send_message():
     response.headers['Cache-Control'] = 'no-cache'
     return response
 
+@app.route('/save_message', methods=['POST'])
+def save_message():
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        content = data.get('content')
+        role = data.get('role')
+        
+        if not all([conversation_id, content, role]):
+            return jsonify({'error': 'Dados incompletos'}), 400
+            
+        add_message_to_conversation(conversation_id, content, role)
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        print(f"Erro ao salvar mensagem: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def process_with_ai(text):
     try:
         payload = {

@@ -1,4 +1,3 @@
-
 export function initCommandMenu(inputElement, menuElement, commands = ['/youtube', '/google', '/help', '/settings']) {
     let selectedIndex = -1;
     const items = [];
@@ -21,19 +20,19 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
     }
 
     function updateMenuPosition() {
-        const rect = inputElement.getBoundingClientRect();
-        const menuHeight = menuElement.offsetHeight || 200;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        
-        // Decidir se o menu deve aparecer acima ou abaixo do input
-        const topPosition = (spaceBelow < menuHeight)
-            ? rect.top - menuHeight - 5 // 5px de espaço
-            : rect.bottom + 5;
-
-        menuElement.style.top = `${topPosition + window.scrollY}px`;
-        menuElement.style.left = `${rect.left + window.scrollX}px`;
-        menuElement.style.visibility = 'visible';
-        menuElement.style.width = `${rect.width}px`;
+        requestAnimationFrame(() => {
+            const rect = inputElement.getBoundingClientRect();
+            const menuHeight = menuElement.offsetHeight || 200;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            
+            // Sempre posicionar acima do input
+            const topPosition = rect.top - menuHeight - 5; // 5px de margem
+            
+            menuElement.style.top = `${topPosition + window.scrollY}px`;
+            menuElement.style.left = `${rect.left + window.scrollX}px`;
+            menuElement.style.width = `${rect.width}px`;
+            menuElement.style.visibility = 'visible';
+        });
     }
 
     // Quando o usuário digitar, verifica se o texto começa com '/'
