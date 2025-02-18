@@ -1,3 +1,4 @@
+
 import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
@@ -16,18 +17,29 @@ export function carregarConversa(id) {
             console.log('[DEBUG] Conversa carregada:', conversa);
             
             // Validação crítica
-            if (!conversa.messages || !Array.isArray(conversa.messages)) {
-                console.error('[ERRO] Conversa inválida, recriando...');
+            if (!conversa.messages) {
+                console.log('[CONVERSÃO] Convertendo mensagens antigas para novo formato');
+                if (conversa.mensagens) {
+                    conversa.messages = conversa.mensagens;
+                    delete conversa.mensagens;
+                } else {
+                    conversa.messages = [];
+                }
+            }
+            
+            // Garantir que messages seja sempre um array
+            if (!Array.isArray(conversa.messages)) {
+                console.error('[ERRO] Messages não é um array, corrigindo...');
                 conversa.messages = [];
             }
             
-            // Converter 'mensagens' se necessário
-            if (conversa.mensagens && !conversa.messages.length) {
-                conversa.messages = conversa.mensagens;
-                delete conversa.mensagens;
+            // Converter todos os campos para inglês se necessário
+            if (conversa.titulo) {
+                conversa.title = conversa.titulo;
+                delete conversa.titulo;
             }
             
-            console.log("Conversa após padronização:", conversa);
+            console.log("[DEBUG] Conversa após padronização:", conversa);
             
             window.conversaAtual = conversa;
 
@@ -66,12 +78,12 @@ export function atualizarListaConversas() {
                 
                 conversaElement.onclick = () => carregarConversa(conversa.id);
                 
-                const titulo = conversa.title || 'Nova conversa';
+                const titulo = conversa.title || conversa.titulo || 'Nova conversa';
                 
                 conversaElement.innerHTML = `
                     <span>${titulo}</span>
                     <div class="action-buttons">
-                        <button class="action-btn" onclick="event stopPropagation(); window.renomearConversa('${conversa.id}')">
+                        <button class="action-btn" onclick="event.stopPropagation(); window.renomearConversa('${conversa.id}')">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="action-btn" onclick="event.stopPropagation(); window.excluirConversa('${conversa.id}')">
@@ -91,8 +103,7 @@ export function criarNovaConversa() {
         title: "Nova Conversa",
         messages: [] // Garantir que seja um array
     };
-    console.log('Nova conversa criada:', novaConversa);
-
+    
     if (!window.conversas) {
         window.conversas = [];
     }
@@ -103,31 +114,50 @@ export function criarNovaConversa() {
 }
 
 export function adicionarMensagemAoHistorico(mensagem, tipo) {
-    // Debug 1: Verificar estado da conversa
     console.log('[DEBUG] Estado da conversaAtual:', window.conversaAtual);
     
-    // Verificação reforçada
-    if (!window.conversaAtual || !window.conversaAtual.messages || !Array.isArray(window.conversaAtual.messages)) {
-        console.error('[ERRO CRÍTICO] ConversaAtual inválida:', window.conversaAtual);
-        window.conversaAtual = { 
+    // Se não existir conversaAtual ou se messages não for array, criar nova
+    if (!window.conversaAtual || !Array.isArray(window.conversaAtual.messages)) {
+        console.log('[CORREÇÃO] Criando nova conversa devido a estado inválido');
+        window.conversaAtual = {
             id: Date.now().toString(),
             title: "Nova conversa (emergência)",
-            messages: [] 
+            messages: []
         };
     }
     
-    // Debug 2: Verificar mensagem sendo adicionada
+    // Converter mensagens antigas se necessário
+    if (window.conversaAtual.mensagens && !Array.isArray(window.conversaAtual.messages)) {
+        console.log('[CONVERSÃO] Convertendo mensagens antigas');
+        window.conversaAtual.messages = window.conversaAtual.mensagens;
+        delete window.conversaAtual.mensagens;
+    }
+    
     console.log('[DEBUG] Adicionando mensagem:', { tipo, mensagem });
     
     try {
         window.conversaAtual.messages.push({
             content: mensagem,
-            role: tipo, // 'user' ou 'assistant'
+            role: tipo,
             timestamp: new Date().toISOString()
         });
-        console.log("Mensagem adicionada ao histórico:", mensagem);
+        console.log("[DEBUG] Mensagem adicionada com sucesso");
+        
+        // Persistir no backend
+        fetch('/save_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                conversation_id: window.conversaAtual.id,
+                content: mensagem,
+                role: tipo
+            })
+        }).catch(error => console.error('Erro ao salvar mensagem:', error));
+        
     } catch (err) {
-        console.error("Erro ao adicionar mensagem:", err);
+        console.error("[ERRO CRÍTICO] Falha ao adicionar mensagem:", err);
     }
     atualizarListaConversas();
 }
@@ -136,9 +166,10 @@ export function renomearConversa(id) {
     const conversa = window.conversas.find(c => c.id === id);
     if (!conversa) return;
 
-    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.title);
+    const novoTitulo = prompt('Digite o novo título da conversa:', conversa.title || conversa.titulo);
     if (novoTitulo && novoTitulo.trim()) {
         conversa.title = novoTitulo.trim();
+        delete conversa.titulo; // Remover versão antiga se existir
         atualizarListaConversas();
     }
 }
@@ -157,9 +188,6 @@ export function excluirConversa(id) {
         welcomeScreen.style.display = 'flex';
         chatContainer.style.display = 'none';
         inputContainer.style.display = 'none';
-        
-        document.querySelector('#welcome-input').value = '';
-        document.querySelector('#chat-input').value = '';
     }
     
     atualizarListaConversas();
