@@ -2,43 +2,26 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
     let selectedIndex = -1;
     const items = [];
 
-    // Garantir que o menu esteja no body para evitar problemas de posicionamento
-    if (menuElement.parentNode !== document.body) {
-        menuElement.parentNode.removeChild(menuElement);
-        document.body.appendChild(menuElement);
-    }
-
-    // Resetar estilos inline que podem estar causando problemas
-    menuElement.style.display = 'none';
-    menuElement.style.visibility = 'hidden';
-    menuElement.style.position = 'absolute';
-    menuElement.classList.remove('visible');
-
     if (!inputElement || !menuElement) {
         console.error('Elementos de input ou menu não foram fornecidos.');
         return;
     }
 
-    function updateMenuPosition() {
-        requestAnimationFrame(() => {
-            const rect = inputElement.getBoundingClientRect();
-            const menuHeight = menuElement.offsetHeight || 200;
-            const spaceAbove = rect.top - menuHeight;
-
-            // Se não tem espaço acima, abre pra baixo
-            if (spaceAbove < 10) {
-                menuElement.style.bottom = 'auto';
-                menuElement.style.top = `${rect.bottom + 5}px`;
-            } else {
-                menuElement.style.top = 'auto';
-                menuElement.style.bottom = `${window.innerHeight - rect.top + 5}px`;
-            }
-            
-            menuElement.style.left = `${rect.left}px`;
-            menuElement.style.width = `${rect.width}px`;
-            menuElement.style.visibility = 'visible';
-        });
+    // Garantir que o menu seja filho do container do input para posicionamento relativo
+    const inputContainer = inputElement.parentElement;
+    if (inputContainer && menuElement.parentNode !== inputContainer) {
+        if (menuElement.parentNode) {
+            menuElement.parentNode.removeChild(menuElement);
+        }
+        inputContainer.appendChild(menuElement);
     }
+
+    // Resetar estilos iniciais
+    menuElement.style.display = 'none';
+    menuElement.classList.remove('visible');
+    menuElement.style.position = 'absolute';
+    menuElement.style.width = '100%';
+    menuElement.style.left = '0';
 
     // Quando o usuário digitar, verifica se o texto começa com '/'
     inputElement.addEventListener('input', function() {
@@ -52,10 +35,8 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
             if (filtered.length > 0) {
                 menuElement.innerHTML = filtered.map(cmd => `
                     <div class="command-item" role="option" data-command="${cmd}">
-                        <div>
-                            <div class="command-text">${cmd}</div>
-                            <div class="command-description">Descrição para ${cmd}</div>
-                        </div>
+                        <div class="command-text">${cmd}</div>
+                        <div class="command-description">Descrição para ${cmd}</div>
                     </div>
                 `).join('');
 
@@ -73,7 +54,6 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
 
                 menuElement.style.display = 'block';
                 menuElement.classList.add('visible');
-                updateMenuPosition();
             } else {
                 menuElement.classList.remove('visible');
                 menuElement.style.display = 'none';
@@ -81,20 +61,6 @@ export function initCommandMenu(inputElement, menuElement, commands = ['/youtube
         } else {
             menuElement.classList.remove('visible');
             menuElement.style.display = 'none';
-        }
-    });
-
-    // Atualizar posição do menu ao rolar a página
-    window.addEventListener('scroll', () => {
-        if (menuElement.classList.contains('visible')) {
-            updateMenuPosition();
-        }
-    });
-
-    // Atualizar posição do menu ao redimensionar a janela
-    window.addEventListener('resize', () => {
-        if (menuElement.classList.contains('visible')) {
-            updateMenuPosition();
         }
     });
 
