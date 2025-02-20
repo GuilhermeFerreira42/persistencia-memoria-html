@@ -1,4 +1,3 @@
-
 import './init.js';
 import { 
     iniciarChat,
@@ -94,6 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chatForm?.addEventListener('customSubmit', async (e) => {
             const message = e.detail.message;
+            
+            // Verificar se é comando do YouTube
+            if (message.startsWith('/youtube ')) {
+                const url = message.split(' ')[1];
+                if (url) {
+                    await handleYoutubeCommand(url, chatContainer);
+                } else {
+                    adicionarMensagem(chatContainer, "Por favor, forneça uma URL do YouTube válida", 'assistant');
+                }
+                chatBar?.clear();
+                return;
+            }
+            
             adicionarMensagem(chatContainer, message, 'user');
             adicionarMensagemAoHistorico(message, 'user');
             chatBar.clear();

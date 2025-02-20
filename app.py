@@ -11,6 +11,10 @@ from utils.chat_storage import (
     get_conversation_by_id,
     get_conversation_history
 )
+from core.youtube.validator import YouTubeValidator
+from core.youtube.downloader import YouTubeDownloader
+from core.youtube.cleaner import SubtitleCleaner
+from core.youtube.exceptions import SubtitleNotFoundError, InvalidVideoError
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
@@ -141,40 +145,41 @@ def process_with_ai_stream(text):
 
 @app.route('/process_youtube', methods=['POST'])
 def process_youtube():
-    data = request.json
-    video_url = data.get('video_url')
-    
-    if not video_url:
-        return jsonify({'error': 'URL do vídeo não fornecida'}), 400
+    try:
+        data = request.json
+        video_url = data.get('url')
         
-    # Baixa as legendas
-    subtitle_file = youtube_handler.download_subtitles(video_url)
-    if not subtitle_file:
-        return jsonify({'error': 'Não foi possível baixar as legendas'}), 400
+        if not video_url:
+            return jsonify({'error': 'URL não fornecida'}), 400
+            
+        # Validar URL
+        validator = YouTubeValidator()
+        if not validator.is_valid(video_url):
+            return jsonify({'error': 'URL do YouTube inválida'}), 400
+            
+        # Baixar legendas
+        downloader = YouTubeDownloader()
+        subtitle_file = downloader.fetch(video_url)
         
-    # Limpa as legendas
-    subtitle_text = youtube_handler.clean_subtitles(subtitle_file)
-    if not subtitle_text:
-        return jsonify({'error': 'Erro ao processar legendas'}), 500
+        # Limpar legendas
+        cleaner = SubtitleCleaner()
+        cleaned_text = cleaner.sanitize(subtitle_file)
         
-    # Limpa e formata o texto
-    cleaned_text = clean_and_format_text(subtitle_text)
-    
-    # Divide em chunks
-    chunks = split_text(cleaned_text)
-    
-    # Cria uma nova conversa
-    conversation_id = create_new_conversation()
-    
-    # Salva os chunks para processamento
-    for chunk in chunks:
-        add_message_to_conversation(conversation_id, chunk, 'user')
-    
-    return jsonify({
-        'status': 'success',
-        'conversation_id': conversation_id,
-        'message': 'Legendas processadas com sucesso'
-    })
+        # Processar texto em chunks
+        chunks = split_text(cleaned_text)
+        
+        return jsonify({
+            'status': 'success',
+            'chunks': chunks,
+            'message': 'Legendas processadas com sucesso'
+        })
+        
+    except InvalidVideoError as e:
+        return jsonify({'error': f'Erro no vídeo: {str(e)}'}), 400
+    except SubtitleNotFoundError:
+        return jsonify({'error': 'Legendas não encontradas para este vídeo'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
