@@ -13,13 +13,13 @@ class YoutubeHandler:
 
     def download_subtitles(self, video_url: str) -> Optional[str]:
         """
-        Baixa as legendas de um vídeo do YouTube, priorizando português
+        Baixa as legendas de um vídeo do YouTube, priorizando PT-BR
         Retorna o caminho do arquivo de legendas ou None se falhar
         """
         ydl_opts = {
             'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': ['pt', 'en'],  # Prioriza português
+            'writeautomaticsub': True,  # Aceita legendas automáticas como fallback
+            'subtitleslangs': ['pt-BR', 'pt', 'en'],  # Prioridade: PT-BR > PT > EN
             'skip_download': True,
             'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s'),
             'quiet': True
@@ -30,20 +30,29 @@ class YoutubeHandler:
                 info = ydl.extract_info(video_url, download=True)
                 video_id = info['id']
                 
-                # Procura primeiro por legendas em português
-                for suffix in ['.pt.vtt', '.pt-BR.vtt', '.pt-PT.vtt']:
-                    pt_file = os.path.join(self.download_path, f"{video_id}{suffix}")
-                    if os.path.exists(pt_file):
-                        print(f"Encontradas legendas em português: {pt_file}")
-                        return pt_file
+                # Procura primeiro por legendas em PT-BR
+                pt_br_files = ['.pt-BR.vtt', '.pt_BR.vtt', '.pt-br.vtt']
+                for suffix in pt_br_files:
+                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
+                    if os.path.exists(file):
+                        print(f"Encontradas legendas em PT-BR: {file}")
+                        return file
                 
-                # Se não encontrar em português, procura em inglês
+                # Procura por legendas em PT
+                pt_files = ['.pt.vtt', '.pt-PT.vtt']
+                for suffix in pt_files:
+                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
+                    if os.path.exists(file):
+                        print(f"Encontradas legendas em PT: {file}")
+                        return file
+                
+                # Fallback para EN
                 en_file = os.path.join(self.download_path, f"{video_id}.en.vtt")
                 if os.path.exists(en_file):
                     print("Usando legendas em inglês como fallback")
                     return en_file
                 
-                # Procura por qualquer arquivo .vtt como último recurso
+                # Último recurso: qualquer arquivo .vtt disponível
                 for file in os.listdir(self.download_path):
                     if file.startswith(video_id) and file.endswith('.vtt'):
                         print(f"Usando legendas disponíveis: {file}")
@@ -57,7 +66,7 @@ class YoutubeHandler:
 
     def clean_subtitles(self, subtitle_file: str) -> Optional[str]:
         """
-        Limpa as legendas removendo timestamps e formatação
+        Limpa as legendas removendo timestamps, formatação e repetições
         Retorna o texto limpo
         """
         if not os.path.exists(subtitle_file):
@@ -82,28 +91,30 @@ class YoutubeHandler:
             content = re.sub(r'Kind:.*\n', '', content)
             content = re.sub(r'Language:.*\n', '', content)
             
-            # Remove timestamps
+            # Remove timestamps e números de sequência
             content = re.sub(r'\d{2}:\d{2}:\d{2}[\.,]\d{3} --> .*\n', '', content)
-            
-            # Remove números de sequência
-            content = re.sub(r'^\d+\n', '', content, flags=re.MULTILINE)
+            content = re.sub(r'^\d+$', '', content, flags=re.MULTILINE)
             
             # Remove tags HTML e formatação
             content = re.sub(r'<[^>]+>', '', content)
             content = re.sub(r'{\\an\d}', '', content)
+            content = re.sub(r'\[.*?\]', '', content)
             
-            # Processa linha por linha
+            # Processa linha por linha removendo duplicatas
+            seen_lines = set()
             cleaned_lines = []
+            
             for line in content.split('\n'):
                 line = line.strip()
-                if line and not line.startswith(('<', '{', '[')):
+                if line and not line.startswith(('<', '{', '[')) and line not in seen_lines:
                     cleaned_lines.append(line)
+                    seen_lines.add(line)
 
             # Remove arquivo temporário
             os.remove(subtitle_file)
             
-            # Junta as linhas com espaço
-            return ' '.join(cleaned_lines)
+            # Junta as linhas com espaço e remove espaços extras
+            return ' '.join(cleaned_lines).strip()
             
         except Exception as e:
             print(f"Erro ao limpar legendas: {str(e)}")
