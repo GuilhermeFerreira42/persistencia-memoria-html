@@ -7,6 +7,40 @@ let abortController = null;
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
     if (!mensagem.trim()) return;
 
+    // Verificar se é comando do YouTube
+    if (mensagem.startsWith('/youtube ')) {
+        const videoUrl = mensagem.split(' ')[1];
+        if (!videoUrl) {
+            adicionarMensagem(chatContainer, "Por favor, forneça uma URL do YouTube válida", 'assistant');
+            return;
+        }
+
+        const loadingDiv = mostrarCarregamento(chatContainer);
+        try {
+            const response = await fetch('/process_youtube', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ video_url: videoUrl })
+            });
+
+            const data = await response.json();
+            loadingDiv.remove();
+
+            if (data.error) {
+                adicionarMensagem(chatContainer, `Erro: ${data.error}`, 'assistant');
+            } else {
+                adicionarMensagem(chatContainer, data.text, 'assistant');
+                adicionarMensagemAoHistorico(data.text, 'assistant');
+            }
+        } catch (error) {
+            loadingDiv.remove();
+            adicionarMensagem(chatContainer, "Erro ao processar o vídeo", 'assistant');
+        }
+        return;
+    }
+
     if (!window.conversaAtual) {
         console.warn("Nenhuma conversa ativa. Criando uma nova.");
         criarNovaConversa();

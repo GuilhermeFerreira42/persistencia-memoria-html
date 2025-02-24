@@ -141,40 +141,27 @@ def process_with_ai_stream(text):
 
 @app.route('/process_youtube', methods=['POST'])
 def process_youtube():
-    data = request.json
-    video_url = data.get('video_url')
-    
-    if not video_url:
-        return jsonify({'error': 'URL do vídeo não fornecida'}), 400
+    try:
+        data = request.json
+        video_url = data.get('video_url')
         
-    # Baixa as legendas
-    subtitle_file = youtube_handler.download_subtitles(video_url)
-    if not subtitle_file:
-        return jsonify({'error': 'Não foi possível baixar as legendas'}), 400
+        if not video_url:
+            return jsonify({'error': 'URL não fornecida'}), 400
+            
+        # Baixar legendas
+        subtitle_file = youtube_handler.download_subtitles(video_url)
+        if not subtitle_file:
+            return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
+            
+        # Limpar legendas
+        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
+        if not cleaned_text:
+            return jsonify({'error': 'Erro ao processar legendas'}), 500
+            
+        return jsonify({'text': cleaned_text})
         
-    # Limpa as legendas
-    subtitle_text = youtube_handler.clean_subtitles(subtitle_file)
-    if not subtitle_text:
-        return jsonify({'error': 'Erro ao processar legendas'}), 500
-        
-    # Limpa e formata o texto
-    cleaned_text = clean_and_format_text(subtitle_text)
-    
-    # Divide em chunks
-    chunks = split_text(cleaned_text)
-    
-    # Cria uma nova conversa
-    conversation_id = create_new_conversation()
-    
-    # Salva os chunks para processamento
-    for chunk in chunks:
-        add_message_to_conversation(conversation_id, chunk, 'user')
-    
-    return jsonify({
-        'status': 'success',
-        'conversation_id': conversation_id,
-        'message': 'Legendas processadas com sucesso'
-    })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -20,7 +20,8 @@ class YoutubeHandler:
             'writeautomaticsub': True,
             'subtitleslangs': ['pt', 'en'],
             'skip_download': True,
-            'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s')
+            'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s'),
+            'quiet': True
         }
 
         try:
@@ -31,6 +32,7 @@ class YoutubeHandler:
                 for file in os.listdir(self.download_path):
                     if file.startswith(video_id) and file.endswith('.vtt'):
                         return os.path.join(self.download_path, file)
+                return None
         except Exception as e:
             print(f"Erro ao baixar legendas: {str(e)}")
             return None
@@ -64,4 +66,3 @@ class YoutubeHandler:
         except Exception as e:
             print(f"Erro ao limpar legendas: {str(e)}")
             return None
-
