@@ -1,3 +1,4 @@
+
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa } from './chatStorage.js';
@@ -38,8 +39,12 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             loadingDiv.remove();
             adicionarMensagem(chatContainer, "Erro ao processar o vídeo", 'assistant');
         }
-        return;
+        return; // Importante: retornar aqui para não continuar o processamento
     }
+
+    // Se não for comando do YouTube, processar como mensagem normal
+    adicionarMensagem(chatContainer, mensagem, 'user');
+    adicionarMensagemAoHistorico(mensagem, 'user');
 
     if (!window.conversaAtual) {
         console.warn("Nenhuma conversa ativa. Criando uma nova.");
