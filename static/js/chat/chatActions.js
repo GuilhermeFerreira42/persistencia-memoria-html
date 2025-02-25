@@ -20,6 +20,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             criarNovaConversa();
         }
 
+        // Adicionar comando do usuário no chat
+        adicionarMensagem(chatContainer, mensagem, 'user');
+
         const loadingDiv = mostrarCarregamento(chatContainer);
         try {
             const response = await fetch('/process_youtube', {
@@ -29,7 +32,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 },
                 body: JSON.stringify({ 
                     video_url: videoUrl,
-                    conversation_id: window.conversaAtual.id
+                    conversation_id: window.conversaAtual.id,
+                    comando: mensagem // Enviar comando original
                 })
             });
 

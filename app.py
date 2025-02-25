@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -90,12 +89,13 @@ def process_youtube():
         data = request.json
         video_url = data.get('video_url')
         conversation_id = data.get('conversation_id')
+        comando = data.get('comando')  # Novo: pegar o comando original
         
         if not video_url:
             return jsonify({'error': 'URL não fornecida'}), 400
             
-        # Baixar legendas
-        subtitle_file = youtube_handler.download_subtitles(video_url)
+        # Baixar legendas e obter título
+        subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
         if not subtitle_file:
             return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
             
@@ -104,15 +104,27 @@ def process_youtube():
         if not cleaned_text:
             return jsonify({'error': 'Erro ao processar legendas'}), 500
 
-        # Salvar na conversa
+        # Salvar comando do usuário na conversa
+        if conversation_id and comando:
+            add_message_to_conversation(
+                conversation_id,
+                comando,
+                "user"
+            )
+
+        # Salvar transcrição com título na conversa
+        formatted_response = f"📹 {video_title}\n\n{cleaned_text}"
         if conversation_id:
             add_message_to_conversation(
                 conversation_id,
-                f"📹 Transcrição do vídeo:\n{cleaned_text}",
+                formatted_response,
                 "assistant"
             )
             
-        return jsonify({'text': cleaned_text})
+        return jsonify({
+            'text': formatted_response,
+            'title': video_title
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
