@@ -1,10 +1,8 @@
 
-import { adicionarMensagem } from './chatUI.js';
-
 export function carregarConversa(id) {
     fetch(`/get_conversation/${id}`)
         .then(response => {
-            if (!response.ok) throw new Error('Erro ao carregar conversa');
+            if (!response.ok) throw new Error('HTTP error: ' + response.status);
             return response.json();
         })
         .then(conversa => {
@@ -39,8 +37,6 @@ export function carregarConversa(id) {
                 delete conversa.titulo;
             }
             
-            console.log("[DEBUG] Conversa após padronização:", conversa);
-            
             window.conversaAtual = conversa;
 
             const chatContainer = document.querySelector('.chat-container');
@@ -57,8 +53,14 @@ export function carregarConversa(id) {
             });
 
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Disparar evento global após carregar conversa
+            window.dispatchEvent(new CustomEvent('conversaCarregada'));
         })
-        .catch(error => console.error('Erro ao carregar conversa:', error));
+        .catch(error => {
+            console.error('Erro ao carregar conversa:', error);
+            alert('Erro ao carregar conversa');
+        });
 }
 
 export function atualizarListaConversas() {
@@ -93,6 +95,9 @@ export function atualizarListaConversas() {
                 `;
                 chatList.appendChild(conversaElement);
             });
+            
+            // Disparar evento global após atualizar lista
+            window.dispatchEvent(new CustomEvent('listaAtualizada'));
         })
         .catch(error => console.error('Erro ao atualizar lista de conversas:', error));
 }
