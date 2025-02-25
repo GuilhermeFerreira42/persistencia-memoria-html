@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -83,6 +84,39 @@ def save_message():
         print(f"Erro ao salvar mensagem: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/process_youtube', methods=['POST'])
+def process_youtube():
+    try:
+        data = request.json
+        video_url = data.get('video_url')
+        conversation_id = data.get('conversation_id')
+        
+        if not video_url:
+            return jsonify({'error': 'URL não fornecida'}), 400
+            
+        # Baixar legendas
+        subtitle_file = youtube_handler.download_subtitles(video_url)
+        if not subtitle_file:
+            return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
+            
+        # Limpar legendas
+        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
+        if not cleaned_text:
+            return jsonify({'error': 'Erro ao processar legendas'}), 500
+
+        # Salvar na conversa
+        if conversation_id:
+            add_message_to_conversation(
+                conversation_id,
+                f"📹 Transcrição do vídeo:\n{cleaned_text}",
+                "assistant"
+            )
+            
+        return jsonify({'text': cleaned_text})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def process_with_ai(text):
     try:
         payload = {
@@ -138,30 +172,6 @@ def process_with_ai_stream(text):
         print(f"[Debug] Erro na requisição HTTP: {str(e)}")
     except Exception as e:
         print(f"[Debug] Erro inesperado: {str(e)}")
-
-@app.route('/process_youtube', methods=['POST'])
-def process_youtube():
-    try:
-        data = request.json
-        video_url = data.get('video_url')
-        
-        if not video_url:
-            return jsonify({'error': 'URL não fornecida'}), 400
-            
-        # Baixar legendas
-        subtitle_file = youtube_handler.download_subtitles(video_url)
-        if not subtitle_file:
-            return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
-            
-        # Limpar legendas
-        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
-        if not cleaned_text:
-            return jsonify({'error': 'Erro ao processar legendas'}), 500
-            
-        return jsonify({'text': cleaned_text})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
