@@ -4,22 +4,24 @@ import { configureTextarea } from '../textarea.js';
 
 const activeListeners = new WeakMap();
 
-function handleSubmit(e, inputElement) {
+function handleSubmit(e, inputElement, form) {
     e.preventDefault();
+    console.log('[DEBUG] Handle submit called');
+    
     const message = inputElement.value.trim();
+    if (!message) return;
     
     // Não enviar se for comando incompleto
     if (message.startsWith('/') && !message.includes(' ')) {
         return;
     }
 
-    if (message) {
-        const submitEvent = new CustomEvent('customSubmit', { 
-            detail: { message },
-            bubbles: true 
-        });
-        e.target.dispatchEvent(submitEvent);
-    }
+    // Disparar evento customizado
+    const submitEvent = new CustomEvent('submit', { 
+        bubbles: true,
+        cancelable: true
+    });
+    form.dispatchEvent(submitEvent);
 }
 
 export function initializeInputBar(inputElement, menuElement, commands) {
@@ -28,28 +30,40 @@ export function initializeInputBar(inputElement, menuElement, commands) {
         return;
     }
 
-    // Limpar listeners antigos se existirem
+    console.log('[DEBUG] Initializing input bar');
+
+    // Limpar listeners antigos
     destroyInputBar(inputElement);
 
-    // Configurar textarea (autoajuste de altura e eventos)
+    // Configurar textarea
     configureTextarea(inputElement);
 
     // Configurar menu de comandos
     initCommandMenu(inputElement, menuElement, commands);
 
-    // Adicionar evento de submit unificado
+    // Adicionar novo handler de submit
     const form = inputElement.closest('form');
     if (form) {
-        const boundSubmitHandler = (e) => handleSubmit(e, inputElement);
+        const boundSubmitHandler = (e) => handleSubmit(e, inputElement, form);
         form.addEventListener('submit', boundSubmitHandler);
-        
-        // Armazenar referência ao listener para limpeza posterior
         activeListeners.set(form, boundSubmitHandler);
     }
 
     // Adicionar atributos de acessibilidade
     inputElement.setAttribute('aria-label', 'Campo de mensagem');
     inputElement.setAttribute('aria-describedby', 'message-instructions');
+
+    // Handler específico para Enter
+    inputElement.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            console.log('[DEBUG] Enter key pressed');
+            const form = inputElement.closest('form');
+            if (form) {
+                handleSubmit(e, inputElement, form);
+            }
+        }
+    });
 
     return {
         focus: () => inputElement.focus(),
@@ -68,13 +82,19 @@ export function initializeInputBar(inputElement, menuElement, commands) {
 }
 
 export function destroyInputBar(inputElement) {
+    console.log('[DEBUG] Destroying input bar');
+    
     const form = inputElement.closest('form');
     if (form) {
-        // Remover listener específico se existir
+        // Remover listeners específicos
         const listener = activeListeners.get(form);
         if (listener) {
             form.removeEventListener('submit', listener);
             activeListeners.delete(form);
         }
+
+        // Garantir limpeza completa de listeners
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
     }
 }
