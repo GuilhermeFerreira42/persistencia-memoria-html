@@ -22,6 +22,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
         // Adicionar comando do usuário no chat
         adicionarMensagem(chatContainer, mensagem, 'user');
+        adicionarMensagemAoHistorico(mensagem, 'user');
 
         const loadingDiv = mostrarCarregamento(chatContainer);
         try {
@@ -33,7 +34,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 body: JSON.stringify({ 
                     video_url: videoUrl,
                     conversation_id: window.conversaAtual.id,
-                    comando: mensagem // Enviar comando original
+                    comando: mensagem
                 })
             });
 
@@ -42,21 +43,33 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
             if (data.error) {
                 adicionarMensagem(chatContainer, `Erro: ${data.error}`, 'assistant');
+                adicionarMensagemAoHistorico(`Erro: ${data.error}`, 'assistant');
             } else {
                 adicionarMensagem(chatContainer, data.text, 'assistant');
+                adicionarMensagemAoHistorico(data.text, 'assistant');
             }
+            
+            // Forçar atualização da UI
+            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+            
         } catch (error) {
             loadingDiv.remove();
-            adicionarMensagem(chatContainer, "Erro ao processar o vídeo", 'assistant');
+            const errorMsg = "Erro ao processar o vídeo";
+            adicionarMensagem(chatContainer, errorMsg, 'assistant');
+            adicionarMensagemAoHistorico(errorMsg, 'assistant');
         }
         return;
     }
 
-    // Para mensagens normais, deixar o backend adicionar a mensagem
+    // Para mensagens normais
     if (!window.conversaAtual) {
         console.warn("Criando nova conversa...");
         criarNovaConversa();
     }
+
+    // Adicionar mensagem do usuário imediatamente
+    adicionarMensagem(chatContainer, mensagem, 'user');
+    adicionarMensagemAoHistorico(mensagem, 'user');
 
     input.value = '';
     input.style.height = 'auto';
@@ -113,7 +126,14 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         }
 
         loadingDiv.remove();
+        
+        // Adicionar resposta da IA
         adicionarMensagem(chatContainer, accumulatedMessage, 'assistant');
+        adicionarMensagemAoHistorico(accumulatedMessage, 'assistant');
+        
+        // Forçar atualização da UI
+        window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+        window.dispatchEvent(new CustomEvent('mensagemEnviada'));
         
     } catch (erro) {
         if (erro.name === 'AbortError') {
@@ -122,7 +142,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         } else {
             console.error('Erro:', erro);
             loadingDiv.remove();
-            adicionarMensagem(chatContainer, 'Erro ao conectar com o servidor. Por favor, tente novamente.', 'assistant');
+            const errorMsg = 'Erro ao conectar com o servidor. Por favor, tente novamente.';
+            adicionarMensagem(chatContainer, errorMsg, 'assistant');
+            adicionarMensagemAoHistorico(errorMsg, 'assistant');
         }
     } finally {
         sendBtn.style.display = 'flex';
