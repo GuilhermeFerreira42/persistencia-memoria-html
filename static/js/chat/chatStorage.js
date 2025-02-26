@@ -1,4 +1,6 @@
 
+import { adicionarMensagem } from './chatUI.js';
+
 export function carregarConversa(id) {
     fetch(`/get_conversation/${id}`)
         .then(response => {
@@ -11,18 +13,13 @@ export function carregarConversa(id) {
                 return;
             }
             
-            // Debug 4: Verificar dados recebidos
             console.log('[DEBUG] Conversa carregada:', conversa);
             
             // Validação crítica
             if (!conversa.messages) {
                 console.log('[CONVERSÃO] Convertendo mensagens antigas para novo formato');
-                if (conversa.mensagens) {
-                    conversa.messages = conversa.mensagens;
-                    delete conversa.mensagens;
-                } else {
-                    conversa.messages = [];
-                }
+                conversa.messages = conversa.mensagens || [];
+                delete conversa.mensagens;
             }
             
             // Garantir que messages seja sempre um array
@@ -31,31 +28,43 @@ export function carregarConversa(id) {
                 conversa.messages = [];
             }
             
-            // Converter todos os campos para inglês se necessário
+            // Converter campos para inglês se necessário
             if (conversa.titulo) {
                 conversa.title = conversa.titulo;
                 delete conversa.titulo;
             }
             
+            // Atualizar estado global e lista
             window.conversaAtual = conversa;
+            if (!window.conversas) window.conversas = [];
+            window.conversas = window.conversas.map(c => 
+                c.id === conversa.id ? conversa : c
+            );
 
             const chatContainer = document.querySelector('.chat-container');
             const welcomeScreen = document.querySelector('.welcome-screen');
             const inputContainer = document.querySelector('.input-container');
+            
+            if (!chatContainer) {
+                console.error('[ERRO] Chat container não encontrado');
+                return;
+            }
             
             welcomeScreen.style.display = 'none';
             chatContainer.style.display = 'block';
             inputContainer.style.display = 'block';
             chatContainer.innerHTML = '';
             
+            // Adicionar mensagens usando a função importada
             conversa.messages.forEach(msg => {
                 adicionarMensagem(chatContainer, msg.content, msg.role === 'assistant' ? 'assistant' : 'user');
             });
 
             chatContainer.scrollTop = chatContainer.scrollHeight;
             
-            // Disparar evento global após carregar conversa
+            // Disparar eventos globais
             window.dispatchEvent(new CustomEvent('conversaCarregada'));
+            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
         })
         .catch(error => {
             console.error('Erro ao carregar conversa:', error);
@@ -65,7 +74,10 @@ export function carregarConversa(id) {
 
 export function atualizarListaConversas() {
     const chatList = document.querySelector('.chat-list');
-    if (!chatList) return;
+    if (!chatList) {
+        console.error('[ERRO] Chat list não encontrada');
+        return;
+    }
 
     fetch('/get_conversation_history')
         .then(response => response.json())
@@ -96,7 +108,6 @@ export function atualizarListaConversas() {
                 chatList.appendChild(conversaElement);
             });
             
-            // Disparar evento global após atualizar lista
             window.dispatchEvent(new CustomEvent('listaAtualizada'));
         })
         .catch(error => console.error('Erro ao atualizar lista de conversas:', error));
@@ -106,39 +117,30 @@ export function criarNovaConversa() {
     const novaConversa = {
         id: Date.now().toString(),
         title: "Nova Conversa",
-        messages: [] // Garantir que seja um array
+        messages: []
     };
     
-    if (!window.conversas) {
-        window.conversas = [];
-    }
-
+    window.conversas = window.conversas || [];
     window.conversas.unshift(novaConversa);
     window.conversaAtual = novaConversa;
+    
+    // Notificar sistema sobre nova conversa
+    window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+    
     return novaConversa.id;
 }
 
 export function adicionarMensagemAoHistorico(mensagem, tipo) {
     console.log('[DEBUG] Estado da conversaAtual:', window.conversaAtual);
     
-    // Se não existir conversaAtual ou se messages não for array, criar nova
     if (!window.conversaAtual || !Array.isArray(window.conversaAtual.messages)) {
         console.log('[CORREÇÃO] Criando nova conversa devido a estado inválido');
         window.conversaAtual = {
             id: Date.now().toString(),
-            title: "Nova conversa (emergência)",
+            title: "Nova conversa",
             messages: []
         };
     }
-    
-    // Converter mensagens antigas se necessário
-    if (window.conversaAtual.mensagens && !Array.isArray(window.conversaAtual.messages)) {
-        console.log('[CONVERSÃO] Convertendo mensagens antigas');
-        window.conversaAtual.messages = window.conversaAtual.mensagens;
-        delete window.conversaAtual.mensagens;
-    }
-    
-    console.log('[DEBUG] Adicionando mensagem:', { tipo, mensagem });
     
     try {
         window.conversaAtual.messages.push({
@@ -148,10 +150,13 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
         });
         console.log("[DEBUG] Mensagem adicionada com sucesso");
         
+        // Forçar atualização do histórico
+        window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+        window.dispatchEvent(new CustomEvent('mensagemAdicionada'));
+        
     } catch (err) {
         console.error("[ERRO CRÍTICO] Falha ao adicionar mensagem:", err);
     }
-    atualizarListaConversas();
 }
 
 export function renomearConversa(id) {
@@ -161,8 +166,10 @@ export function renomearConversa(id) {
     const novoTitulo = prompt('Digite o novo título da conversa:', conversa.title || conversa.titulo);
     if (novoTitulo && novoTitulo.trim()) {
         conversa.title = novoTitulo.trim();
-        delete conversa.titulo; // Remover versão antiga se existir
-        atualizarListaConversas();
+        delete conversa.titulo;
+        
+        // Forçar atualização do histórico
+        window.dispatchEvent(new CustomEvent('historicoAtualizado'));
     }
 }
 
@@ -182,5 +189,6 @@ export function excluirConversa(id) {
         inputContainer.style.display = 'none';
     }
     
-    atualizarListaConversas();
+    // Forçar atualização do histórico
+    window.dispatchEvent(new CustomEvent('historicoAtualizado'));
 }
