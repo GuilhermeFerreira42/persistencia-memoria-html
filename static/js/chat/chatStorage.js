@@ -1,3 +1,4 @@
+
 export function carregarConversa(id) {
     fetch(`/get_conversation/${id}`)
         .then(response => {
@@ -10,31 +11,33 @@ export function carregarConversa(id) {
                 return;
             }
             
-            // Debug
+            // Debug 4: Verificar dados recebidos
             console.log('[DEBUG] Conversa carregada:', conversa);
             
-            // Validações
+            // Validação crítica
             if (!conversa.messages) {
-                console.log('[CONVERSÃO] Convertendo mensagens antigas');
-                conversa.messages = conversa.mensagens || [];
-                delete conversa.mensagens;
+                console.log('[CONVERSÃO] Convertendo mensagens antigas para novo formato');
+                if (conversa.mensagens) {
+                    conversa.messages = conversa.mensagens;
+                    delete conversa.mensagens;
+                } else {
+                    conversa.messages = [];
+                }
             }
             
+            // Garantir que messages seja sempre um array
             if (!Array.isArray(conversa.messages)) {
                 console.error('[ERRO] Messages não é um array, corrigindo...');
                 conversa.messages = [];
             }
             
+            // Converter todos os campos para inglês se necessário
             if (conversa.titulo) {
                 conversa.title = conversa.titulo;
                 delete conversa.titulo;
             }
             
-            // Atualizar estado global
             window.conversaAtual = conversa;
-            window.conversas = window.conversas.map(c => 
-                c.id === conversa.id ? conversa : c
-            );
 
             const chatContainer = document.querySelector('.chat-container');
             const welcomeScreen = document.querySelector('.welcome-screen');
@@ -51,9 +54,8 @@ export function carregarConversa(id) {
 
             chatContainer.scrollTop = chatContainer.scrollHeight;
             
-            // Notificar sistema sobre mudanças
+            // Disparar evento global após carregar conversa
             window.dispatchEvent(new CustomEvent('conversaCarregada'));
-            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
         })
         .catch(error => {
             console.error('Erro ao carregar conversa:', error);
@@ -117,16 +119,26 @@ export function criarNovaConversa() {
 }
 
 export function adicionarMensagemAoHistorico(mensagem, tipo) {
-    console.log('[DEBUG] Estado atual:', JSON.parse(JSON.stringify(window.conversaAtual)));
+    console.log('[DEBUG] Estado da conversaAtual:', window.conversaAtual);
     
+    // Se não existir conversaAtual ou se messages não for array, criar nova
     if (!window.conversaAtual || !Array.isArray(window.conversaAtual.messages)) {
         console.log('[CORREÇÃO] Criando nova conversa devido a estado inválido');
         window.conversaAtual = {
             id: Date.now().toString(),
-            title: "Nova conversa",
+            title: "Nova conversa (emergência)",
             messages: []
         };
     }
+    
+    // Converter mensagens antigas se necessário
+    if (window.conversaAtual.mensagens && !Array.isArray(window.conversaAtual.messages)) {
+        console.log('[CONVERSÃO] Convertendo mensagens antigas');
+        window.conversaAtual.messages = window.conversaAtual.mensagens;
+        delete window.conversaAtual.mensagens;
+    }
+    
+    console.log('[DEBUG] Adicionando mensagem:', { tipo, mensagem });
     
     try {
         window.conversaAtual.messages.push({
@@ -136,13 +148,10 @@ export function adicionarMensagemAoHistorico(mensagem, tipo) {
         });
         console.log("[DEBUG] Mensagem adicionada com sucesso");
         
-        // Forçar atualização do histórico
-        atualizarListaConversas();
-        window.dispatchEvent(new CustomEvent('historicoAtualizado'));
-        
     } catch (err) {
         console.error("[ERRO CRÍTICO] Falha ao adicionar mensagem:", err);
     }
+    atualizarListaConversas();
 }
 
 export function renomearConversa(id) {
