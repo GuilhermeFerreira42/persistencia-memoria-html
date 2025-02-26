@@ -18,13 +18,21 @@ import { initializeInputBar, destroyInputBar } from './modules/inputBar.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
-window.conversas = [];
-window.conversaAtual = null;
+window.conversas = window.conversas || [];
+window.conversaAtual = window.conversaAtual || null;
 
 let welcomeBar = null;
 let chatBar = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DEBUG] DOM loaded, initializing...');
+    
+    // Prevenir submit padrão em TODOS os formulários
+    document.querySelectorAll('form').forEach(form => {
+        console.log('[DEBUG] Preventing default submit on form:', form.id);
+        form.addEventListener('submit', (e) => e.preventDefault());
+    });
+
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
     const chatContainer = document.querySelector('.chat-container');
@@ -34,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
 
-    // Configurar menu de comando usando o módulo criado
     const welcomeCommandMenu = document.getElementById('command-menu');
     const chatCommandMenu = document.getElementById('chat-command-menu');
 
@@ -45,13 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
         { command: '/config', description: 'Abrir configurações' }
     ];
 
-    // Prevenir submit padrão dos formulários
-    document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-        });
-    });
-
     // Inicializar barra de entrada da tela inicial
     if (welcomeInput && welcomeCommandMenu) {
         welcomeBar = initializeInputBar(
@@ -60,17 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
             COMMANDS.map(c => c.command)
         );
 
-        welcomeForm?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = welcomeInput.value.trim();
+        welcomeForm?.addEventListener('customSubmit', async (e) => {
+            console.log('[DEBUG] Welcome form custom submit triggered');
+            const message = e.detail.message;
             if (!message) return;
             
-            // Criar nova conversa se não existir
             if (!window.conversaAtual) {
                 criarNovaConversa();
             }
 
-            // Limpar barra de boas-vindas antes de trocar de tela
             welcomeBar?.destroy();
 
             iniciarChat(
@@ -80,7 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             
             await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
-            atualizarListaConversas(); // Atualizar histórico após enviar mensagem
+            atualizarListaConversas();
+            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
         });
     }
 
@@ -92,24 +91,25 @@ document.addEventListener('DOMContentLoaded', () => {
             COMMANDS.map(c => c.command)
         );
 
-        chatForm?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = chatInput.value.trim();
+        chatForm?.addEventListener('customSubmit', async (e) => {
+            console.log('[DEBUG] Chat form custom submit triggered');
+            const message = e.detail.message;
             if (!message) return;
             
             chatBar.clear();
             await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
-            atualizarListaConversas(); // Atualizar histórico após enviar mensagem
+            atualizarListaConversas();
+            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
         });
     }
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
+        console.log('[DEBUG] New chat button clicked');
         if (window.conversaAtual) {
-            atualizarListaConversas(); // Atualizar histórico antes de criar nova conversa
+            atualizarListaConversas();
         }
         
-        // Limpar barra do chat antes de trocar de tela
         chatBar?.destroy();
         
         window.conversaAtual = null;
@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chatInput
         );
 
-        // Reinicializar barra de boas-vindas
         if (welcomeInput && welcomeCommandMenu) {
             welcomeBar = initializeInputBar(
                 welcomeInput, 
@@ -133,14 +132,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar botão de parar resposta
     stopBtn?.addEventListener('click', () => {
+        console.log('[DEBUG] Stop button clicked');
         interromperResposta();
     });
 
     // Inicializar lista de conversas
     atualizarListaConversas();
 
-    // Evento global para atualização do histórico
-    window.addEventListener('conversaAtualizada', () => {
+    // Eventos globais para sincronização
+    window.addEventListener('historicoAtualizado', () => {
+        console.log('[DEBUG] Histórico atualizado event received');
+        atualizarListaConversas();
+    });
+
+    window.addEventListener('mensagemEnviada', () => {
+        console.log('[DEBUG] Mensagem enviada event received');
         atualizarListaConversas();
     });
 });
