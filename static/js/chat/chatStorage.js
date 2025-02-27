@@ -1,3 +1,4 @@
+
 import { adicionarMensagem } from './chatUI.js';
 
 export function carregarConversa(id) {
