@@ -237,6 +237,7 @@ export function excluirConversa(id) {
     });
 }
 
+// Adicionar event listener para os botões na lista de conversas
 document.addEventListener('DOMContentLoaded', () => {
     const chatList = document.querySelector('.chat-list');
     if (!chatList) return;
@@ -253,9 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.target.closest('.rename-btn')) {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('[DEBUG] Botão renomear clicado para ID:', id);
             renomearConversa(id);
         } else if (e.target.closest('.delete-btn')) {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('[DEBUG] Botão excluir clicado para ID:', id);
             excluirConversa(id);
         } else {
             carregarConversa(id);

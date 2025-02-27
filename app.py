@@ -146,6 +146,7 @@ def handle_rename_conversation(conversation_id):
             return jsonify({'success': True, 'new_title': new_title})
         return jsonify({'error': 'Falha ao renomear conversa'}), 500
     except Exception as e:
+        print(f"[ERRO] Erro ao renomear conversa: {str(e)}")
         return jsonify({'error': f'Erro catastrófico: {str(e)}'}), 500
 
 @app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
@@ -156,6 +157,7 @@ def handle_delete_conversation(conversation_id):
             return jsonify({'success': True})
         return jsonify({'error': 'Falha ao excluir conversa'}), 500
     except Exception as e:
+        print(f"[ERRO] Erro ao excluir conversa: {str(e)}")
         return jsonify({'error': f'Erro apocalíptico: {str(e)}'}), 500
 
 def process_with_ai(text):
