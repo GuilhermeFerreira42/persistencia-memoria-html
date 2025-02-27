@@ -135,8 +135,14 @@ def process_youtube():
 @app.route('/rename_conversation/<conversation_id>', methods=['POST'])
 def handle_rename_conversation(conversation_id):
     try:
+        print(f"[BACKEND] Recebida solicitação para renomear: {conversation_id}")
+        print(f"[BACKEND] Headers: {request.headers}")
+        
+        # Forçar decodificação do corpo JSON
         data = request.get_json(force=True, silent=True) or {}
         new_title = data.get('title', '').strip()
+        
+        print(f"[BACKEND] Dados recebidos: {data}")
         
         if not new_title:
             return jsonify({'error': 'Título inválido'}), 400
@@ -152,6 +158,8 @@ def handle_rename_conversation(conversation_id):
 @app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
 def handle_delete_conversation(conversation_id):
     try:
+        print(f"[BACKEND] Recebida solicitação para excluir: {conversation_id}")
+        
         success = delete_conversation(conversation_id)
         if success:
             return jsonify({'success': True})

@@ -146,7 +146,7 @@ def delete_conversation(conversation_id):
     filename = f"conversation_{conversation_id}.json"
     filepath = os.path.join(CONVERSATIONS_DIR, filename)
     
-    print(f"[DEBUG] Tentando excluir conversa: {conversation_id}")
+    print(f"[BACKEND] Tentando excluir conversa: {conversation_id}")
     
     try:
         # Remove o arquivo da conversa se existir
@@ -158,19 +158,17 @@ def delete_conversation(conversation_id):
             
         # Remove a entrada do índice
         try:
-            with open(INDEX_FILE, 'r', encoding='utf-8') as f:
+            with open(INDEX_FILE, 'r+', encoding='utf-8') as f:
                 index = json.load(f)
+                # Filtra a conversa do índice
+                index = [item for item in index if item["id"] != conversation_id]
+                # Salva o índice atualizado
+                f.seek(0)
+                json.dump(index, f, ensure_ascii=False, indent=2)
+                f.truncate()
         except (FileNotFoundError, json.JSONDecodeError):
             print("[DEBUG] Arquivo de índice não encontrado ou inválido")
-            index = []
             
-        # Filtra a conversa do índice
-        index = [item for item in index if item["id"] != conversation_id]
-        
-        # Salva o índice atualizado
-        with open(INDEX_FILE, 'w', encoding='utf-8') as f:
-            json.dump(index, f, ensure_ascii=False, indent=2)
-        
         print("[DEBUG] Conversa excluída com sucesso")
         return True
     except Exception as e:
@@ -179,7 +177,7 @@ def delete_conversation(conversation_id):
 
 def rename_conversation(conversation_id, new_title):
     """Renomeia uma conversa existente"""
-    print(f"[DEBUG] Tentando renomear conversa {conversation_id} para: {new_title}")
+    print(f"[BACKEND] Tentando renomear conversa {conversation_id} para: {new_title}")
     
     conversation = get_conversation_by_id(conversation_id)
     if not conversation:
@@ -195,11 +193,13 @@ def rename_conversation(conversation_id, new_title):
         conversation["title"] = new_title.strip()[:50]  # Limita o tamanho do título
         
         # Salva as alterações
-        if not save_conversation(conversation):
+        save_success = save_conversation(conversation)
+        if not save_success:
             print("[ERRO] Falha ao salvar conversa")
             return False
             
-        if not update_index(conversation):
+        index_success = update_index(conversation)
+        if not index_success:
             print("[ERRO] Falha ao atualizar índice")
             return False
         

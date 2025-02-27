@@ -97,13 +97,14 @@ export function atualizarListaConversas() {
                 
                 const titulo = conversa.title || conversa.titulo || 'Nova conversa';
                 
+                // Modificado para usar data-action em vez de apenas classes
                 conversaElement.innerHTML = `
                     <span class="chat-title">${titulo}</span>
                     <div class="action-buttons">
-                        <button class="action-btn rename-btn" title="Renomear" data-action="rename">
+                        <button class="action-btn" data-action="rename" title="Renomear">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="action-btn delete-btn" title="Excluir" data-action="delete">
+                        <button class="action-btn" data-action="delete" title="Excluir">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -111,10 +112,52 @@ export function atualizarListaConversas() {
                 
                 chatList.appendChild(conversaElement);
             });
+
+            // Importante: Vincular eventos após adicionar elementos ao DOM
+            vinculaEventosBotoes();
         })
         .catch(error => {
             console.error('[ERRO] Falha ao atualizar lista:', error);
         });
+}
+
+// Nova função para vincular eventos aos botões
+function vinculaEventosBotoes() {
+    const botoes = document.querySelectorAll('.chat-item [data-action]');
+    
+    botoes.forEach(botao => {
+        // Remover possíveis event listeners antigos
+        botao.removeEventListener('click', handleBotaoClick);
+        // Adicionar novo event listener
+        botao.addEventListener('click', handleBotaoClick);
+    });
+    
+    console.log('[DEBUG] Eventos vinculados a', botoes.length, 'botões');
+}
+
+// Function handler separada para o evento de clique
+function handleBotaoClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const botao = e.currentTarget;
+    const action = botao.dataset.action;
+    const chatItem = botao.closest('.chat-item');
+    
+    if (!chatItem) {
+        console.error('[ERRO] Chat item não encontrado');
+        return;
+    }
+    
+    const id = chatItem.dataset.id;
+    
+    console.log(`[DEBUG] Botão ${action} clicado para ID:`, id);
+    
+    if (action === 'rename') {
+        renomearConversa(id);
+    } else if (action === 'delete') {
+        excluirConversa(id);
+    }
 }
 
 export function criarNovaConversa() {
@@ -176,6 +219,7 @@ export function renomearConversa(id) {
         body: JSON.stringify({ title: novoTitulo.trim() })
     })
     .then(response => {
+        console.log('[DEBUG] Resposta HTTP:', response.status);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.json();
     })
@@ -183,9 +227,16 @@ export function renomearConversa(id) {
         console.log('[DEBUG] Resposta do servidor:', data);
         if (data.success) {
             console.log('[DEBUG] Conversa renomeada com sucesso');
-            // Forçar atualização da lista e UI
-            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
-            atualizarListaConversas();
+            
+            // Atualizar estado local
+            if (window.conversaAtual && window.conversaAtual.id === id) {
+                window.conversaAtual.title = novoTitulo.trim();
+            }
+            
+            // Forçar atualização da lista
+            setTimeout(() => {
+                atualizarListaConversas();
+            }, 100);
         } else {
             throw new Error(data.error || 'Erro desconhecido');
         }
@@ -209,6 +260,7 @@ export function excluirConversa(id) {
         headers: { 'Content-Type': 'application/json' }
     })
     .then(response => {
+        console.log('[DEBUG] Resposta HTTP:', response.status);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.json();
     })
@@ -228,9 +280,13 @@ export function excluirConversa(id) {
                 inputContainer.style.display = 'none';
             }
             
-            // Forçar atualização da lista e UI
-            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
-            atualizarListaConversas();
+            // Atualizar estado local
+            window.conversas = window.conversas?.filter(c => c.id !== id) || [];
+            
+            // Forçar atualização da lista
+            setTimeout(() => {
+                atualizarListaConversas();
+            }, 100);
         } else {
             throw new Error(data.error || 'Erro desconhecido');
         }
@@ -241,9 +297,9 @@ export function excluirConversa(id) {
     });
 }
 
-// Event listener para os botões na lista de conversas
+// Event listener principal para delegação de eventos
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[DEBUG] Configurando event listeners...');
+    console.log('[DEBUG] Configurando event listeners GLOBAIS...');
     
     const chatList = document.querySelector('.chat-list');
     if (!chatList) {
@@ -251,38 +307,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Delegação de eventos para cliques em itens de conversa (não botões)
     chatList.addEventListener('click', (e) => {
-        console.log('[DEBUG] Clique detectado:', e.target);
-        
-        const chatItem = e.target.closest('.chat-item');
-        if (!chatItem) {
-            console.log('[DEBUG] Clique fora de chat-item');
+        // Se o clique foi em um botão de ação, ignorar
+        if (e.target.closest('[data-action]')) {
+            console.log('[DEBUG] Clique em botão de ação, ignorando carregamento de conversa');
             return;
         }
-
+        
+        // Senão, procurar pelo item de conversa
+        const chatItem = e.target.closest('.chat-item');
+        if (!chatItem) return;
+        
         const id = chatItem.dataset.id;
         if (!id) {
             console.error('[ERRO] ID da conversa não encontrado');
             return;
         }
-
-        // Verificar se o clique foi em um botão de ação
-        const btnRename = e.target.closest('.rename-btn');
-        const btnDelete = e.target.closest('.delete-btn');
-
-        if (btnRename) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[DEBUG] Botão renomear clicado para ID:', id);
-            renomearConversa(id);
-        } else if (btnDelete) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[DEBUG] Botão excluir clicado para ID:', id);
-            excluirConversa(id);
-        } else {
-            console.log('[DEBUG] Clique para carregar conversa:', id);
-            carregarConversa(id);
-        }
+        
+        console.log('[DEBUG] Carregando conversa:', id);
+        carregarConversa(id);
+    });
+    
+    // Configurar observador de eventos para atualização de histórico
+    window.addEventListener('historicoAtualizado', () => {
+        console.log('[DEBUG] Evento historicoAtualizado detectado, vinculando eventos...');
+        setTimeout(vinculaEventosBotoes, 100);
     });
 });
