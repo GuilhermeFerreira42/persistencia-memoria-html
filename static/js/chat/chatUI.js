@@ -19,19 +19,22 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
 export function adicionarMensagem(chatContainer, texto, tipo) {
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
-    mensagemDiv.innerHTML = `
+    
+    const conteudo = `
         <p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>
         <div class="message-actions">
-            <button class="action-btn" onclick="copiarMensagem(this)">
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                 <i class="fas fa-copy"></i>
             </button>
             ${tipo === 'assistant' ? `
-                <button class="action-btn" onclick="regenerarResposta(this)">
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
                     <i class="fas fa-redo"></i>
                 </button>
             ` : ''}
         </div>
     `;
+    
+    mensagemDiv.innerHTML = conteudo;
     chatContainer.appendChild(mensagemDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }

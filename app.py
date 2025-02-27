@@ -9,7 +9,9 @@ from utils.chat_storage import (
     create_new_conversation,
     add_message_to_conversation,
     get_conversation_by_id,
-    get_conversation_history
+    get_conversation_history,
+    delete_conversation,
+    rename_conversation
 )
 
 app = Flask(__name__, static_folder='static')
@@ -126,6 +128,30 @@ def process_youtube():
             'title': video_title
         })
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rename_conversation/<conversation_id>', methods=['POST'])
+def handle_rename_conversation(conversation_id):
+    try:
+        data = request.json
+        if not data or 'title' not in data:
+            return jsonify({'error': 'Título não fornecido'}), 400
+            
+        success = rename_conversation(conversation_id, data['title'])
+        if success:
+            return jsonify({'success': True})
+        return jsonify({'error': 'Falha ao renomear conversa'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
+def handle_delete_conversation(conversation_id):
+    try:
+        success = delete_conversation(conversation_id)
+        if success:
+            return jsonify({'success': True})
+        return jsonify({'error': 'Falha ao excluir conversa'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

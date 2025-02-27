@@ -1,0 +1,32 @@
+
+.message .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.message .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+.message .action-btn.copied {
+    color: #4CAF50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.message .message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}

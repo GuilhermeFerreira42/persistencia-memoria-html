@@ -15,11 +15,14 @@ import {
     excluirConversa
 } from './chat/chatStorage.js';
 import { initializeInputBar, destroyInputBar } from './modules/inputBar.js';
+import { copiarMensagem, regenerarResposta } from './chat/chatUtils.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
 window.conversas = [];
 window.conversaAtual = null;
+window.copiarMensagem = copiarMensagem;
+window.regenerarResposta = regenerarResposta;
 
 let welcomeBar = null;
 let chatBar = null;
