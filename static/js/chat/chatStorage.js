@@ -116,12 +116,12 @@ export function atualizarListaConversas() {
                 actionButtons.style.position = 'relative';
                 actionButtons.style.zIndex = '100';
                 
-                // Botão Renomear - Simplificado para teste
+                // Botão Renomear com ícone
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'action-btn rename-btn';
                 renameBtn.dataset.id = conversa.id;
                 renameBtn.title = 'Renomear conversa';
-                renameBtn.textContent = 'Renomear'; // Texto ao invés de ícone para teste
+                renameBtn.innerHTML = '<i class="fas fa-edit"></i>'; // Ícone de lápis para editar
                 renameBtn.style.pointerEvents = 'auto';
                 
                 // Adicionar listener direto ao botão
@@ -132,12 +132,12 @@ export function atualizarListaConversas() {
                     renomearConversa(conversa.id);
                 });
                 
-                // Botão Excluir - Simplificado para teste
+                // Botão Excluir com ícone
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn delete-btn';
                 deleteBtn.dataset.id = conversa.id;
                 deleteBtn.title = 'Excluir conversa';
-                deleteBtn.textContent = 'Excluir'; // Texto ao invés de ícone para teste
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>'; // Ícone de lixeira para excluir
                 deleteBtn.style.pointerEvents = 'auto';
                 
                 // Adicionar listener direto ao botão
