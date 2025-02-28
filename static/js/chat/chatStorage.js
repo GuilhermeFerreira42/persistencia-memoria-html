@@ -92,47 +92,59 @@ export function atualizarListaConversas() {
                 
                 const titulo = conversa.title || conversa.titulo || 'Nova conversa';
                 
-                conversaElement.innerHTML = `
-                    <span class="chat-title">${titulo}</span>
-                    <div class="action-buttons">
-                        <button class="action-btn rename-btn" data-id="${conversa.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn delete-btn" data-id="${conversa.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `;
+                // Abordagem modificada: criar elementos DOM em vez de usar innerHTML
+                const spanTitulo = document.createElement('span');
+                spanTitulo.className = 'chat-title';
+                spanTitulo.textContent = titulo;
+                conversaElement.appendChild(spanTitulo);
                 
-                // Adicionar event listener para carregamento de conversa
+                const actionButtons = document.createElement('div');
+                actionButtons.className = 'action-buttons';
+                
+                // Botão Renomear
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'action-btn rename-btn';
+                renameBtn.dataset.id = conversa.id;
+                renameBtn.title = 'Renomear conversa';
+                renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
+                renameBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('[DEBUG] Botão renomear clicado para ID:', conversa.id);
+                    renomearConversa(conversa.id);
+                };
+                
+                // Botão Excluir
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn delete-btn';
+                deleteBtn.dataset.id = conversa.id;
+                deleteBtn.title = 'Excluir conversa';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('[DEBUG] Botão excluir clicado para ID:', conversa.id);
+                    excluirConversa(conversa.id);
+                };
+                
+                actionButtons.appendChild(renameBtn);
+                actionButtons.appendChild(deleteBtn);
+                conversaElement.appendChild(actionButtons);
+                
+                // Adicionar event listener para carregamento de conversa ao clicar no elemento
                 conversaElement.addEventListener('click', function(e) {
-                    // Ignorar se clicou em um botão
-                    if (e.target.closest('.action-btn')) return;
+                    // Não carregamos a conversa se clicamos em um botão
+                    if (e.target.closest('.action-btn')) {
+                        console.log('[DEBUG] Clique em botão detectado, ignorando carregamento');
+                        return;
+                    }
                     
                     const id = this.dataset.id;
+                    console.log('[DEBUG] Carregando conversa pelo clique:', id);
                     carregarConversa(id);
                 });
                 
                 chatList.appendChild(conversaElement);
-            });
-            
-            // Adicionar event listeners para os botões de ação
-            document.querySelectorAll('.rename-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const id = this.dataset.id;
-                    console.log('[DEBUG] Botão renomear clicado para ID:', id);
-                    renomearConversa(id);
-                });
-            });
-            
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const id = this.dataset.id;
-                    console.log('[DEBUG] Botão excluir clicado para ID:', id);
-                    excluirConversa(id);
-                });
             });
             
             window.dispatchEvent(new CustomEvent('listaAtualizada'));
@@ -200,6 +212,9 @@ export function renomearConversa(id) {
     })
     .then(response => {
         console.log('[DEBUG] Status da resposta:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         return response.json();
     })
     .then(data => {
@@ -227,13 +242,12 @@ export function renomearConversa(id) {
                 detail: { id, newTitle: novoTitulo.trim() } 
             }));
         } else {
-            console.error('[ERRO] Falha ao renomear:', data.error);
-            alert('Erro ao renomear conversa: ' + (data.error || 'Erro desconhecido'));
+            throw new Error(data.error || 'Erro desconhecido');
         }
     })
     .catch(error => {
-        console.error('[ERRO] Falha na requisição:', error);
-        alert('Erro na requisição: ' + error.message);
+        console.error('[ERRO] Falha ao renomear:', error);
+        alert('Erro ao renomear conversa: ' + error.message);
     });
 }
 
@@ -251,6 +265,9 @@ export function excluirConversa(id) {
     })
     .then(response => {
         console.log('[DEBUG] Status da resposta:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         return response.json();
     })
     .then(data => {
@@ -284,12 +301,11 @@ export function excluirConversa(id) {
                 detail: { id } 
             }));
         } else {
-            console.error('[ERRO] Falha ao excluir:', data.error);
-            alert('Erro ao excluir conversa: ' + (data.error || 'Erro desconhecido'));
+            throw new Error(data.error || 'Erro desconhecido');
         }
     })
     .catch(error => {
         console.error('[ERRO] Falha na requisição:', error);
-        alert('Erro na requisição: ' + error.message);
+        alert('Erro ao excluir conversa: ' + error.message);
     });
 }

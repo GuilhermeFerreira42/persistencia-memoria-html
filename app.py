@@ -135,38 +135,46 @@ def process_youtube():
 @app.route('/rename_conversation/<conversation_id>', methods=['POST'])
 def handle_rename_conversation(conversation_id):
     try:
-        print(f"[DEBUG] Solicitação para renomear conversa: {conversation_id}")
-        data = request.get_json(force=True)
+        print(f"[BACKEND] Recebendo solicitação para renomear conversa: {conversation_id}")
+        
+        # Forçar decodificação do corpo JSON
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            data = {}
+            print("[BACKEND] Request body vazio ou inválido")
+        
         new_title = data.get('title', '').strip()
+        print(f"[BACKEND] Novo título: '{new_title}'")
         
         if not new_title:
-            print("[ERRO] Título inválido")
+            print("[BACKEND] Título inválido")
             return jsonify({'error': 'Título inválido'}), 400
             
         success = rename_conversation(conversation_id, new_title)
         if success:
-            print(f"[DEBUG] Conversa renomeada com sucesso para: {new_title}")
+            print(f"[BACKEND] Conversa renomeada com sucesso para: {new_title}")
             return jsonify({'success': True, 'new_title': new_title})
         else:
-            print("[ERRO] Falha ao renomear conversa")
+            print("[BACKEND] Falha ao renomear conversa")
             return jsonify({'error': 'Falha ao renomear conversa'}), 500
     except Exception as e:
-        print(f"[ERRO] Erro ao renomear conversa: {str(e)}")
+        print(f"[BACKEND] Erro ao renomear conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
 def handle_delete_conversation(conversation_id):
     try:
-        print(f"[DEBUG] Solicitação para excluir conversa: {conversation_id}")
+        print(f"[BACKEND] Recebendo solicitação para excluir conversa: {conversation_id}")
+        
         success = delete_conversation(conversation_id)
         if success:
-            print(f"[DEBUG] Conversa {conversation_id} excluída com sucesso")
+            print(f"[BACKEND] Conversa {conversation_id} excluída com sucesso")
             return jsonify({'success': True})
         else:
-            print(f"[ERRO] Falha ao excluir conversa {conversation_id}")
+            print(f"[BACKEND] Falha ao excluir conversa {conversation_id}")
             return jsonify({'error': 'Falha ao excluir conversa'}), 500
     except Exception as e:
-        print(f"[ERRO] Erro ao excluir conversa: {str(e)}")
+        print(f"[BACKEND] Erro ao excluir conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def process_with_ai(text):
@@ -226,4 +234,5 @@ def process_with_ai_stream(text):
         print(f"[Debug] Erro inesperado: {str(e)}")
 
 if __name__ == '__main__':
+    print("[APLICAÇÃO] Iniciando servidor Flask...")
     app.run(debug=True)

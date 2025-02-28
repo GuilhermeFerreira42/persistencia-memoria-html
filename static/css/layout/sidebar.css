@@ -1,3 +1,4 @@
+
 .sidebar {
     position: fixed;
     width: 260px;
@@ -44,6 +45,7 @@
     align-items: center;
     justify-content: space-between;
     transition: background-color 0.2s;
+    position: relative;
 }
 
 .chat-item:hover {
@@ -53,6 +55,8 @@
 .chat-item .action-buttons {
     display: none;
     gap: 0.5rem;
+    z-index: 10;
+    position: relative;
 }
 
 .chat-item:hover .action-buttons {
@@ -67,9 +71,23 @@
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    z-index: 20;
 }
 
 .chat-item .action-btn:hover {
     background-color: var(--action-hover);
     color: var(--text-primary);
+}
+
+.chat-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 0.5rem;
+}
+
+.chat-item.active {
+    background-color: var(--action-selected);
+    font-weight: 500;
 }

@@ -28,6 +28,8 @@ let welcomeBar = null;
 let chatBar = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DEBUG] DOM Carregado, inicializando aplicação...');
+    
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
     const chatContainer = document.querySelector('.chat-container');
@@ -108,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
+        console.log('[DEBUG] Botão de nova conversa clicado');
+        
         if (window.conversaAtual) {
             atualizarListaConversas(); // Atualizar histórico antes de criar nova conversa
         }
@@ -144,8 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Evento global para atualização do histórico
     window.addEventListener('conversaAtualizada', () => {
+        console.log('[DEBUG] Evento conversaAtualizada detectado');
         atualizarListaConversas();
     });
+    
+    // Log de inicialização concluída
+    console.log('[DEBUG] Aplicação inicializada com sucesso');
 });
 
 // Expor funções globalmente
