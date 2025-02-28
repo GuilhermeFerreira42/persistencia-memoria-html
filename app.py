@@ -137,6 +137,11 @@ def handle_rename_conversation(conversation_id):
     try:
         print(f"[BACKEND] Recebendo solicitação para renomear conversa: {conversation_id}")
         
+        # Validação básica do ID para prevenir path traversal
+        if not conversation_id.isalnum() and not '-' in conversation_id:
+            print("[BACKEND] ID inválido")
+            return jsonify({'error': 'ID inválido'}), 400
+        
         # Forçar decodificação do corpo JSON
         data = request.get_json(force=True, silent=True)
         if not data:
@@ -165,6 +170,11 @@ def handle_rename_conversation(conversation_id):
 def handle_delete_conversation(conversation_id):
     try:
         print(f"[BACKEND] Recebendo solicitação para excluir conversa: {conversation_id}")
+        
+        # Validação básica do ID para prevenir path traversal
+        if not conversation_id.isalnum() and not '-' in conversation_id:
+            print("[BACKEND] ID inválido")
+            return jsonify({'error': 'ID inválido'}), 400
         
         success = delete_conversation(conversation_id)
         if success:

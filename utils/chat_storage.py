@@ -64,6 +64,7 @@ def update_index(conversation):
         "filename": f"conversation_{conversation['id']}.json"
     }
     
+    # Remover entrada antiga se existir
     index = [item for item in index if item["id"] != conversation["id"]]
     index.append(entry)
     index.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -105,7 +106,18 @@ def get_conversation_history():
     
     try:
         with open(INDEX_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            index = json.load(f)
+            
+        # Verificar se todos os arquivos ainda existem
+        valid_entries = []
+        for entry in index:
+            filepath = os.path.join(CONVERSATIONS_DIR, entry.get("filename", ""))
+            if os.path.exists(filepath):
+                valid_entries.append(entry)
+            else:
+                print(f"[DEBUG] Arquivo não encontrado para conversa {entry.get('id')}: {filepath}")
+                
+        return valid_entries
     except (FileNotFoundError, json.JSONDecodeError):
         print("[DEBUG] Arquivo de índice não encontrado ou inválido")
         return []
@@ -183,16 +195,20 @@ def rename_conversation(conversation_id, new_title):
     
     conversation = get_conversation_by_id(conversation_id)
     if not conversation:
-        print(f"[ERRO] Conversa não encontrada: {conversation_id}")
+        print(f"[ERRO] Conversa {conversation_id} não existe")
         return False
         
     try:
         # Atualiza o título com validação
-        if not new_title or not new_title.strip():
-            print("[ERRO] Título inválido")
+        new_title = new_title.strip()
+        if not new_title or len(new_title) > 100:
+            print("[ERRO] Título inválido ou muito longo")
             return False
             
-        conversation["title"] = new_title.strip()[:50]  # Limita o tamanho do título
+        conversation["title"] = new_title
+        conversation["timestamp"] = datetime.now().isoformat() # Atualiza timestamp
+        
+        print(f"[DEBUG] Novo título salvo: {conversation['title']}")
         
         # Salva as alterações
         save_success = save_conversation(conversation)

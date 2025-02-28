@@ -77,6 +77,12 @@ export function atualizarListaConversas() {
         return;
     }
 
+    // Remover o event listener existente antes de adicionar um novo
+    const oldListener = chatList._clickListener;
+    if (oldListener) {
+        chatList.removeEventListener('click', oldListener);
+    }
+
     fetch('/get_conversation_history')
         .then(response => response.json())
         .then(conversas => {
@@ -92,7 +98,6 @@ export function atualizarListaConversas() {
                 
                 const titulo = conversa.title || conversa.titulo || 'Nova conversa';
                 
-                // Abordagem modificada: criar elementos DOM em vez de usar innerHTML
                 const spanTitulo = document.createElement('span');
                 spanTitulo.className = 'chat-title';
                 spanTitulo.textContent = titulo;
@@ -107,12 +112,7 @@ export function atualizarListaConversas() {
                 renameBtn.dataset.id = conversa.id;
                 renameBtn.title = 'Renomear conversa';
                 renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
-                renameBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    console.log('[DEBUG] Botão renomear clicado para ID:', conversa.id);
-                    renomearConversa(conversa.id);
-                };
+                actionButtons.appendChild(renameBtn);
                 
                 // Botão Excluir
                 const deleteBtn = document.createElement('button');
@@ -120,32 +120,47 @@ export function atualizarListaConversas() {
                 deleteBtn.dataset.id = conversa.id;
                 deleteBtn.title = 'Excluir conversa';
                 deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                deleteBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    console.log('[DEBUG] Botão excluir clicado para ID:', conversa.id);
-                    excluirConversa(conversa.id);
-                };
-                
-                actionButtons.appendChild(renameBtn);
                 actionButtons.appendChild(deleteBtn);
+                
                 conversaElement.appendChild(actionButtons);
-                
-                // Adicionar event listener para carregamento de conversa ao clicar no elemento
-                conversaElement.addEventListener('click', function(e) {
-                    // Não carregamos a conversa se clicamos em um botão
-                    if (e.target.closest('.action-btn')) {
-                        console.log('[DEBUG] Clique em botão detectado, ignorando carregamento');
-                        return;
-                    }
-                    
-                    const id = this.dataset.id;
-                    console.log('[DEBUG] Carregando conversa pelo clique:', id);
-                    carregarConversa(id);
-                });
-                
                 chatList.appendChild(conversaElement);
             });
+            
+            // Usar delegação de eventos para capturar cliques em qualquer botão
+            const clickListener = function(e) {
+                // Verificar se clicou em um botão de renomear
+                const renameBtn = e.target.closest('.rename-btn');
+                if (renameBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = renameBtn.dataset.id;
+                    console.log('[DEBUG] Botão renomear clicado para ID:', id);
+                    renomearConversa(id);
+                    return;
+                }
+                
+                // Verificar se clicou em um botão de excluir
+                const deleteBtn = e.target.closest('.delete-btn');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = deleteBtn.dataset.id;
+                    console.log('[DEBUG] Botão excluir clicado para ID:', id);
+                    excluirConversa(id);
+                    return;
+                }
+                
+                // Se não clicou em nenhum botão, carrega a conversa
+                const chatItem = e.target.closest('.chat-item');
+                if (chatItem) {
+                    const id = chatItem.dataset.id;
+                    console.log('[DEBUG] Carregando conversa pelo clique:', id);
+                    carregarConversa(id);
+                }
+            };
+            
+            chatList.addEventListener('click', clickListener);
+            chatList._clickListener = clickListener; // Salva a referência para poder remover depois
             
             window.dispatchEvent(new CustomEvent('listaAtualizada'));
         })
@@ -223,19 +238,20 @@ export function renomearConversa(id) {
         if (data.success) {
             console.log('[DEBUG] Conversa renomeada com sucesso');
             
-            // Atualizar o título na memória
+            // Se for a conversa atual, recarregar a conversa do backend
             if (window.conversaAtual && window.conversaAtual.id === id) {
-                window.conversaAtual.title = novoTitulo.trim();
+                carregarConversa(id); // Recarregar do backend para garantir sincronização
+            } else {
+                // Atualizar o título na memória
+                if (window.conversas) {
+                    window.conversas = window.conversas.map(c => 
+                        c.id === id ? {...c, title: novoTitulo.trim()} : c
+                    );
+                }
+                
+                // Atualizar a lista de conversas
+                atualizarListaConversas();
             }
-            
-            if (window.conversas) {
-                window.conversas = window.conversas.map(c => 
-                    c.id === id ? {...c, title: novoTitulo.trim()} : c
-                );
-            }
-            
-            // Atualizar a lista de conversas
-            atualizarListaConversas();
             
             // Notificar sistema sobre alteração
             window.dispatchEvent(new CustomEvent('conversaAtualizada', { 
