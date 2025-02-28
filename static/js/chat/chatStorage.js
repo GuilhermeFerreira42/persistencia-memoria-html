@@ -77,11 +77,19 @@ export function atualizarListaConversas() {
         return;
     }
 
-    // Remover o event listener existente antes de adicionar um novo
-    const oldListener = chatList._clickListener;
-    if (oldListener) {
-        chatList.removeEventListener('click', oldListener);
+    // Limpar qualquer listener existente para evitar duplicação
+    if (chatList._clickListener) {
+        chatList.removeEventListener('click', chatList._clickListener);
     }
+
+    // Criar listener temporário global para debug
+    if (window._globalClickDebugListener) {
+        document.removeEventListener('click', window._globalClickDebugListener);
+    }
+    window._globalClickDebugListener = function(e) {
+        console.log('[DEBUG GLOBAL] Clique em:', e.target);
+    };
+    document.addEventListener('click', window._globalClickDebugListener);
 
     fetch('/get_conversation_history')
         .then(response => response.json())
@@ -105,29 +113,65 @@ export function atualizarListaConversas() {
                 
                 const actionButtons = document.createElement('div');
                 actionButtons.className = 'action-buttons';
+                actionButtons.style.position = 'relative';
+                actionButtons.style.zIndex = '100';
                 
-                // Botão Renomear
+                // Botão Renomear - Simplificado para teste
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'action-btn rename-btn';
                 renameBtn.dataset.id = conversa.id;
                 renameBtn.title = 'Renomear conversa';
-                renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
-                actionButtons.appendChild(renameBtn);
+                renameBtn.textContent = 'Renomear'; // Texto ao invés de ícone para teste
+                renameBtn.style.pointerEvents = 'auto';
                 
-                // Botão Excluir
+                // Adicionar listener direto ao botão
+                renameBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[DEBUG] Rename clicked diretamente para ID:', conversa.id);
+                    renomearConversa(conversa.id);
+                });
+                
+                // Botão Excluir - Simplificado para teste
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn delete-btn';
                 deleteBtn.dataset.id = conversa.id;
                 deleteBtn.title = 'Excluir conversa';
-                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                actionButtons.appendChild(deleteBtn);
+                deleteBtn.textContent = 'Excluir'; // Texto ao invés de ícone para teste
+                deleteBtn.style.pointerEvents = 'auto';
                 
+                // Adicionar listener direto ao botão
+                deleteBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[DEBUG] Delete clicked diretamente para ID:', conversa.id);
+                    excluirConversa(conversa.id);
+                });
+                
+                actionButtons.appendChild(renameBtn);
+                actionButtons.appendChild(deleteBtn);
                 conversaElement.appendChild(actionButtons);
+                
+                // Evitar que cliques nos botões disparem o carregamento da conversa
+                actionButtons.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    console.log('[DEBUG] Clique capturado em action-buttons');
+                });
+                
                 chatList.appendChild(conversaElement);
             });
             
-            // Usar delegação de eventos para capturar cliques em qualquer botão
+            // Adicionar listener de delegação também como fallback
             const clickListener = function(e) {
+                console.log('[DEBUG] Clique detectado em:', e.target);
+                
+                // Se clicar nos botões, não carrega a conversa
+                if (e.target.closest('.action-buttons')) {
+                    console.log('[DEBUG] Clique em botões, interrompendo propagação');
+                    e.stopPropagation();
+                    return;
+                }
+                
                 // Verificar se clicou em um botão de renomear
                 const renameBtn = e.target.closest('.rename-btn');
                 if (renameBtn) {
