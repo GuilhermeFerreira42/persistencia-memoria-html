@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -10,9 +9,7 @@ from utils.chat_storage import (
     create_new_conversation,
     add_message_to_conversation,
     get_conversation_by_id,
-    get_conversation_history,
-    delete_conversation,
-    rename_conversation
+    get_conversation_history
 )
 
 app = Flask(__name__, static_folder='static')
@@ -131,42 +128,6 @@ def process_youtube():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/rename_conversation/<conversation_id>', methods=['POST'])
-def handle_rename_conversation(conversation_id):
-    try:
-        print(f"[BACKEND] Recebida solicitação para renomear: {conversation_id}")
-        print(f"[BACKEND] Headers: {request.headers}")
-        
-        # Forçar decodificação do corpo JSON
-        data = request.get_json(force=True, silent=True) or {}
-        new_title = data.get('title', '').strip()
-        
-        print(f"[BACKEND] Dados recebidos: {data}")
-        
-        if not new_title:
-            return jsonify({'error': 'Título inválido'}), 400
-            
-        success = rename_conversation(conversation_id, new_title)
-        if success:
-            return jsonify({'success': True, 'new_title': new_title})
-        return jsonify({'error': 'Falha ao renomear conversa'}), 500
-    except Exception as e:
-        print(f"[ERRO] Erro ao renomear conversa: {str(e)}")
-        return jsonify({'error': f'Erro catastrófico: {str(e)}'}), 500
-
-@app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
-def handle_delete_conversation(conversation_id):
-    try:
-        print(f"[BACKEND] Recebida solicitação para excluir: {conversation_id}")
-        
-        success = delete_conversation(conversation_id)
-        if success:
-            return jsonify({'success': True})
-        return jsonify({'error': 'Falha ao excluir conversa'}), 500
-    except Exception as e:
-        print(f"[ERRO] Erro ao excluir conversa: {str(e)}")
-        return jsonify({'error': f'Erro apocalíptico: {str(e)}'}), 500
 
 def process_with_ai(text):
     try:
