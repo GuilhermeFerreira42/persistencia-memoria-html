@@ -7,7 +7,7 @@ export function escapeHTML(text) {
 
 export function copiarMensagem(button) {
     console.log('[DEBUG] Copiando mensagem...');
-    const mensagem = button.closest('.message').querySelector('p').textContent;
+    const mensagem = button.closest('.message').querySelector('.message-content').textContent;
     navigator.clipboard.writeText(mensagem)
         .then(() => {
             button.innerHTML = '<i class="fas fa-check"></i>';
@@ -31,7 +31,7 @@ export function regenerarResposta(button) {
         return;
     }
 
-    const texto = mensagemOriginal.querySelector('p').textContent;
+    const texto = mensagemOriginal.querySelector('.message-content').textContent;
     const chatInput = document.getElementById('chat-input');
     const chatForm = document.getElementById('chat-form');
 

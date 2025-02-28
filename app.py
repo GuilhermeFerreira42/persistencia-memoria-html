@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -9,7 +10,9 @@ from utils.chat_storage import (
     create_new_conversation,
     add_message_to_conversation,
     get_conversation_by_id,
-    get_conversation_history
+    get_conversation_history,
+    delete_conversation,
+    rename_conversation
 )
 
 app = Flask(__name__, static_folder='static')
@@ -127,6 +130,43 @@ def process_youtube():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rename_conversation/<conversation_id>', methods=['POST'])
+def handle_rename_conversation(conversation_id):
+    try:
+        print(f"[DEBUG] Solicitação para renomear conversa: {conversation_id}")
+        data = request.get_json(force=True)
+        new_title = data.get('title', '').strip()
+        
+        if not new_title:
+            print("[ERRO] Título inválido")
+            return jsonify({'error': 'Título inválido'}), 400
+            
+        success = rename_conversation(conversation_id, new_title)
+        if success:
+            print(f"[DEBUG] Conversa renomeada com sucesso para: {new_title}")
+            return jsonify({'success': True, 'new_title': new_title})
+        else:
+            print("[ERRO] Falha ao renomear conversa")
+            return jsonify({'error': 'Falha ao renomear conversa'}), 500
+    except Exception as e:
+        print(f"[ERRO] Erro ao renomear conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
+def handle_delete_conversation(conversation_id):
+    try:
+        print(f"[DEBUG] Solicitação para excluir conversa: {conversation_id}")
+        success = delete_conversation(conversation_id)
+        if success:
+            print(f"[DEBUG] Conversa {conversation_id} excluída com sucesso")
+            return jsonify({'success': True})
+        else:
+            print(f"[ERRO] Falha ao excluir conversa {conversation_id}")
+            return jsonify({'error': 'Falha ao excluir conversa'}), 500
+    except Exception as e:
+        print(f"[ERRO] Erro ao excluir conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def process_with_ai(text):

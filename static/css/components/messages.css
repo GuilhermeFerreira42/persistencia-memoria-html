@@ -30,3 +30,108 @@
 .message:hover .message-actions {
     display: flex;
 }
+
+/* Estilos para formatação de mensagens com Markdown */
+.message-content {
+    line-height: 1.6;
+}
+
+.message-content h1, 
+.message-content h2, 
+.message-content h3 {
+    margin: 1rem 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.message-content h1 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.message-content h2 {
+    font-size: 1.3rem;
+}
+
+.message-content h3 {
+    font-size: 1.1rem;
+}
+
+.message-content code {
+    background-color: var(--action-hover);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.message-content pre {
+    background-color: var(--action-hover);
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.message-content pre code {
+    background-color: transparent;
+    padding: 0;
+    display: block;
+    white-space: pre;
+}
+
+.message-content blockquote {
+    border-left: 4px solid var(--text-secondary);
+    margin: 0.5rem 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    color: var(--text-secondary);
+    background-color: rgba(125, 125, 125, 0.1);
+    border-radius: 0 4px 4px 0;
+}
+
+.message-content ul, 
+.message-content ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.message-content ul li, 
+.message-content ol li {
+    margin-bottom: 0.25rem;
+}
+
+.message-content a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.message-content a:hover {
+    text-decoration: underline;
+}
+
+/* Realce de sintaxe para blocos de código */
+.message-content .keyword {
+    color: #c678dd;
+}
+
+.message-content .string {
+    color: #98c379;
+}
+
+.message-content .number {
+    color: #d19a66;
+}
+
+.message-content .comment {
+    color: #5c6370;
+    font-style: italic;
+}
+
+/* Estilo para mensagens específicas */
+.message.assistant .message-content {
+    color: var(--text-primary);
+}
+
+.message.user .message-content {
+    color: var(--text-primary);
+}
