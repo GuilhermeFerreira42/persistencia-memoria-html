@@ -56,7 +56,7 @@ export function renderMessage(text) {
             return `<blockquote>${text}</blockquote>`;
         },
         
-        // Formatação de tabelas
+        // Formatação de tabelas - melhorada para capturar tabelas completas
         table(header, body) {
             return `<table><thead>${header}</thead><tbody>${body}</tbody></table>`;
         },
@@ -70,7 +70,7 @@ export function renderMessage(text) {
             return `<${tag}>${content}</${tag}>`;
         },
         
-        // Formatação de blocos de código
+        // Formatação de blocos de código - ajustada para realce de sintaxe mais robusto
         code(code, language) {
             const lang = language || 'plaintext';
             const escapedCode = escapeHTML(code.trim());
@@ -84,17 +84,21 @@ export function renderMessage(text) {
                 'export', 'const', 'let', 'var', 'def', 'print', 'from', 'async', 'await',
                 'try', 'catch', 'finally', 'switch', 'case', 'break', 'continue',
                 'public', 'private', 'protected', 'static', 'new', 'this', 'super',
-                'int', 'float', 'double', 'bool', 'string', 'void', 'null', 'True', 'False'
+                'int', 'float', 'double', 'bool', 'string', 'void', 'null', 'True', 'False',
+                'elif', 'except', 'raise', 'pass', 'lambda', 'with', 'as', 'and', 'or', 'not', 'in', 'is'
             ];
             
-            // Estilizar palavras-chave
+            // Estilizar palavras-chave - usando delimitadores de palavras para evitar matches parciais
             keywords.forEach(keyword => {
                 const regex = new RegExp(`\\b${keyword}\\b`, 'g');
                 highlightedCode = highlightedCode.replace(regex, `<span class="keyword">${keyword}</span>`);
             });
             
-            // Estilizar strings
-            highlightedCode = highlightedCode.replace(/(["'])(.*?)\1/g, '<span class="string">$&</span>');
+            // Estilizar strings - melhorado para capturar strings multilinha
+            highlightedCode = highlightedCode.replace(/(["'])((?:\\.|[^\\])*?)\1/g, '<span class="string">$&</span>');
+            
+            // Estilizar strings de tripla aspas (Python)
+            highlightedCode = highlightedCode.replace(/("""|''')((?:\\.|[^\\])*?)\1/g, '<span class="string">$&</span>');
             
             // Estilizar números
             highlightedCode = highlightedCode.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="number">$&</span>');
@@ -125,10 +129,13 @@ export function renderMessage(text) {
             .replace(/^## (.*$)/gm, (_, text) => renderer.heading(text, 2))
             .replace(/^# (.*$)/gm, (_, text) => renderer.heading(text, 1));
 
-        // Formatação de código
+        // Formatação de código - melhorada para capturar blocos multilinha corretamente
         html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(_, lang, code) {
             return renderer.code(code, lang);
         });
+
+        // Formatação de código inline
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
         // Formatação de estilos de texto
         html = html
@@ -146,7 +153,7 @@ export function renderMessage(text) {
             const bodyRows = rows.slice(2);
             
             // Processar cabeçalho
-            const headerCells = headerRow.split('|').slice(1, -1).map(cell => cell.trim());
+            const headerCells = headerRow.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
             let header = '<tr>';
             headerCells.forEach(cell => {
                 header += renderer.tablecell(cell, { header: true });
@@ -157,60 +164,95 @@ export function renderMessage(text) {
             let body = '';
             bodyRows.forEach(row => {
                 if (row.match(/\|.*\|/)) {
-                    const cells = row.split('|').slice(1, -1).map(cell => cell.trim());
-                    let rowHtml = '';
+                    const cells = row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+                    let rowHtml = '<tr>';
                     cells.forEach(cell => {
                         rowHtml += renderer.tablecell(cell, { header: false });
                     });
-                    body += renderer.tablerow(rowHtml);
+                    rowHtml += '</tr>';
+                    body += rowHtml;
                 }
             });
             
             return renderer.table(header, body);
         });
 
-        // Formatação de listas não ordenadas
-        let inUnorderedList = false;
+        // Processamento de listas - código reescrito para evitar placeholders
+        // Listas não ordenadas
+        const ulPattern = /^\s*[\-\*] (.*$)/gm;
+        let match;
+        let lastIndex = 0;
+        let result = '';
         let listItems = [];
-
-        html = html.replace(/^\s*[\-\*] (.*)$/gm, function(match, text) {
-            if (!inUnorderedList) {
-                inUnorderedList = true;
+        let inList = false;
+        
+        while ((match = ulPattern.exec(html)) !== null) {
+            if (!inList) {
+                result += html.substring(lastIndex, match.index);
+                inList = true;
                 listItems = [];
             }
-            listItems.push(renderer.listitem(text));
-            return '!LIST_ITEM_PLACEHOLDER!';
-        });
-
-        // Substituir placeholders com a lista completa
-        if (inUnorderedList && listItems.length > 0) {
-            const listContent = listItems.join('');
-            html = html.replace(/!LIST_ITEM_PLACEHOLDER!([\s\S]*?)(\n\n|$)/, function() {
-                inUnorderedList = false;
-                return renderer.list(listContent, false) + '\n\n';
-            });
+            
+            listItems.push(renderer.listitem(match[1]));
+            lastIndex = match.index + match[0].length;
+            
+            // Verifica se o próximo item não é uma lista
+            const nextLineStart = html.indexOf('\n', lastIndex) + 1;
+            const nextLine = html.substring(nextLineStart, html.indexOf('\n', nextLineStart) > -1 ? html.indexOf('\n', nextLineStart) : html.length);
+            
+            if (!nextLine.match(/^\s*[\-\*] /)) {
+                result += renderer.list(listItems.join(''), false);
+                inList = false;
+            }
         }
-
-        // Formatação de listas ordenadas
-        let inOrderedList = false;
+        
+        // Adicionar o restante do texto
+        if (lastIndex < html.length) {
+            result += html.substring(lastIndex);
+        } else if (inList) {
+            result += renderer.list(listItems.join(''), false);
+        }
+        
+        if (result) {
+            html = result;
+        }
+        
+        // Tratamento similar para listas ordenadas
+        const olPattern = /^\s*(\d+)\. (.*)$/gm;
+        lastIndex = 0;
+        result = '';
         listItems = [];
-
-        html = html.replace(/^\s*(\d+)\. (.*)$/gm, function(match, number, text) {
-            if (!inOrderedList) {
-                inOrderedList = true;
+        inList = false;
+        
+        while ((match = olPattern.exec(html)) !== null) {
+            if (!inList) {
+                result += html.substring(lastIndex, match.index);
+                inList = true;
                 listItems = [];
             }
-            listItems.push(renderer.listitem(text));
-            return '!ORDERED_LIST_PLACEHOLDER!';
-        });
-
-        // Substituir placeholders com a lista ordenada completa
-        if (inOrderedList && listItems.length > 0) {
-            const listContent = listItems.join('');
-            html = html.replace(/!ORDERED_LIST_PLACEHOLDER!([\s\S]*?)(\n\n|$)/, function() {
-                inOrderedList = false;
-                return renderer.list(listContent, true) + '\n\n';
-            });
+            
+            listItems.push(renderer.listitem(match[2]));
+            lastIndex = match.index + match[0].length;
+            
+            // Verifica se o próximo item não é uma lista
+            const nextLineStart = html.indexOf('\n', lastIndex) + 1;
+            const nextLine = html.substring(nextLineStart, html.indexOf('\n', nextLineStart) > -1 ? html.indexOf('\n', nextLineStart) : html.length);
+            
+            if (!nextLine.match(/^\s*\d+\. /)) {
+                result += renderer.list(listItems.join(''), true);
+                inList = false;
+            }
+        }
+        
+        // Adicionar o restante do texto
+        if (lastIndex < html.length) {
+            result += html.substring(lastIndex);
+        } else if (inList) {
+            result += renderer.list(listItems.join(''), true);
+        }
+        
+        if (result) {
+            html = result;
         }
 
         // Formatação de citações

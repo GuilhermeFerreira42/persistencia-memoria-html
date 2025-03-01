@@ -1,3 +1,4 @@
+
 export function escapeHTML(text) {
     const div = document.createElement('div');
     div.innerText = text;
@@ -6,7 +7,7 @@ export function escapeHTML(text) {
 
 export function copiarMensagem(button) {
     console.log('[DEBUG] Copiando mensagem...');
-    const mensagem = button.closest('.message').querySelector('.message-content').innerText; // Modificado para innerText
+    const mensagem = button.closest('.message').querySelector('.message-content').innerText;
     navigator.clipboard.writeText(mensagem)
         .then(() => {
             button.innerHTML = '<i class="fas fa-check"></i>';
@@ -46,7 +47,7 @@ export function regenerarResposta(button) {
 export function copiarCodigo(button) {
     console.log('[DEBUG] Copiando código...');
     const codeContainer = button.closest('.code-container');
-    const codigo = codeContainer.querySelector('.code-block code').innerText; // Modificado para innerText
+    const codigo = codeContainer.querySelector('.code-block code').innerText;
     
     navigator.clipboard.writeText(codigo)
         .then(() => {
