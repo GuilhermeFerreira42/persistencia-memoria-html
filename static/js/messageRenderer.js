@@ -5,7 +5,7 @@
  * @returns {string} HTML formatado
  */
 export function renderMessage(text) {
-    // Função para escapar HTML
+    // Função para escapar HTML corretamente
     function escapeHTML(text) {
         return text
             .replace(/&/g, '&amp;')
@@ -31,9 +31,9 @@ export function renderMessage(text) {
     formattedText = formattedText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
     // Formatação de tabelas - regex melhorada para capturar tabelas corretamente
-    formattedText = formattedText.replace(/(\|[^\n]*\|\r?\n)((?:\|:?[-]+:?)+\|)(\n(?:\|[^\n]*\|\r?\n?)*)/g, function (match, header, separator, rows) {
+    formattedText = formattedText.replace(/(\|.*\|\r?\n)(\|[-|: ]+\|\r?\n)((?:\|.*\|\r?\n)*)/g, function (match, header, separator, rows) {
         const headerCells = header.split('|').slice(1, -1).map(cell => cell.trim());
-        const rowsArray = rows.trim().split('\n');
+        const rowsArray = rows.trim().split('\n').filter(row => row.trim() !== '');
         
         let tableHTML = '<table>';
         tableHTML += '<thead><tr>';
@@ -43,12 +43,14 @@ export function renderMessage(text) {
         tableHTML += '</tr></thead><tbody>';
         
         rowsArray.forEach(row => {
-            const cells = row.split('|').slice(1, -1).map(cell => cell.trim());
-            tableHTML += '<tr>';
-            cells.forEach(cell => {
-                tableHTML += `<td>${cell}</td>`;
-            });
-            tableHTML += '</tr>';
+            if (row.match(/\|.*\|/)) { // Verifica se é uma linha válida
+                const cells = row.split('|').slice(1, -1).map(cell => cell.trim());
+                tableHTML += '<tr>';
+                cells.forEach(cell => {
+                    tableHTML += `<td>${cell}</td>`;
+                });
+                tableHTML += '</tr>';
+            }
         });
         
         tableHTML += '</tbody></table>';

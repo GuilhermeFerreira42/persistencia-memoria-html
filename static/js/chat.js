@@ -20,11 +20,11 @@ import {
     excluirConversa
 } from './chat/chatStorage.js';
 
-// Função para copiar código
+// Função para copiar código - melhorada para preservar indentação
 window.copiarCodigo = function(button) {
     const codeContainer = button.closest('.code-container');
     const codeBlock = codeContainer.querySelector('.code-block code');
-    const code = codeBlock.textContent;
+    const code = codeBlock.innerText; // Usa innerText para preservar indentação
     
     navigator.clipboard.writeText(code).then(() => {
         // Feedback visual
@@ -45,7 +45,7 @@ window.copiarCodigo = function(button) {
 // Função para copiar mensagem completa
 window.copiarMensagem = function(button) {
     const messageDiv = button.closest('.message');
-    const content = messageDiv.querySelector('.message-content').textContent;
+    const content = messageDiv.querySelector('.message-content').innerText; // Também usa innerText aqui
     
     navigator.clipboard.writeText(content).then(() => {
         // Feedback visual
