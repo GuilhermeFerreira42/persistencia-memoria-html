@@ -24,7 +24,7 @@ export function renderMessage(text) {
         
         // Formatação de parágrafos
         paragraph(text) {
-            return `${text}<br>`;
+            return `<p>${text}</p>`;
         },
         
         // Formatação de estilos de texto
@@ -70,52 +70,55 @@ export function renderMessage(text) {
             return `<${tag}>${content}</${tag}>`;
         },
         
-        // Formatação de blocos de código com solução melhorada para evitar caracteres indesejados
+        // Formatação de blocos de código com destaque de sintaxe melhorado
         code(code, language) {
             const lang = language || 'plaintext';
-            // Aqui usamos escapeHTML para garantir que o código seja exibido como texto, não HTML
-            // mas vamos tratar o destaque de sintaxe de forma especial
-            const escapedCode = escapeHTML(code.trim());
             
-            // Aplicando realce de sintaxe - agora com uma abordagem mais robusta
-            let highlightedCode = escapedCode;
+            // Preparamos o código sem escapar o HTML aqui para poder aplicar o destaque de sintaxe
+            const codeToHighlight = code.trim();
             
-            // Palavras-chave comuns em várias linguagens
+            // Aplicamos destaque de sintaxe manualmente
+            let highlightedCode = codeToHighlight;
+            
+            // Escapamos o código *depois* de aplicar o destaque
+            // Isso garante que o código apareça como texto simples sem marcações HTML indesejadas
+            const escapedCode = escapeHTML(highlightedCode);
+            
+            // Aplicamos destaque de sintaxe manualmente após o escape
+            // Isso significa que inserimos spans diretamente no HTML
+            let finalCode = escapedCode;
+            
+            // Palavras-chave em várias linguagens
             const keywords = [
                 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 
                 'export', 'const', 'let', 'var', 'def', 'print', 'from', 'async', 'await',
                 'try', 'catch', 'finally', 'switch', 'case', 'break', 'continue',
                 'public', 'private', 'protected', 'static', 'new', 'this', 'super',
-                'int', 'float', 'double', 'bool', 'string', 'void', 'null', 'True', 'False'
+                'int', 'float', 'double', 'bool', 'string', 'void', 'null', 'True', 'False',
+                'elif', 'and', 'or', 'not', 'in', 'is', 'lambda', 'pass', 'raise', 'with'
             ];
             
-            // Estilizar palavras-chave de forma segura, evitando quebrar tags HTML já escapadas
+            // Aplicar destaque às palavras-chave
             keywords.forEach(keyword => {
-                // Usar uma expressão regular que só pega palavras completas rodeadas por não-palavra ou início/fim de linha
-                const regex = new RegExp(`(^|[^a-zA-Z0-9_])${keyword}([^a-zA-Z0-9_]|$)`, 'g');
-                highlightedCode = highlightedCode.replace(regex, (match, prefix, suffix) => {
-                    return `${prefix}<span class="keyword">${keyword}</span>${suffix}`;
-                });
+                const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+                finalCode = finalCode.replace(regex, `<span class="keyword">${keyword}</span>`);
             });
             
-            // Estilizar strings de forma segura
-            highlightedCode = highlightedCode.replace(/(&quot;|&#039;)(.*?)(\1)/g, '<span class="string">$&</span>');
+            // Destacar strings - tanto com aspas simples quanto duplas
+            finalCode = finalCode.replace(/(&quot;|&#039;)(.*?)(\1)/g, '<span class="string">$&</span>');
             
-            // Estilizar números
-            highlightedCode = highlightedCode.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="number">$&</span>');
+            // Destacar números
+            finalCode = finalCode.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="number">$&</span>');
             
-            // Estilizar comentários (simplificado)
-            highlightedCode = highlightedCode.replace(/(\/\/.*|#.*)/g, '<span class="comment">$&</span>');
-            
-            // Comentários multilinhas (para C, Java, etc)
-            highlightedCode = highlightedCode.replace(/(&lt;\!--[\s\S]*?--&gt;|\/\*[\s\S]*?\*\/)/g, '<span class="comment">$&</span>');
+            // Destacar comentários de linha única
+            finalCode = finalCode.replace(/(\/\/.*|#.*)/g, '<span class="comment">$&</span>');
             
             return `<div class="code-container">
                 <div class="code-header">
                     <span class="language-label">${lang}</span>
                     <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
                 </div>
-                <pre class="code-block" data-language="${lang}"><code>${highlightedCode}</code></pre>
+                <pre class="code-block" data-language="${lang}"><code>${finalCode}</code></pre>
             </div>`;
         }
     };
@@ -130,7 +133,7 @@ export function renderMessage(text) {
             .replace(/^## (.*$)/gm, (_, text) => renderer.heading(text, 2))
             .replace(/^# (.*$)/gm, (_, text) => renderer.heading(text, 1));
 
-        // Formatação de código - ajustada para capturar corretamente
+        // Formatação de código - capturando corretamente blocos multilinha
         html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(_, lang, code) {
             return renderer.code(code, lang);
         });
@@ -147,7 +150,7 @@ export function renderMessage(text) {
         // Formatação de links
         html = html.replace(/\[(.*?)\]\((.*?)\)/g, (_, text, href) => renderer.link(href, null, text));
 
-        // Melhorando a formatação de tabelas para uma captura mais precisa
+        // Formatação melhorada de tabelas
         html = html.replace(/^\|(.*\|)+\r?\n\|([\-\|: ]+\|\r?\n)((?:\|.*\|\r?\n)*)/gm, function(match) {
             const rows = match.trim().split('\n');
             const headerRow = rows[0];
@@ -177,97 +180,150 @@ export function renderMessage(text) {
             return renderer.table(header, body);
         });
 
-        // Formatação melhorada de listas não ordenadas
-        // Refatorado para processar listas aninhadas corretamente
-        const processLists = (text, isOrdered = false) => {
-            // Regex para capturar listas ordenadas ou não ordenadas baseado em isOrdered
-            const listItemRegex = isOrdered ? /^(\s*)(\d+)\.\s+(.*$)/gm : /^(\s*)[\-\*]\s+(.*$)/gm;
-            
-            // Armazenar informações da lista
-            const listInfo = {
-                inProgress: false,
-                items: [],
-                indent: [],
-                lastIndentLevel: -1
-            };
-            
-            // Primeira passagem: capturar todos os itens de lista
+        // Função melhorada para processar listas
+        function processLists(text, isOrdered = false) {
+            const listPattern = isOrdered ? /^(\s*)(\d+)\.\s+(.*$)/gm : /^(\s*)[\-\*]\s+(.*$)/gm;
             let match;
-            const matches = [];
-            const textCopy = text + '\n\n'; // Garantir que a última lista seja processada
+            let lastIndent = -1;
+            let listHtml = '';
+            let inList = false;
+            let listStack = [];
             
-            while ((match = listItemRegex.exec(textCopy)) !== null) {
-                const indentation = isOrdered ? match[1].length : match[1].length;
-                const content = isOrdered ? match[3] : match[2];
-                matches.push({ indentation, content, original: match[0] });
-            }
-            
-            // Se não houver itens de lista, retornar o texto original
-            if (matches.length === 0) return text;
-            
-            // Construir a estrutura HTML da lista
-            let result = text;
-            
-            // Processar cada item encontrado
-            let currentListStart = null;
+            // Dividir o texto em linhas para processamento
+            const lines = text.split('\n');
+            let result = [];
+            let processingList = false;
             let currentListItems = [];
             let currentIndent = -1;
             
-            for (let i = 0; i < matches.length; i++) {
-                const item = matches[i];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const listMatch = line.match(listPattern);
                 
-                // Se é o primeiro item ou começou um novo nível de indentação
-                if (currentListStart === null) {
-                    currentListStart = item.original;
-                    currentListItems = [renderer.listitem(item.content)];
-                    currentIndent = item.indentation;
-                    continue;
-                }
-                
-                // Se é o mesmo nível de indentação, adicionar ao mesmo nível
-                if (item.indentation === currentIndent) {
-                    currentListItems.push(renderer.listitem(item.content));
-                } 
-                // Se é um nível diferente, ou último item, finalizar a lista atual
-                else if (item.indentation !== currentIndent || i === matches.length - 1) {
-                    const listContent = currentListItems.join('');
-                    const listHtml = renderer.list(listContent, isOrdered);
+                if (listMatch) {
+                    processingList = true;
+                    const indent = isOrdered ? 
+                        (listMatch[1] ? listMatch[1].length : 0) : 
+                        (listMatch[1] ? listMatch[1].length : 0);
+                    const content = isOrdered ? listMatch[3] : listMatch[2];
                     
-                    // Substituir a lista completa no texto
-                    const escapedStart = currentListStart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const listRegex = new RegExp(escapedStart + '[\\s\\S]*?(?=\\n\\s*\\n|$)', 'g');
-                    result = result.replace(listRegex, listHtml);
+                    // Novo nível de lista ou continuação do atual
+                    if (indent > currentIndent) {
+                        // Novo nível mais profundo
+                        if (currentListItems.length > 0) {
+                            // Fechamos o nível anterior e começamos um novo
+                            const listType = isOrdered ? 'ol' : 'ul';
+                            result.push(`<${listType}>`);
+                            currentListItems.forEach(item => {
+                                result.push(`<li>${item}</li>`);
+                            });
+                            listStack.push({ type: listType, indent: currentIndent });
+                            currentListItems = [content];
+                            currentIndent = indent;
+                        } else {
+                            // Primeira lista
+                            currentListItems = [content];
+                            currentIndent = indent;
+                        }
+                    } else if (indent === currentIndent) {
+                        // Mesmo nível
+                        currentListItems.push(content);
+                    } else {
+                        // Nível menos profundo, fechamos listas
+                        const listType = isOrdered ? 'ol' : 'ul';
+                        result.push(`<${listType}>`);
+                        currentListItems.forEach(item => {
+                            result.push(`<li>${item}</li>`);
+                        });
+                        result.push(`</${listType}>`);
+                        
+                        // Fechar listas aninhadas até o nível correto
+                        while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
+                            const list = listStack.pop();
+                            result.push(`</${list.type}>`);
+                        }
+                        
+                        // Iniciar nova lista no nível correto
+                        currentListItems = [content];
+                        currentIndent = indent;
+                    }
+                } else if (processingList && line.trim() === '') {
+                    // Linha em branco após lista, fechamos todas as listas abertas
+                    if (currentListItems.length > 0) {
+                        const listType = isOrdered ? 'ol' : 'ul';
+                        result.push(`<${listType}>`);
+                        currentListItems.forEach(item => {
+                            result.push(`<li>${item}</li>`);
+                        });
+                        result.push(`</${listType}>`);
+                        currentListItems = [];
+                    }
                     
-                    // Resetar para começar uma nova lista
-                    currentListStart = item.original;
-                    currentListItems = [renderer.listitem(item.content)];
-                    currentIndent = item.indentation;
+                    // Fechar listas aninhadas
+                    while (listStack.length > 0) {
+                        const list = listStack.pop();
+                        result.push(`</${list.type}>`);
+                    }
+                    
+                    processingList = false;
+                    currentIndent = -1;
+                    result.push(line);
+                } else {
+                    // Não é item de lista, incluir linha normal
+                    if (processingList) {
+                        // Fechar listas abertas antes de continuar
+                        if (currentListItems.length > 0) {
+                            const listType = isOrdered ? 'ol' : 'ul';
+                            result.push(`<${listType}>`);
+                            currentListItems.forEach(item => {
+                                result.push(`<li>${item}</li>`);
+                            });
+                            result.push(`</${listType}>`);
+                            currentListItems = [];
+                        }
+                        
+                        // Fechar listas aninhadas
+                        while (listStack.length > 0) {
+                            const list = listStack.pop();
+                            result.push(`</${list.type}>`);
+                        }
+                        
+                        processingList = false;
+                        currentIndent = -1;
+                    }
+                    
+                    result.push(line);
                 }
             }
             
-            // Lidar com o último conjunto de itens se ainda não processado
-            if (currentListItems.length > 0 && currentListStart !== null) {
-                const listContent = currentListItems.join('');
-                const listHtml = renderer.list(listContent, isOrdered);
+            // Fechar listas que ainda estão abertas no final do texto
+            if (processingList) {
+                if (currentListItems.length > 0) {
+                    const listType = isOrdered ? 'ol' : 'ul';
+                    result.push(`<${listType}>`);
+                    currentListItems.forEach(item => {
+                        result.push(`<li>${item}</li>`);
+                    });
+                    result.push(`</${listType}>`);
+                }
                 
-                const escapedStart = currentListStart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const listRegex = new RegExp(escapedStart + '[\\s\\S]*?(?=\\n\\s*\\n|$)', 'g');
-                result = result.replace(listRegex, listHtml);
+                while (listStack.length > 0) {
+                    const list = listStack.pop();
+                    result.push(`</${list.type}>`);
+                }
             }
             
-            return result;
-        };
+            return result.join('\n');
+        }
         
-        // Processar listas não ordenadas
-        html = processLists(html, false);
-        
-        // Processar listas ordenadas
-        html = processLists(html, true);
+        // Processar listas não ordenadas e ordenadas
+        html = processLists(html, false); // Não ordenadas
+        html = processLists(html, true);  // Ordenadas
 
         // Formatação de citações
         html = html.replace(/^> (.*$)/gm, (_, text) => renderer.blockquote(text));
 
-        // Adicionando quebras de linha para parágrafos, evitando quebrar elementos HTML
+        // Formatação de parágrafos (linhas de texto simples)
         const paragraphs = html.split('\n\n');
         html = paragraphs.map(p => {
             p = p.trim();
@@ -277,22 +333,13 @@ export function renderMessage(text) {
                 p.startsWith('<ol') || 
                 p.startsWith('<blockquote') || 
                 p.startsWith('<div class="code-container"') ||
-                p.startsWith('<table')) {
+                p.startsWith('<table') ||
+                p.startsWith('<li') ||
+                p.startsWith('</')) {
                 return p;
             }
             return renderer.paragraph(p);
         }).join('\n\n');
-
-        // Corrigindo problemas com quebras de linha em tags HTML
-        html = html
-            .replace(/<\/h1><br>/g, '</h1>')
-            .replace(/<\/h2><br>/g, '</h2>')
-            .replace(/<\/h3><br>/g, '</h3>')
-            .replace(/<\/li><br>/g, '</li>')
-            .replace(/<\/blockquote><br>/g, '</blockquote>')
-            .replace(/<\/pre><br>/g, '</pre>')
-            .replace(/<br>\s*(<table>)/g, '$1')
-            .replace(/(<\/table>)<br>/g, '$1');
 
         return html;
     }

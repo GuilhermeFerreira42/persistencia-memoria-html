@@ -47,7 +47,7 @@ export function regenerarResposta(button) {
 export function copiarCodigo(button) {
     console.log('[DEBUG] Copiando código...');
     const codeContainer = button.closest('.code-container');
-    // Usando innerText em vez de textContent para preservar indentação e quebras de linha
+    // Usando innerText para preservar indentação e quebras de linha
     const codigo = codeContainer.querySelector('.code-block code').innerText;
     
     navigator.clipboard.writeText(codigo)
