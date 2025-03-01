@@ -1,4 +1,5 @@
 
+/* Botões de ação nas mensagens */
 .message .action-btn {
     background: transparent;
     border: none;
@@ -65,21 +66,134 @@
     font-size: 0.9em;
 }
 
-.message-content pre {
-    background-color: var(--action-hover);
-    padding: 1em;
+/* Container para o bloco de código com cabeçalho */
+.code-container {
+    position: relative;
+    margin: 1em 0;
     border-radius: 5px;
-    overflow-x: auto;
-    margin: 1rem 0;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 0; /* Remove padding extra */
 }
 
-.message-content pre code {
-    background-color: transparent;
+.code-header {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0; /* Remove margens */
+    border-bottom: none; /* Remove borda para colar com o bloco */
+}
+
+.language-label {
+    text-transform: uppercase;
+    font-size: 0.8em;
+    letter-spacing: 1px;
+    flex: 1; /* Expande para empurrar o botão */
+}
+
+/* Blocos de código estilo terminal */
+.message-content .code-block {
+    background-color: #1e1e1e; /* Fundo preto estilo terminal */
+    color: #f8f8f2; /* Texto branco */
+    padding: 15px;
+    border-radius: 0; /* Remove bordas arredondadas para colar com o header */
+    font-family: 'Consolas', 'Courier New', monospace;
+    position: relative;
+    overflow-x: auto; /* Para códigos longos */
+    border: 1px solid #333;
+    margin: 0; /* Remove margem para alinhar com o cabeçalho */
+    border-top: none; /* Remove borda superior para colar com o header */
+}
+
+.message-content .code-block code {
+    background: none;
     padding: 0;
+    color: #f8f8f2;
     display: block;
     white-space: pre;
 }
 
+/* Botão de copiar código */
+.code-copy-btn {
+    background: transparent;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    transition: background-color 0.2s;
+    margin-left: auto; /* Alinha o botão à direita */
+}
+
+.code-copy-btn:hover {
+    background: #666;
+}
+
+.code-copy-btn.copied {
+    background: #4CAF50;
+}
+
+/* Realce de sintaxe para blocos de código */
+.message-content .keyword {
+    color: #569cd6; /* Azul para palavras-chave */
+}
+
+.message-content .string {
+    color: #ce9178; /* Laranja para strings */
+}
+
+.message-content .number {
+    color: #b5cea8; /* Verde claro para números */
+}
+
+.message-content .comment {
+    color: #6a9955; /* Verde escuro para comentários */
+}
+
+/* Estilos para tabelas Markdown - corrigido */
+.chat-container .message-content table {
+    width: 100%; /* Ocupa toda a largura disponível */
+    border-collapse: collapse; /* Une as bordas das células */
+    margin: 0.5rem 0; /* Espaço reduzido acima e abaixo */
+    padding: 0;
+    table-layout: fixed; /* Evita células desproporcionais */
+}
+
+.chat-container .message-content th,
+.chat-container .message-content td {
+    border: 1px solid var(--border-color); /* Bordas visíveis */
+    padding: 0.5rem; /* Espaço interno reduzido */
+    text-align: left; /* Alinhamento à esquerda */
+    vertical-align: top; /* Evita alinhamentos estranhos */
+    word-wrap: break-word; /* Quebra palavras longas */
+    overflow-wrap: break-word;
+}
+
+.chat-container .message-content th {
+    background-color: var(--action-hover); /* Fundo leve para cabeçalhos */
+    font-weight: bold; /* Cabeçalhos em negrito */
+}
+
+.chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.05); /* Efeito zebrado nas linhas pares */
+}
+
+/* Ajuste para tema escuro, se necessário */
+[data-theme="dark"] .chat-container .message-content th {
+    background-color: var(--action-hover);
+}
+
+[data-theme="dark"] .chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Estilos para citações */
 .message-content blockquote {
     border-left: 4px solid var(--text-secondary);
     margin: 0.5rem 0;
@@ -89,6 +203,7 @@
     border-radius: 0 4px 4px 0;
 }
 
+/* Estilos para listas */
 .message-content ul, 
 .message-content ol {
     padding-left: 1.5rem;
@@ -100,6 +215,7 @@
     margin-bottom: 0.25rem;
 }
 
+/* Estilos para links */
 .message-content a {
     color: #3498db;
     text-decoration: none;
@@ -109,25 +225,7 @@
     text-decoration: underline;
 }
 
-/* Realce de sintaxe para blocos de código */
-.message-content .keyword {
-    color: #c678dd;
-}
-
-.message-content .string {
-    color: #98c379;
-}
-
-.message-content .number {
-    color: #d19a66;
-}
-
-.message-content .comment {
-    color: #5c6370;
-    font-style: italic;
-}
-
-/* Estilo para mensagens específicas */
+/* Estilos para mensagens específicas */
 .message.assistant .message-content {
     color: var(--text-primary);
 }

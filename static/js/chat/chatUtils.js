@@ -42,3 +42,24 @@ export function regenerarResposta(button) {
         console.error('Elementos do formulário não encontrados');
     }
 }
+
+export function copiarCodigo(button) {
+    console.log('[DEBUG] Copiando código...');
+    const bloco = button.closest('pre');
+    const codigo = bloco.querySelector('code').textContent;
+    
+    navigator.clipboard.writeText(codigo)
+        .then(() => {
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-copy"></i>';
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('Erro ao copiar código:', err);
+            alert('Não foi possível copiar o código');
+        });
+}
+
+// Expor função globalmente para o onclick
+window.copiarCodigo = copiarCodigo;

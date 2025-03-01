@@ -182,7 +182,7 @@ def process_with_ai(text):
         payload = {
             "model": MODEL_NAME,
             "messages": [
-                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código."},
                 {"role": "user", "content": text}
             ],
             "stream": False
@@ -207,7 +207,7 @@ def process_with_ai_stream(text):
         payload = {
             "model": MODEL_NAME,
             "messages": [
-                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código. Exemplo:\nTexto normal aqui.\n```python\nprint('Código aqui')\n```\nMais texto normal aqui."},
                 {"role": "user", "content": text}
             ],
             "stream": True
