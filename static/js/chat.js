@@ -31,7 +31,7 @@ window.copiarCodigo = function(button) {
         button.innerHTML = '<i class="fas fa-check"></i>';
         button.classList.add('copied');
         
-        // Retornar ao estado original após 2 segundos
+        // Restaurar o ícone original após 2 segundos
         setTimeout(() => {
             button.innerHTML = '<i class="fas fa-copy"></i>';
             button.classList.remove('copied');
@@ -52,7 +52,7 @@ window.copiarMensagem = function(button) {
         button.innerHTML = '<i class="fas fa-check"></i>';
         button.classList.add('copied');
         
-        // Retornar ao estado original após 2 segundos
+        // Restaurar o ícone original após 2 segundos
         setTimeout(() => {
             button.innerHTML = '<i class="fas fa-copy"></i>';
             button.classList.remove('copied');

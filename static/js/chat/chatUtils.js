@@ -1,4 +1,3 @@
-
 export function escapeHTML(text) {
     const div = document.createElement('div');
     div.innerText = text;
@@ -12,14 +11,15 @@ export function copiarMensagem(button) {
         .then(() => {
             button.innerHTML = '<i class="fas fa-check"></i>';
             button.classList.add('copied');
+            
             setTimeout(() => {
                 button.innerHTML = '<i class="fas fa-copy"></i>';
                 button.classList.remove('copied');
             }, 2000);
         })
         .catch(err => {
-            console.error('Erro ao copiar:', err);
-            alert('Não foi possível copiar a mensagem');
+            console.error('[ERRO] Falha ao copiar mensagem:', err);
+            alert('Não foi possível copiar a mensagem. Por favor, tente novamente.');
         });
 }
 
@@ -51,13 +51,16 @@ export function copiarCodigo(button) {
     navigator.clipboard.writeText(codigo)
         .then(() => {
             button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('copied');
+            
             setTimeout(() => {
                 button.innerHTML = '<i class="fas fa-copy"></i>';
+                button.classList.remove('copied');
             }, 2000);
         })
         .catch(err => {
-            console.error('Erro ao copiar código:', err);
-            alert('Não foi possível copiar o código');
+            console.error('[ERRO] Falha ao copiar código:', err);
+            alert('Não foi possível copiar o código. Por favor, tente novamente.');
         });
 }
 
