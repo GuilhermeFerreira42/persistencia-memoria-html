@@ -68,5 +68,3 @@ export function copiarCodigo(button) {
 
 // Expor função globalmente para o onclick
 window.copiarCodigo = copiarCodigo;
-window.copiarMensagem = copiarMensagem;
-window.regenerarResposta = regenerarResposta;
