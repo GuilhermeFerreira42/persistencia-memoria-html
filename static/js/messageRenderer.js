@@ -57,9 +57,6 @@ export function renderMessage(text) {
         }
     });
     
-    // Modificar o renderer para personalizar como as listas são renderizadas
-    const renderer = new marked.Renderer();
-    
     // Usar o marked para converter o Markdown em HTML
     return marked.parse(text);
 }
