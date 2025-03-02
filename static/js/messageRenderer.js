@@ -5,7 +5,7 @@
  * @returns {string} HTML formatado
  */
 export function renderMessage(text) {
-    // Função para escapar HTML corretamente
+    // Função para escapar HTML corretamente (usada apenas quando necessário)
     function escapeHTML(text) {
         return text
             .replace(/&/g, '&amp;')
@@ -15,69 +15,16 @@ export function renderMessage(text) {
             .replace(/'/g, '&#039;');
     }
 
-    // Configuração do renderer personalizado para marked.js
-    const renderer = {
-        // Formatação de cabeçalhos
-        heading(text, level) {
-            return `<h${level}>${text}</h${level}>`;
-        },
+    // Parser de Markdown personalizado
+    function parseMarkdown(md) {
+        let html = md;
         
-        // Formatação de parágrafos
-        paragraph(text) {
-            return `<p>${text}</p>`;
-        },
-        
-        // Formatação de estilos de texto
-        strong(text) {
-            return `<strong>${text}</strong>`;
-        },
-        
-        em(text) {
-            return `<em>${text}</em>`;
-        },
-        
-        // Formatação de links
-        link(href, title, text) {
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-        },
-        
-        // Formatação de listas
-        list(body, ordered) {
-            const type = ordered ? 'ol' : 'ul';
-            return `<${type}>${body}</${type}>`;
-        },
-        
-        listitem(text) {
-            return `<li>${text}</li>`;
-        },
-        
-        // Formatação de citações
-        blockquote(text) {
-            return `<blockquote>${text}</blockquote>`;
-        },
-        
-        // Formatação de tabelas
-        table(header, body) {
-            return `<table><thead>${header}</thead><tbody>${body}</tbody></table>`;
-        },
-        
-        tablerow(content) {
-            return `<tr>${content}</tr>`;
-        },
-        
-        tablecell(content, { header }) {
-            const tag = header ? 'th' : 'td';
-            return `<${tag}>${content}</${tag}>`;
-        },
-        
-        // Formatação de blocos de código com destaque de sintaxe melhorado
-        code(code, language) {
-            const lang = language || 'plaintext';
+        // Processamento de blocos de código com melhorias para evitar escape incorreto
+        html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(_, lang, code) {
+            const language = lang || 'plaintext';
+            let codeToHighlight = code.trim();
             
-            // Aqui NÃO escapamos o código antes de aplicar o destaque
-            const codeToHighlight = code.trim();
-            
-            // Aplicamos destaque de sintaxe manualmente
+            // Aplicar destaque de sintaxe ao código original (não escapado)
             let highlightedCode = codeToHighlight;
             
             // Palavras-chave em várias linguagens
@@ -90,10 +37,10 @@ export function renderMessage(text) {
                 'elif', 'and', 'or', 'not', 'in', 'is', 'lambda', 'pass', 'raise', 'with'
             ];
             
-            // Primeiro, escapamos o HTML para evitar injeção
+            // Primeiro, escapar o HTML para evitar injeção
             let finalCode = escapeHTML(highlightedCode);
             
-            // Aplicar destaque às palavras-chave
+            // Aplicar destaque às palavras-chave com RegExp cuidadosa
             keywords.forEach(keyword => {
                 const regex = new RegExp(`\\b${keyword}\\b`, 'g');
                 finalCode = finalCode.replace(regex, `<span class="keyword">${keyword}</span>`);
@@ -110,112 +57,68 @@ export function renderMessage(text) {
             
             return `<div class="code-container">
                 <div class="code-header">
-                    <span class="language-label">${lang}</span>
+                    <span class="language-label">${language}</span>
                     <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
                 </div>
-                <pre class="code-block" data-language="${lang}"><code>${finalCode}</code></pre>
+                <pre class="code-block" data-language="${language}"><code>${finalCode}</code></pre>
             </div>`;
-        }
-    };
-
-    // Parser de Markdown melhorado usando um sistema mais robusto
-    function parseMarkdown(md) {
-        let html = md;
-        
-        // Processamento de blocos de código
-        html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(_, lang, code) {
-            return renderer.code(code, lang);
         });
         
         // Processamento de blocos inline code
-        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/`([^`]+)`/g, function(_, code) {
+            return `<code>${escapeHTML(code)}</code>`;
+        });
         
         // Formatação de cabeçalhos
         html = html
-            .replace(/^### (.*$)/gm, (_, text) => renderer.heading(text, 3))
-            .replace(/^## (.*$)/gm, (_, text) => renderer.heading(text, 2))
-            .replace(/^# (.*$)/gm, (_, text) => renderer.heading(text, 1));
+            .replace(/^### (.*$)/gm, function(_, text) {
+                return `<h3>${text}</h3>`;
+            })
+            .replace(/^## (.*$)/gm, function(_, text) {
+                return `<h2>${text}</h2>`;
+            })
+            .replace(/^# (.*$)/gm, function(_, text) {
+                return `<h1>${text}</h1>`;
+            });
             
         // Formatação de estilos de texto
         html = html
-            .replace(/\*\*(.*?)\*\*/g, (_, text) => renderer.strong(text))
-            .replace(/\*(.*?)\*/g, (_, text) => renderer.em(text))
+            .replace(/\*\*(.*?)\*\*/g, function(_, text) {
+                return `<strong>${text}</strong>`;
+            })
+            .replace(/\*(.*?)\*/g, function(_, text) {
+                return `<em>${text}</em>`;
+            })
             .replace(/~~(.*?)~~/g, '<del>$1</del>');
 
         // Formatação de links
-        html = html.replace(/\[(.*?)\]\((.*?)\)/g, (_, text, href) => renderer.link(href, null, text));
+        html = html.replace(/\[(.*?)\]\((.*?)\)/g, function(_, text, href) {
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        });
 
         // Processamento melhorado de listas
-        function processLists(text, isOrdered = false) {
-            const listPattern = isOrdered ? /^(\d+)\.\s+(.*$)/gm : /^[\-\*]\s+(.*$)/gm;
-            let result = text;
-            let listMatches = [];
-            let match;
-            
-            // Coletar todas as correspondências de lista
-            while (match = listPattern.exec(text)) {
-                listMatches.push({
-                    fullMatch: match[0],
-                    content: isOrdered ? match[2] : match[1],
-                    start: match.index,
-                    end: match.index + match[0].length
-                });
-            }
-            
-            // Se não encontrou nenhuma lista, retornar o texto original
-            if (listMatches.length === 0) {
-                return text;
-            }
-            
-            // Agrupar itens adjacentes em listas
-            let lists = [];
-            let currentList = [listMatches[0]];
-            
-            for (let i = 1; i < listMatches.length; i++) {
-                const current = listMatches[i];
-                const previous = listMatches[i - 1];
-                
-                // Verificar se os itens são adjacentes (apenas com espaços em branco entre eles)
-                const textBetween = text.substring(previous.end, current.start);
-                if (textBetween.trim() === '') {
-                    currentList.push(current);
-                } else {
-                    lists.push(currentList);
-                    currentList = [current];
-                }
-            }
-            
-            // Adicionar a última lista
-            lists.push(currentList);
-            
-            // Substituir cada lista no texto
-            let offset = 0;
-            
-            lists.forEach(list => {
-                const listItems = list.map(item => renderer.listitem(item.content)).join('');
-                const htmlList = renderer.list(listItems, isOrdered);
-                
-                // Calcular novos índices com o deslocamento
-                const startIndex = list[0].start + offset;
-                const endIndex = list[list.length - 1].end + offset;
-                
-                // Substituir a lista por HTML
-                const before = result.substring(0, startIndex);
-                const after = result.substring(endIndex);
-                result = before + htmlList + after;
-                
-                // Ajustar o deslocamento para as próximas substituições
-                offset += htmlList.length - (endIndex - startIndex);
+        function processLists(text) {
+            // Listas não ordenadas
+            text = text.replace(/^[\-\*]\s+(.*?)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*?<\/li>\n)+/g, function(match) {
+                return `<ul>${match}</ul>`;
             });
             
-            return result;
+            // Listas ordenadas
+            text = text.replace(/^\d+\.\s+(.*?)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*?<\/li>\n)+/g, function(match) {
+                if (match.startsWith('<li>')) {
+                    return `<ol>${match}</ol>`;
+                }
+                return match;
+            });
+            
+            return text;
         }
         
-        // Processar listas não ordenadas e ordenadas
-        html = processLists(html, false); // Não ordenadas
-        html = processLists(html, true);  // Ordenadas
+        html = processLists(html);
 
-        // Formatação de tabelas (manter o processamento existente)
+        // Formatação de tabelas (preservar processamento existente que funciona)
         html = html.replace(/^\|(.*\|)+\r?\n\|([\-\|: ]+\|\r?\n)((?:\|.*\|\r?\n)*)/gm, function(match) {
             const rows = match.trim().split('\n');
             const headerRow = rows[0];
@@ -225,7 +128,7 @@ export function renderMessage(text) {
             const headerCells = headerRow.split('|').slice(1, -1).map(cell => cell.trim());
             let header = '<tr>';
             headerCells.forEach(cell => {
-                header += renderer.tablecell(cell, { header: true });
+                header += `<th>${cell}</th>`;
             });
             header += '</tr>';
             
@@ -234,19 +137,22 @@ export function renderMessage(text) {
             bodyRows.forEach(row => {
                 if (row.match(/\|.*\|/)) { // Verifica se é uma linha válida
                     const cells = row.split('|').slice(1, -1).map(cell => cell.trim());
-                    let rowHtml = '';
+                    let rowHtml = '<tr>';
                     cells.forEach(cell => {
-                        rowHtml += renderer.tablecell(cell, { header: false });
+                        rowHtml += `<td>${cell}</td>`;
                     });
-                    body += renderer.tablerow(rowHtml);
+                    rowHtml += '</tr>';
+                    body += rowHtml;
                 }
             });
             
-            return renderer.table(header, body);
+            return `<table><thead>${header}</thead><tbody>${body}</tbody></table>`;
         });
 
         // Formatação de citações
-        html = html.replace(/^> (.*$)/gm, (_, text) => renderer.blockquote(text));
+        html = html.replace(/^> (.*$)/gm, function(_, text) {
+            return `<blockquote>${text}</blockquote>`;
+        });
 
         // Formatação de parágrafos
         // Dividir por linhas em branco e processar parágrafos
@@ -261,12 +167,11 @@ export function renderMessage(text) {
                 p.startsWith('<blockquote') || 
                 p.startsWith('<div class="code-container"') ||
                 p.startsWith('<table') ||
-                p.startsWith('<li') ||
-                p.startsWith('</')) {
+                p.startsWith('<li')) {
                 return p;
             }
             // Substitui quebras de linha simples por <br>
-            return renderer.paragraph(p.replace(/\n/g, '<br>'));
+            return `<p>${p.replace(/\n/g, '<br>')}</p>`;
         }).join('\n\n');
 
         return html;
