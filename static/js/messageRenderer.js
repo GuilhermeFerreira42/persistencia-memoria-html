@@ -8,17 +8,16 @@ export function renderMessage(text) {
     // Passo 1: Verificar se hljs está disponível globalmente
     if (typeof hljs === 'undefined') {
         console.error('[ERRO] highlight.js não está definido. Verifique se o script foi carregado corretamente.');
-        // Fallback simples se hljs não estiver disponível
         return `<pre>${text}</pre>`;
     }
 
-    // Passo 1: Configurar highlight.js
+    // Passo 2: Configurar highlight.js
     hljs.configure({
         cssSelector: 'pre code',
         ignoreUnescapedHTML: true
     });
 
-    // Passo 2: Configurar marked
+    // Passo 3: Configurar marked
     marked.setOptions({
         gfm: true,               // Suporte a GitHub Flavored Markdown
         breaks: false,           // Não converter \n em <br>
@@ -35,7 +34,7 @@ export function renderMessage(text) {
                 // Retornar o HTML com o container personalizado
                 return `<div class="code-container">
                     <div class="code-header">
-                        <span class="language-label">${language}</span>
+                        <span class="language-label">${language.toUpperCase()}</span>
                         <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
                     </div>
                     <pre class="code-block"><code class="hljs language-${language}">${highlightedCode}</code></pre>
@@ -45,7 +44,7 @@ export function renderMessage(text) {
                 // Fallback seguro em caso de erro
                 return `<div class="code-container">
                     <div class="code-header">
-                        <span class="language-label">texto</span>
+                        <span class="language-label">TEXTO</span>
                         <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
                     </div>
                     <pre class="code-block"><code>${code}</code></pre>
@@ -57,11 +56,10 @@ export function renderMessage(text) {
     try {
         // Primeiro, verificar se DOMPurify está disponível
         if (typeof DOMPurify === 'undefined') {
-            console.error('[ERRO] DOMPurify não está definido. Verifique se o script foi carregado corretamente.');
-            return marked.parse(text); // Fallback sem sanitização (não recomendado em produção)
+            console.error('[ERRO] DOMPurify não está definido');
+            return marked.parse(text);
         }
         
-        // Sanitização inteligente para preservar classes de highlight.js e o botão de copiar
         const allowedTags = ['pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
                             'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'table', 
                             'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img', 'button', 'i'];
@@ -76,28 +74,21 @@ export function renderMessage(text) {
             'i': ['class']
         };
         
-        // Primeiro sanitizar o texto cru
-        const sanitizedText = DOMPurify.sanitize(text, {
-            ALLOWED_TAGS: [],
-            ALLOWED_ATTR: []
-        });
-        
         // Usar o marked para converter o Markdown em HTML
-        const htmlContent = marked.parse(sanitizedText);
+        const htmlContent = marked.parse(text);
         
-        // Sanitizar o HTML final preservando formatação necessária e o botão de copiar
+        // Sanitizar o HTML final preservando classes e botão de copiar
         const finalHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: allowedTags,
             ALLOWED_ATTR: allowedAttributes,
-            ADD_ATTR: ['target', 'onclick'], // Permitir onclick para o botão de copiar
+            ADD_ATTR: ['target', 'onclick'],
             FORBID_TAGS: ['style', 'script'],
-            FORBID_ATTR: ['style', 'onerror'], // Removi 'onclick' daqui para permitir o botão de copiar
+            FORBID_ATTR: ['style', 'onerror']
         });
         
         return finalHtml;
     } catch (error) {
         console.error(`Erro ao renderizar markdown: ${error.message}`);
-        // Fallback seguro em caso de erro
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

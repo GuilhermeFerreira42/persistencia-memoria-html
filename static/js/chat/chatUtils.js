@@ -52,7 +52,7 @@ export function copiarCodigo(button) {
         return;
     }
     
-    // Extrair texto usando innerText para preservar formatação, mas sem tags HTML
+    // Extrair texto usando innerText para preservar formatação
     const codeBlock = codeContainer.querySelector('.code-block code');
     if (!codeBlock) {
         console.error('[ERRO] Bloco de código não encontrado');
