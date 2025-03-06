@@ -16,10 +16,14 @@
 @import './components/buttons.css';
 @import './components/forms.css';
 @import './components/messages.css';
+@import './components/code-highlight.css';
 
 /* Temas */
 @import './themes/light-theme.css';
 @import './themes/dark-theme.css';
+
+/* Importando tema do highlight.js */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css');
 
 .chat-container table {
   width: 100%; /* Faz a tabela ocupar toda a largura disponível */

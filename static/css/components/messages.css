@@ -139,23 +139,6 @@
     background: #4CAF50;
 }
 
-/* Realce de sintaxe para blocos de código */
-.message-content .keyword {
-    color: #569cd6; /* Azul para palavras-chave */
-}
-
-.message-content .string {
-    color: #ce9178; /* Laranja para strings */
-}
-
-.message-content .number {
-    color: #b5cea8; /* Verde claro para números */
-}
-
-.message-content .comment {
-    color: #6a9955; /* Verde escuro para comentários */
-}
-
 /* Estilos para tabelas Markdown - corrigido */
 .chat-container .message-content table {
     width: 100%; /* Ocupa toda a largura disponível */
@@ -232,4 +215,25 @@
 
 .message.user .message-content {
     color: var(--text-primary);
+}
+
+/* Estilos para highlight.js */
+.hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Courier New', monospace !important;
+    line-height: 1.6 !important;
+    tab-size: 4 !important;
+}
+
+/* Ajustes para temas claro/escuro */
+[data-theme="dark"] .hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4;
+}
+
+/* Forçar tema claro para o highlight.js */
+[data-theme="light"] .hljs {
+    background: #f8f8f8 !important;
+    color: #333;
 }

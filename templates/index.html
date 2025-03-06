@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,9 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <!-- Bibliotecas para Markdown e Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- CSS do projeto -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
 
 </head>
 <body>
@@ -124,10 +133,55 @@
         </main>
     </div>
 
-    <!-- Incluímos os scripts conforme o seu fluxo original -->
-    <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Inicialização do highlight.js -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar highlight.js
+            hljs.configure({
+                ignoreUnescapedHTML: true
+            });
+            
+            // Aplicar highlight.js em todos os blocos de código
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            // Expor copiarCodigo globalmente
+            window.copiarCodigo = function(button) {
+                const codeContainer = button.closest('.code-container');
+                const codeBlock = codeContainer.querySelector('.code-block code');
+                
+                const tempTextarea = document.createElement('textarea');
+                tempTextarea.value = codeBlock.innerText
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&')
+                    .trim();
+                
+                document.body.appendChild(tempTextarea);
+                tempTextarea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    button.innerHTML = '<i class="fas fa-check"></i>';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.innerHTML = '<i class="fas fa-copy"></i>';
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Erro ao copiar código:', err);
+                    alert('Não foi possível copiar o código. Por favor, tente novamente.');
+                } finally {
+                    document.body.removeChild(tempTextarea);
+                }
+            };
+        });
+    </script>
 
+    <!-- Scripts do projeto -->
+    <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

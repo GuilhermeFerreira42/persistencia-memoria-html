@@ -20,6 +20,11 @@ import {
     excluirConversa
 } from './chat/chatStorage.js';
 
+import {
+    copiarCodigo,
+    copiarMensagem
+} from './chat/chatUtils.js';
+
 // Função para copiar código - melhorada para preservar indentação
 window.copiarCodigo = function(button) {
     const codeContainer = button.closest('.code-container');

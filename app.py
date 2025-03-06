@@ -29,15 +29,24 @@ def home():
 
 @app.route('/get_conversation_history')
 def conversation_history():
-    conversations = get_conversation_history()
-    return jsonify(conversations)
+    try:
+        conversations = get_conversation_history()
+        return jsonify(conversations)
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter histórico de conversas: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/get_conversation/<conversation_id>')
 def get_conversation(conversation_id):
-    conversation = get_conversation_by_id(conversation_id)
-    if conversation:
-        return jsonify(conversation)
-    return jsonify({'error': 'Conversa não encontrada'}), 404
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            return jsonify(conversation)
+        print(f"[ERRO] Conversa não encontrada: {conversation_id}")
+        return jsonify({'error': 'Conversa não encontrada'}), 404
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -235,4 +244,5 @@ def process_with_ai_stream(text):
 
 if __name__ == '__main__':
     print("[APLICAÇÃO] Iniciando servidor Flask...")
-    app.run(debug=True)
+    # Garanta que o servidor seja acessível de qualquer IP na sua rede local
+    app.run(host='0.0.0.0', port=5000, debug=True)
