@@ -7,7 +7,7 @@ export function escapeHTML(text) {
 
 export function copiarMensagem(button) {
     console.log('[DEBUG] Copiando mensagem...');
-    const mensagem = button.closest('.message').querySelector('.message-content').innerText; // Usando innerText para preservar formatação
+    const mensagem = button.closest('.message').querySelector('.message-content').innerText;
     navigator.clipboard.writeText(mensagem)
         .then(() => {
             button.innerHTML = '<i class="fas fa-check"></i>';
@@ -52,15 +52,16 @@ export function copiarCodigo(button) {
         return;
     }
     
-    // Extrair texto usando innerText para preservar formatação
+    // Extrair o texto do código sem formatação HTML
     const codeBlock = codeContainer.querySelector('.code-block code');
     if (!codeBlock) {
         console.error('[ERRO] Bloco de código não encontrado');
         return;
     }
     
-    // Pegar apenas o texto limpo sem formatação HTML
+    // Usar textContent para pegar apenas o texto, sem formatação HTML
     const cleanText = codeBlock.textContent.trim();
+    console.log('[DEBUG] Texto do código a ser copiado:', cleanText.substring(0, 50) + '...');
     
     navigator.clipboard.writeText(cleanText)
         .then(() => {

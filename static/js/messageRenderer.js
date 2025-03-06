@@ -26,6 +26,7 @@ export function renderMessage(text) {
         smartLists: true,        // Listas inteligentes
         smartypants: false,      // Não usar tipografia avançada
         highlight: function(code, lang) {
+            console.log('[DEBUG] Destacando código com linguagem:', lang);
             try {
                 // Usar linguagem específica ou detectar automaticamente
                 const language = lang || 'plaintext';
@@ -40,7 +41,7 @@ export function renderMessage(text) {
                     <pre class="code-block"><code class="hljs language-${language}">${highlightedCode}</code></pre>
                 </div>`;
             } catch (error) {
-                console.error(`Erro ao destacar código: ${error.message}`);
+                console.error(`[ERRO] Erro ao destacar código: ${error.message}`);
                 // Fallback seguro em caso de erro
                 return `<div class="code-container">
                     <div class="code-header">
@@ -54,7 +55,7 @@ export function renderMessage(text) {
     });
     
     try {
-        // Primeiro, verificar se DOMPurify está disponível
+        // Verificar se DOMPurify está disponível
         if (typeof DOMPurify === 'undefined') {
             console.error('[ERRO] DOMPurify não está definido');
             return marked.parse(text);
@@ -74,10 +75,11 @@ export function renderMessage(text) {
             'i': ['class']
         };
         
-        // Usar o marked para converter o Markdown em HTML
+        // Converter Markdown em HTML diretamente (sem sanitização prévia)
         const htmlContent = marked.parse(text);
+        console.log('[DEBUG] HTML gerado pelo marked:', htmlContent.substring(0, 200));
         
-        // Sanitizar o HTML final preservando classes e botão de copiar
+        // Sanitizar o HTML final preservando todas as classes e atributos necessários
         const finalHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: allowedTags,
             ALLOWED_ATTR: allowedAttributes,
@@ -86,9 +88,10 @@ export function renderMessage(text) {
             FORBID_ATTR: ['style', 'onerror']
         });
         
+        console.log('[DEBUG] HTML após sanitização:', finalHtml.substring(0, 200));
         return finalHtml;
     } catch (error) {
-        console.error(`Erro ao renderizar markdown: ${error.message}`);
+        console.error(`[ERRO] Erro ao renderizar markdown: ${error.message}`);
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

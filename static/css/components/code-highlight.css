@@ -85,6 +85,7 @@
     --code-text-dark: #d4d4d4;
     --code-header-bg: #f1f1f1;
     --code-header-bg-dark: #2d2d2d;
+    --color-success: #4CAF50;
 }
 
 [data-theme="dark"] {
