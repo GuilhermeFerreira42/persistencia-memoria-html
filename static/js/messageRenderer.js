@@ -61,17 +61,19 @@ export function renderMessage(text) {
             return marked.parse(text); // Fallback sem sanitização (não recomendado em produção)
         }
         
-        // Sanitização inteligente para preservar classes de highlight.js
+        // Sanitização inteligente para preservar classes de highlight.js e o botão de copiar
         const allowedTags = ['pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
                             'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'table', 
-                            'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img'];
+                            'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img', 'button', 'i'];
         
         const allowedAttributes = {
             'code': ['class'],
             'span': ['class'],
             'div': ['class'],
+            'button': ['class', 'onclick', 'title'],
             'a': ['href', 'target', 'rel'],
-            'img': ['src', 'alt']
+            'img': ['src', 'alt'],
+            'i': ['class']
         };
         
         // Primeiro sanitizar o texto cru
@@ -83,23 +85,14 @@ export function renderMessage(text) {
         // Usar o marked para converter o Markdown em HTML
         const htmlContent = marked.parse(sanitizedText);
         
-        // Sanitizar o HTML final preservando formatação necessária
+        // Sanitizar o HTML final preservando formatação necessária e o botão de copiar
         const finalHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: allowedTags,
             ALLOWED_ATTR: allowedAttributes,
-            ADD_ATTR: ['target'],
+            ADD_ATTR: ['target', 'onclick'], // Permitir onclick para o botão de copiar
             FORBID_TAGS: ['style', 'script'],
-            FORBID_ATTR: ['style', 'onerror', 'onclick'],
+            FORBID_ATTR: ['style', 'onerror'], // Removi 'onclick' daqui para permitir o botão de copiar
         });
-        
-        // Ativar highlight.js após inserção no DOM
-        setTimeout(() => {
-            if (typeof hljs !== 'undefined') {
-                document.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
-            }
-        }, 50);
         
         return finalHtml;
     } catch (error) {

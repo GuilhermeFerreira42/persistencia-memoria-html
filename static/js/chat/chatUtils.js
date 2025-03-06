@@ -52,42 +52,30 @@ export function copiarCodigo(button) {
         return;
     }
     
-    // Criar um textarea temporário para decodificar corretamente o HTML
-    const tempTextarea = document.createElement('textarea');
-    
-    // Extrair texto usando innerText para preservar formatação
+    // Extrair texto usando innerText para preservar formatação, mas sem tags HTML
     const codeBlock = codeContainer.querySelector('.code-block code');
     if (!codeBlock) {
         console.error('[ERRO] Bloco de código não encontrado');
         return;
     }
     
-    tempTextarea.value = codeBlock.innerText
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n\s+/g, '\n')  // Remove indentação excessiva
-        .replace(/\s+$/gm, '')    // Remove espaços em branco extras
-        .trim();                  // Remove espaços em branco extras
+    // Pegar apenas o texto limpo sem formatação HTML
+    const cleanText = codeBlock.textContent.trim();
     
-    document.body.appendChild(tempTextarea);
-    tempTextarea.select();
-    
-    try {
-        document.execCommand('copy');
-        button.innerHTML = '<i class="fas fa-check"></i>';
-        button.classList.add('copied');
-        
-        setTimeout(() => {
-            button.innerHTML = '<i class="fas fa-copy"></i>';
-            button.classList.remove('copied');
-        }, 2000);
-    } catch (err) {
-        console.error('[ERRO] Falha ao copiar código:', err);
-        alert('Não foi possível copiar o código. Por favor, tente novamente.');
-    } finally {
-        document.body.removeChild(tempTextarea);
-    }
+    navigator.clipboard.writeText(cleanText)
+        .then(() => {
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('copied');
+            
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-copy"></i>';
+                button.classList.remove('copied');
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('[ERRO] Falha ao copiar código:', err);
+            alert('Não foi possível copiar o código. Por favor, tente novamente.');
+        });
 }
 
 // Expor função globalmente para o onclick
