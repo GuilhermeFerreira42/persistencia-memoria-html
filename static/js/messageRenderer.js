@@ -14,7 +14,6 @@ export function renderMessage(text) {
         smartLists: true,        // Listas inteligentes
         smartypants: false,      // Não usar tipografia avançada
         xhtml: false,            // Não usar tags XHTML auto-fechadas
-        renderer: new marked.Renderer(),
         highlight: function(code, lang) {
             // Definir linguagem padrão se não for especificada
             const language = lang || 'plaintext';
@@ -46,7 +45,7 @@ export function renderMessage(text) {
             // Destacar comentários
             highlightedCode = highlightedCode.replace(/(\/\/.*|#.*)/g, '<span class="comment">$&</span>');
             
-            // Retornar o HTML com o container personalizado
+            // Retornar o HTML com o container personalizado incluindo a barra de título
             return `<div class="code-container">
                 <div class="code-header">
                     <span class="language-label">${language}</span>
