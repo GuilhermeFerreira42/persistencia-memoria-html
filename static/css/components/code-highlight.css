@@ -1,13 +1,11 @@
 
-/* Estilos para blocos de código e highlight.js */
-
 /* Container para blocos de código */
 .code-container {
     position: relative;
     margin: 1rem 0;
     border-radius: 6px;
     overflow: hidden;
-    background-color: #1e1e1e; /* Fundo fixo escuro */
+    background-color: #1e1e1e !important; /* Fundo fixo escuro */
     border: 1px solid var(--border-color);
 }
 
@@ -17,7 +15,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 1rem;
-    background-color: #2d2d2d; /* Cabeçalho um pouco mais claro que o fundo */
+    background-color: #2d2d2d !important; /* Cabeçalho um pouco mais claro que o fundo */
     color: #d4d4d4;
     font-family: monospace;
     font-size: 0.875rem;
@@ -54,13 +52,13 @@
 .code-block {
     margin: 0;
     padding: 1rem;
-    background-color: #1e1e1e; /* Fundo fixo escuro */
+    background-color: #1e1e1e !important; /* Fundo fixo escuro */
     overflow-x: auto;
 }
 
 .code-block code {
     display: block;
-    background-color: transparent; /* Remover fundo do <code> para usar o do .code-block */
+    background-color: transparent !important; /* Remover fundo do <code> para usar o do .code-block */
     font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', monospace;
     font-size: 0.875rem;
     line-height: 1.5;
@@ -70,15 +68,18 @@
 /* Forçar o tema de cores highlight.js para os blocos de código */
 .hljs {
     background: transparent !important; /* O fundo vem do .code-block */
-    color: #d4d4d4; /* Cor base do texto para fundo escuro */
+    color: #d4d4d4 !important; /* Cor base do texto para fundo escuro */
 }
 
 /* Forçar fundo escuro em ambos os temas */
 [data-theme="light"] .code-container,
 [data-theme="light"] .code-block,
+[data-theme="light"] pre code,
 [data-theme="dark"] .code-container,
-[data-theme="dark"] .code-block {
+[data-theme="dark"] .code-block,
+[data-theme="dark"] pre code {
     background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
 }
 
 /* Cores de sintaxe para highlight.js - sempre usar cores para tema escuro */

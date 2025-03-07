@@ -52,13 +52,13 @@ export function copiarCodigo(button) {
         return;
     }
     
-    const codeBlock = codeContainer.querySelector('.code-block code');
+    const codeBlock = codeContainer.querySelector('.code-block code') || codeContainer.querySelector('code');
     if (!codeBlock) {
         console.error('[ERRO] Bloco de código não encontrado');
         return;
     }
     
-    const code = codeBlock.innerText
+    const code = codeBlock.textContent
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&amp;/g, '&');
@@ -93,10 +93,10 @@ export function melhorarBlocosCodigo() {
             return;
         }
 
-        // Extrair a linguagem da classe com case-insensitive
+        // Extrair a linguagem da classe - melhorada para capturar apenas letras/números
         console.log('[DEBUG] Classes do bloco:', block.className);
-        const langMatch = block.className.match(/language-(\w+)/i);
-        let language = langMatch ? langMatch[1] : 'código';
+        const langMatch = block.className.match(/language-([a-zA-Z0-9]+)/i);
+        let language = langMatch ? langMatch[1] : 'plaintext';
         
         // Capitalizar apenas a primeira letra para exibição mais elegante
         language = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
@@ -110,7 +110,7 @@ export function melhorarBlocosCodigo() {
         const header = document.createElement('div');
         header.className = 'code-header';
         header.innerHTML = `
-            <span class="language-label">${language}</span>
+            <span class="language-label">${language.toUpperCase()}</span>
             <button class="code-copy-btn" title="Copiar código">
                 <i class="fas fa-copy"></i>
             </button>

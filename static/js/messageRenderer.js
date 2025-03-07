@@ -31,12 +31,17 @@ export function renderMessage(text) {
         smartypants: false,      // Não usar tipografia avançada
         highlight: function(code, lang) {
             try {
+                // Identificar a linguagem correta ou usar plaintext como fallback
                 const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+                console.log('[DEBUG] Destacando código com linguagem:', language);
+                
+                // Aplicar highlight.js ao código
                 const highlighted = hljs.highlight(code, { language }).value;
-                console.log('[DEBUG] Gerando código com linguagem:', language);
+                
+                // Retornar o código com a classe de linguagem para detecção posterior
                 return `<code class="language-${language} hljs">${highlighted}</code>`;
             } catch (error) {
-                console.error(`Erro ao destacar código: ${error.message}`);
+                console.error(`[ERRO] Erro ao destacar código: ${error.message}`);
                 return code;
             }
         }
@@ -55,7 +60,7 @@ export function renderMessage(text) {
                             'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img'];
 
         const allowedAttributes = {
-            'code': ['class'],
+            'code': ['class'],  // Permitir classes em <code> para detectar a linguagem
             'span': ['class'],
             'a': ['href', 'target', 'rel'],
             'img': ['src', 'alt']
@@ -63,6 +68,7 @@ export function renderMessage(text) {
 
         // Parsear o Markdown
         const htmlContent = marked.parse(text);
+        console.log('[DEBUG] HTML antes da sanitização (primeiros 200 caracteres):', htmlContent.substring(0, 200));
 
         // Sanitizar o HTML preservando a estrutura
         const finalHtml = DOMPurify.sanitize(htmlContent, {
@@ -70,10 +76,12 @@ export function renderMessage(text) {
             ALLOWED_ATTR: allowedAttributes,
             ADD_ATTR: ['target'],
         });
+        
+        console.log('[DEBUG] HTML após sanitização (primeiros 200 caracteres):', finalHtml.substring(0, 200));
 
         return finalHtml;
     } catch (error) {
-        console.error(`Erro ao renderizar markdown: ${error.message}`);
+        console.error(`[ERRO] Erro ao renderizar markdown: ${error.message}`);
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

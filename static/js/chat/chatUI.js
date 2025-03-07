@@ -1,6 +1,7 @@
 
 import { escapeHTML } from './chatUtils.js';
 import { renderMessage } from '../messageRenderer.js';
+import { melhorarBlocosCodigo } from './chatUtils.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     welcomeScreen.style.display = 'none';
@@ -26,7 +27,7 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     if (tipo === 'assistant') {
         // Aplicar formatação Markdown apenas nas mensagens do assistente
         conteudoHtml = renderMessage(texto);
-        console.log('[DEBUG] HTML renderizado:', conteudoHtml.substring(0, 150) + '...');
+        console.log('[DEBUG] HTML renderizado (primeiros 150 caracteres):', conteudoHtml.substring(0, 150) + '...');
     } else {
         // Para mensagens do usuário, apenas escape HTML e quebras de linha
         conteudoHtml = `<p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>`;
@@ -49,6 +50,14 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     mensagemDiv.innerHTML = conteudo;
     chatContainer.appendChild(mensagemDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Melhorar os blocos de código imediatamente após adicionar a mensagem
+    if (tipo === 'assistant') {
+        setTimeout(() => {
+            console.log('[DEBUG] Aplicando melhorias aos blocos de código...');
+            melhorarBlocosCodigo();
+        }, 0);
+    }
 }
 
 export function mostrarCarregamento(chatContainer) {
