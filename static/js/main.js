@@ -4,6 +4,7 @@ import {
     iniciarChat,
     mostrarTelaInicial,
     adicionarMensagem,
+    melhorarBlocosCodigo
 } from './chat.js';
 import { enviarMensagem, interromperResposta } from './chat/chatActions.js';
 import { 
@@ -86,6 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             await enviarMensagem(message, welcomeInput, chatContainer, sendBtn, stopBtn);
             atualizarListaConversas(); // Atualizar histórico após enviar mensagem
+            
+            // Adicionar barras de título aos blocos de código
+            setTimeout(() => {
+                melhorarBlocosCodigo();
+            }, 100);
         });
     }
 
@@ -105,6 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
             chatBar.clear();
             await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
             atualizarListaConversas(); // Atualizar histórico após enviar mensagem
+            
+            // Adicionar barras de título aos blocos de código
+            setTimeout(() => {
+                melhorarBlocosCodigo();
+            }, 100);
         });
     }
 
@@ -152,6 +163,22 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarListaConversas();
     });
     
+    // Processar blocos de código já existentes (ao carregar uma conversa)
+    melhorarBlocosCodigo();
+    
+    // Observar mudanças no DOM para processar novos blocos de código
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length > 0) {
+                setTimeout(() => {
+                    melhorarBlocosCodigo();
+                }, 100);
+            }
+        });
+    });
+    
+    observer.observe(chatContainer, { childList: true, subtree: true });
+    
     // Log de inicialização concluída
     console.log('[DEBUG] Aplicação inicializada com sucesso');
 });
@@ -163,3 +190,4 @@ window.adicionarMensagemAoHistorico = adicionarMensagemAoHistorico;
 window.interromperResposta = interromperResposta;
 window.renomearConversa = renomearConversa;
 window.excluirConversa = excluirConversa;
+window.melhorarBlocosCodigo = melhorarBlocosCodigo;

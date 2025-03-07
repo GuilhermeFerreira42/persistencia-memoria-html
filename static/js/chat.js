@@ -22,7 +22,8 @@ import {
 
 import {
     copiarCodigo,
-    copiarMensagem
+    copiarMensagem,
+    melhorarBlocosCodigo
 } from './chat/chatUtils.js';
 
 // Função para copiar código - melhorada para preservar indentação
@@ -79,5 +80,6 @@ export {
     criarNovaConversa,
     adicionarMensagemAoHistorico,
     renomearConversa,
-    excluirConversa
+    excluirConversa,
+    melhorarBlocosCodigo
 };

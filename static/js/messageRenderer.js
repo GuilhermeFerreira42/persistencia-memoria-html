@@ -5,19 +5,23 @@
  * @returns {string} HTML formatado
  */
 export function renderMessage(text) {
-    // Passo 1: Verificar se hljs está disponível globalmente
+    // Verificar dependências
+    if (typeof marked === 'undefined') {
+        console.error('[ERRO] marked.js não está definido.');
+        return `<p>${text}</p>`;
+    }
     if (typeof hljs === 'undefined') {
-        console.error('[ERRO] highlight.js não está definido. Verifique se o script foi carregado corretamente.');
+        console.error('[ERRO] highlight.js não está definido.');
         return `<pre>${text}</pre>`;
     }
 
-    // Passo 2: Configurar highlight.js
+    // Configurar highlight.js
     hljs.configure({
         cssSelector: 'pre code',
         ignoreUnescapedHTML: true
     });
 
-    // Passo 3: Configurar marked
+    // Configurar marked.js com destaque simples
     marked.setOptions({
         gfm: true,               // Suporte a GitHub Flavored Markdown
         breaks: false,           // Não converter \n em <br>
@@ -26,72 +30,50 @@ export function renderMessage(text) {
         smartLists: true,        // Listas inteligentes
         smartypants: false,      // Não usar tipografia avançada
         highlight: function(code, lang) {
-            console.log('[DEBUG] Destacando código com linguagem:', lang);
             try {
-                // Usar linguagem específica ou detectar automaticamente
-                const language = lang || 'plaintext';
-                const highlightedCode = hljs.highlight(code, { language }).value;
-                
-                // Retornar o HTML com o container personalizado
-                return `<div class="code-container">
-                    <div class="code-header">
-                        <span class="language-label">${language.toUpperCase()}</span>
-                        <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
-                    </div>
-                    <pre class="code-block"><code class="hljs language-${language}">${highlightedCode}</code></pre>
-                </div>`;
+                const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+                const highlighted = hljs.highlight(code, { language }).value;
+                console.log('[DEBUG] Gerando código com linguagem:', language);
+                return `<code class="language-${language} hljs">${highlighted}</code>`;
             } catch (error) {
-                console.error(`[ERRO] Erro ao destacar código: ${error.message}`);
-                // Fallback seguro em caso de erro
-                return `<div class="code-container">
-                    <div class="code-header">
-                        <span class="language-label">TEXTO</span>
-                        <button class="code-copy-btn" onclick="window.copiarCodigo(this)" title="Copiar código"><i class="fas fa-copy"></i></button>
-                    </div>
-                    <pre class="code-block"><code>${code}</code></pre>
-                </div>`;
+                console.error(`Erro ao destacar código: ${error.message}`);
+                return code;
             }
         }
     });
-    
+
     try {
-        // Verificar se DOMPurify está disponível
+        // Verificar DOMPurify
         if (typeof DOMPurify === 'undefined') {
-            console.error('[ERRO] DOMPurify não está definido');
+            console.error('[ERRO] DOMPurify não está definido.');
             return marked.parse(text);
         }
-        
-        const allowedTags = ['pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-                            'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'table', 
-                            'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img', 'button', 'i'];
-        
+
+        // Configurar sanitização para preservar a estrutura do código
+        const allowedTags = ['pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                            'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'table',
+                            'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'img'];
+
         const allowedAttributes = {
             'code': ['class'],
             'span': ['class'],
-            'div': ['class'],
-            'button': ['class', 'onclick', 'title'],
             'a': ['href', 'target', 'rel'],
-            'img': ['src', 'alt'],
-            'i': ['class']
+            'img': ['src', 'alt']
         };
-        
-        // Converter Markdown em HTML diretamente (sem sanitização prévia)
+
+        // Parsear o Markdown
         const htmlContent = marked.parse(text);
-        console.log('[DEBUG] HTML gerado pelo marked:', htmlContent.substring(0, 200));
-        
-        // Sanitizar o HTML final preservando todas as classes e atributos necessários
+
+        // Sanitizar o HTML preservando a estrutura
         const finalHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: allowedTags,
             ALLOWED_ATTR: allowedAttributes,
-            ADD_ATTR: ['target', 'onclick'],
-            FORBID_TAGS: ['style', 'script'],
-            FORBID_ATTR: ['style', 'onerror']
+            ADD_ATTR: ['target'],
         });
-        
-        console.log('[DEBUG] HTML após sanitização:', finalHtml.substring(0, 200));
+
         return finalHtml;
     } catch (error) {
-        console.error(`[ERRO] Erro ao renderizar markdown: ${error.message}`);
+        console.error(`Erro ao renderizar markdown: ${error.message}`);
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }
