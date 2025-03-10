@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 
 from flask import Flask, render_template, request, jsonify, Response
 import json
@@ -15,10 +17,6 @@ from utils.chat_storage import (
     delete_conversation,
     rename_conversation
 )
-
-# Configurar o eventlet
-import eventlet
-eventlet.monkey_patch()
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
