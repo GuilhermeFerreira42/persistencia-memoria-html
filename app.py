@@ -1,5 +1,4 @@
-import eventlet
-eventlet.monkey_patch()
+import init_eventlet
 
 from flask import Flask, render_template, request, jsonify, Response
 import json
