@@ -51,6 +51,41 @@ def get_conversation(conversation_id):
         print(f"[ERRO] Falha ao obter conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/get_conversation/<conversation_id>/<int:offset>/<int:limit>')
+def get_conversation_paginated(conversation_id, offset, limit):
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if not conversation:
+            print(f"[ERRO] Conversa não encontrada: {conversation_id}")
+            return jsonify({'error': 'Conversa não encontrada'}), 404
+            
+        # Extrair mensagens com paginação
+        messages = conversation.get('messages', [])
+        total_messages = len(messages)
+        
+        # Verificar limites
+        if offset >= total_messages:
+            return jsonify([])
+            
+        # Obter o subconjunto de mensagens
+        paginated_messages = messages[offset:offset+limit]
+        
+        # Incluir metadados de paginação
+        result = {
+            'messages': paginated_messages,
+            'pagination': {
+                'total': total_messages,
+                'offset': offset,
+                'limit': limit,
+                'has_more': (offset + limit) < total_messages
+            }
+        }
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter mensagens paginadas: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/stream')
 def stream():
     """Endpoint para streaming de respostas usando Server-Sent Events (SSE)"""

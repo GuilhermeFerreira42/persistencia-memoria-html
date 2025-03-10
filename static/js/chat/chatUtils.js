@@ -137,6 +137,27 @@ export function melhorarBlocosCodigo() {
     });
 }
 
-// Expor função globalmente para o onclick
+// Função para detectar se o usuário chegou ao topo ou fundo do chat
+export function configurarDeteccaoRolagem(container, onTopoAtingido, onFundoAtingido) {
+    if (!container) return;
+    
+    container.addEventListener('scroll', function() {
+        // Detecta se o usuário chegou ao topo
+        if (container.scrollTop === 0 && onTopoAtingido) {
+            onTopoAtingido();
+        }
+        
+        // Detecta se o usuário chegou ao fundo
+        const estaNaBase = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+        if (estaNaBase && onFundoAtingido) {
+            onFundoAtingido();
+        }
+    });
+}
+
+// Cache de conversas para prevenir travamentos
+export const conversasCache = {};
+
+// Expor funções globalmente para o onclick
 window.copiarCodigo = copiarCodigo;
 window.melhorarBlocosCodigo = melhorarBlocosCodigo;
