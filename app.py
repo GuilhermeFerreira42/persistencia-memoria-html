@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -14,6 +15,10 @@ from utils.chat_storage import (
     delete_conversation,
     rename_conversation
 )
+
+# Configurar o eventlet
+import eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
@@ -350,4 +355,4 @@ def process_with_ai_stream(text, conversation_id=None):
 
 if __name__ == '__main__':
     print("Iniciando servidor com Eventlet em modo de desenvolvimento...")
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False)
