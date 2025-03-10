@@ -8,6 +8,14 @@ export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     chatContainer.style.display = 'block';
     inputContainer.style.display = 'block';
     chatContainer.innerHTML = '';
+    
+    // Verificar se há uma conversa carregada na estrutura global
+    const conversationId = window.conversaAtual?.id;
+    if (conversationId && window.conversations && window.conversations[conversationId]) {
+        console.log(`[DEBUG] Iniciando chat para conversa: ${conversationId}`);
+    } else {
+        console.log('[DEBUG] Iniciando chat sem conversa ativa');
+    }
 }
 
 export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer, welcomeInput, chatInput) {
@@ -16,11 +24,34 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     inputContainer.style.display = 'none';
     welcomeInput.value = '';
     if (chatInput) chatInput.value = '';
+    
+    // Limpar referência da conversa atual para evitar mistura de contextos
+    window.conversaAtual = null;
+    console.log('[DEBUG] Retornando para tela inicial, conversa atual limpa');
 }
 
 export function adicionarMensagem(chatContainer, texto, tipo) {
+    // Verificar se o contêiner de chat existe
+    if (!chatContainer) {
+        console.error('[ERRO] Contêiner de chat não encontrado ao adicionar mensagem');
+        return;
+    }
+    
+    // Verificar se há uma conversa ativa
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        console.warn('[AVISO] Tentando adicionar mensagem sem conversa ativa');
+    } else {
+        console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
+    }
+    
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
+    
+    // Associar ID da conversa para garantir isolamento
+    if (conversationId) {
+        mensagemDiv.dataset.conversationId = conversationId;
+    }
     
     // Processamento de Markdown para mensagens do assistente
     let conteudoHtml;
@@ -61,8 +92,24 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
 }
 
 export function mostrarCarregamento(chatContainer) {
+    // Verificar se o contêiner de chat existe
+    if (!chatContainer) {
+        console.error('[ERRO] Contêiner de chat não encontrado ao mostrar carregamento');
+        return document.createElement('div'); // Retorna um div vazio como fallback
+    }
+    
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'loading message assistant';
+    
+    // Associar ID da conversa para garantir isolamento
+    const conversationId = window.conversaAtual?.id;
+    if (conversationId) {
+        loadingDiv.dataset.conversationId = conversationId;
+        console.log(`[DEBUG] Mostrando carregamento para conversa: ${conversationId}`);
+    } else {
+        console.warn('[AVISO] Mostrando carregamento sem conversa ativa');
+    }
+    
     loadingDiv.innerHTML = `
         <span></span>
         <span></span>

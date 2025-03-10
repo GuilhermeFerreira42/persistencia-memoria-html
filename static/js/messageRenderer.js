@@ -15,6 +15,9 @@ export function renderMessage(text) {
         return `<pre>${text}</pre>`;
     }
 
+    // Capturar ID da conversa atual para contexto
+    const conversationId = window.conversaAtual?.id;
+
     // Configurar highlight.js
     hljs.configure({
         cssSelector: 'pre code',
@@ -33,7 +36,6 @@ export function renderMessage(text) {
             try {
                 // Identificar a linguagem correta ou usar plaintext como fallback
                 const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-                console.log('[DEBUG] Destacando código com linguagem:', language);
                 
                 // Aplicar highlight.js ao código
                 const highlighted = hljs.highlight(code, { language }).value;
@@ -41,7 +43,6 @@ export function renderMessage(text) {
                 // Retornar o código com a classe de linguagem para detecção posterior
                 return `<code class="language-${language} hljs">${highlighted}</code>`;
             } catch (error) {
-                console.error(`[ERRO] Erro ao destacar código: ${error.message}`);
                 return code;
             }
         }
@@ -50,7 +51,6 @@ export function renderMessage(text) {
     try {
         // Verificar DOMPurify
         if (typeof DOMPurify === 'undefined') {
-            console.error('[ERRO] DOMPurify não está definido.');
             return marked.parse(text);
         }
 
@@ -63,25 +63,47 @@ export function renderMessage(text) {
             'code': ['class'],  // Permitir classes em <code> para detectar a linguagem
             'span': ['class'],
             'a': ['href', 'target', 'rel'],
-            'img': ['src', 'alt']
+            'img': ['src', 'alt'],
+            // Adicionar data-* attributes para manter isolamento de contexto
+            '*': ['data-conversation-id']
         };
 
         // Parsear o Markdown
         const htmlContent = marked.parse(text);
-        console.log('[DEBUG] HTML antes da sanitização (primeiros 200 caracteres):', htmlContent.substring(0, 200));
 
         // Sanitizar o HTML preservando a estrutura
         const finalHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: allowedTags,
             ALLOWED_ATTR: allowedAttributes,
-            ADD_ATTR: ['target'],
+            ADD_ATTR: ['target', 'data-conversation-id'],
         });
         
-        console.log('[DEBUG] HTML após sanitização (primeiros 200 caracteres):', finalHtml.substring(0, 200));
-
         return finalHtml;
     } catch (error) {
-        console.error(`[ERRO] Erro ao renderizar markdown: ${error.message}`);
+        return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+    }
+}
+
+/**
+ * Renderiza incrementalmente mensagens durante o streaming
+ * Versão otimizada para atualizações rápidas durante streaming
+ */
+export function renderStreamingMessage(text) {
+    // Para streaming, usamos uma versão simplificada para melhor performance
+    try {
+        if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+            return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+        }
+        
+        // Sanitizar o texto em Markdown
+        const htmlContent = marked.parse(text);
+        const finalHtml = DOMPurify.sanitize(htmlContent, {
+            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li'],
+        });
+        
+        return finalHtml;
+    } catch (error) {
+        // Fallback seguro se houver erro
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

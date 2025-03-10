@@ -107,4 +107,5 @@
 .chat-item.active {
     background-color: var(--action-selected);
     font-weight: 500;
+    border-left: 4px solid var(--color-success);
 }

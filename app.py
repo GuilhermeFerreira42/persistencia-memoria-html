@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
@@ -6,6 +5,7 @@ from datetime import datetime
 import requests
 from utils.text_processor import split_text, clean_and_format_text
 from youtube_handler import YoutubeHandler
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from utils.chat_storage import (
     create_new_conversation,
     add_message_to_conversation,
@@ -17,6 +17,7 @@ from utils.chat_storage import (
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
 API_URL = "http://localhost:11434/v1/chat/completions"
 MODEL_NAME = "gemma2:2b"
@@ -48,6 +49,27 @@ def get_conversation(conversation_id):
         print(f"[ERRO] Falha ao obter conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/stream')
+def stream():
+    """Endpoint para streaming de respostas usando Server-Sent Events (SSE)"""
+    conversation_id = request.args.get('conversation_id')
+    message = request.args.get('message', '')
+    
+    if not conversation_id:
+        return jsonify({'error': 'ID de conversa não fornecido'}), 400
+        
+    print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
+    
+    def event_stream():
+        for part in process_with_ai_stream(message, conversation_id):
+            if part:
+                yield f"data: {part}\n\n"
+                
+    response = Response(event_stream(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # Para Nginx
+    return response
+
 @app.route('/send_message', methods=['POST'])
 def send_message():
     data = request.json
@@ -56,23 +78,38 @@ def send_message():
 
     if not conversation_id:
         conversation_id = create_new_conversation()
+        print(f"[DEBUG] Nova conversa criada com ID: {conversation_id}")
+    else:
+        print(f"[DEBUG] Usando conversa existente: {conversation_id}")
 
     # Salvar mensagem do usuário
     add_message_to_conversation(conversation_id, message, "user")
+    print(f"[DEBUG] Mensagem do usuário salva na conversa: {conversation_id}")
 
     # Processar resposta da IA
     accumulated_response = []
     
     def generate_streamed_response():
-        for part in process_with_ai_stream(message):
+        for part in process_with_ai_stream(message, conversation_id):
             if part:
                 accumulated_response.append(part)
-                yield f"data: {json.dumps({'content': part})}\n\n"
+                # Emitir via WebSocket além do SSE
+                socketio.emit('message_chunk', {
+                    'content': part, 
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id})}\n\n"
         
-        # Salvar a resposta completa da IA
+        # Salvar a resposta completa da IA - APENAS UMA VEZ
         if accumulated_response:
             complete_response = ''.join(accumulated_response)
+            print(f"[DEBUG] Salvando resposta única para {conversation_id}")
             add_message_to_conversation(conversation_id, complete_response, "assistant")
+            # Notificar todas as abas conectadas que a conversa foi atualizada
+            socketio.emit('conversation_updated', {
+                'conversation_id': conversation_id
+            })
+            print(f"[DEBUG] Resposta completa da IA salva na conversa: {conversation_id}")
 
     response = Response(generate_streamed_response(), content_type="text/event-stream")
     response.headers['Cache-Control'] = 'no-cache'
@@ -88,9 +125,16 @@ def save_message():
         
         if not all([conversation_id, content, role]):
             return jsonify({'error': 'Dados incompletos'}), 400
-            
+        
+        print(f"[DEBUG] Salvando mensagem para conversa: {conversation_id}, role: {role}")
         add_message_to_conversation(conversation_id, content, role)
-        return jsonify({'status': 'success'})
+        
+        # Notificar clientes via WebSocket
+        socketio.emit('conversation_updated', {
+            'conversation_id': conversation_id
+        })
+        
+        return jsonify({'status': 'success', 'conversation_id': conversation_id})
     except Exception as e:
         print(f"Erro ao salvar mensagem: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -123,6 +167,7 @@ def process_youtube():
                 comando,
                 "user"
             )
+            print(f"[DEBUG] Comando do usuário salvo na conversa: {conversation_id}")
 
         # Salvar transcrição com título na conversa
         formatted_response = f"📹 {video_title}\n\n{cleaned_text}"
@@ -132,10 +177,17 @@ def process_youtube():
                 formatted_response,
                 "assistant"
             )
+            print(f"[DEBUG] Resposta do YouTube salva na conversa: {conversation_id}")
+            
+            # Notificar via WebSocket
+            socketio.emit('conversation_updated', {
+                'conversation_id': conversation_id
+            })
             
         return jsonify({
             'text': formatted_response,
-            'title': video_title
+            'title': video_title,
+            'conversation_id': conversation_id
         })
         
     except Exception as e:
@@ -162,7 +214,14 @@ def handle_rename_conversation(conversation_id):
         success = rename_conversation(conversation_id, new_title)
         if success:
             print(f"[BACKEND] Conversa renomeada com sucesso para: {new_title}")
-            return jsonify({'success': True, 'new_title': new_title})
+            
+            # Notificar via WebSocket
+            socketio.emit('conversation_renamed', {
+                'conversation_id': conversation_id,
+                'new_title': new_title
+            })
+            
+            return jsonify({'success': True, 'new_title': new_title, 'conversation_id': conversation_id})
         else:
             print("[BACKEND] Falha ao renomear conversa")
             return jsonify({'error': 'Falha ao renomear conversa'}), 500
@@ -178,7 +237,13 @@ def handle_delete_conversation(conversation_id):
         success = delete_conversation(conversation_id)
         if success:
             print(f"[BACKEND] Conversa {conversation_id} excluída com sucesso")
-            return jsonify({'success': True})
+            
+            # Notificar via WebSocket
+            socketio.emit('conversation_deleted', {
+                'conversation_id': conversation_id
+            })
+            
+            return jsonify({'success': True, 'conversation_id': conversation_id})
         else:
             print(f"[BACKEND] Falha ao excluir conversa {conversation_id}")
             return jsonify({'error': 'Falha ao excluir conversa'}), 500
@@ -186,8 +251,36 @@ def handle_delete_conversation(conversation_id):
         print(f"[BACKEND] Erro ao excluir conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-def process_with_ai(text):
+# ---- WebSocket event handlers ----
+
+@socketio.on('connect')
+def handle_connect():
+    print(f"[SOCKET] Cliente conectado: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"[SOCKET] Cliente desconectado: {request.sid}")
+
+@socketio.on('join_conversation')
+def handle_join_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        join_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} entrou na sala: {conversation_id}")
+
+@socketio.on('leave_conversation')
+def handle_leave_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        leave_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} saiu da sala: {conversation_id}")
+
+def process_with_ai(text, conversation_id=None):
     try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Processando com IA: {text[:50]}...")
+        
         payload = {
             "model": MODEL_NAME,
             "messages": [
@@ -211,14 +304,26 @@ def process_with_ai(text):
         print(f"[Debug] Erro inesperado: {str(e)}")
         return "Ocorreu um erro inesperado ao processar sua mensagem."
 
-def process_with_ai_stream(text):
+def process_with_ai_stream(text, conversation_id=None):
     try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Iniciando streaming para: {text[:50]}...")
+        
+        # Opção para incluir histórico de mensagens da conversa específica
+        conversation = None
+        if conversation_id:
+            conversation = get_conversation_by_id(conversation_id)
+        
+        # Mensagem do sistema é sempre necessária
+        messages = [{"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código. Exemplo:\nTexto normal aqui.\n```python\nprint('Código aqui')\n```\nMais texto normal aqui."}]
+        
+        # Adicionar mensagem do usuário
+        messages.append({"role": "user", "content": text})
+        
         payload = {
             "model": MODEL_NAME,
-            "messages": [
-                {"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código. Exemplo:\nTexto normal aqui.\n```python\nprint('Código aqui')\n```\nMais texto normal aqui."},
-                {"role": "user", "content": text}
-            ],
+            "messages": messages,
             "stream": True
         }
         headers = {"Content-Type": "application/json"}
@@ -234,6 +339,7 @@ def process_with_ai_stream(text):
                         delta = response_data['choices'][0]['delta']
                         if "content" in delta:
                             content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            print(f"{context_header}Chunk: {len(content)} caracteres")
                             yield content
                 except json.JSONDecodeError:
                     print(f"[Debug] Erro ao decodificar JSON: {line}")
@@ -243,6 +349,5 @@ def process_with_ai_stream(text):
         print(f"[Debug] Erro inesperado: {str(e)}")
 
 if __name__ == '__main__':
-    print("[APLICAÇÃO] Iniciando servidor Flask...")
-    # Garanta que o servidor seja acessível de qualquer IP na sua rede local
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("Iniciando servidor com Eventlet em modo de desenvolvimento...")
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -1,0 +1,17 @@
+
+# Dependências principais
+Flask==2.3.3
+flask-socketio==5.3.6
+gunicorn==21.2.0
+eventlet==0.35.2
+requests==2.31.0
+
+# Dependências para processamento de texto
+markdown==3.4.4
+bleach==6.1.0
+
+# Para download de legendas do YouTube
+youtube_transcript_api==0.6.1
+
+# Utilitários
+python-dotenv==1.0.0

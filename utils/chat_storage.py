@@ -33,12 +33,12 @@ def save_conversation(conversation):
     filename = f"conversation_{conversation['id']}.json"
     filepath = os.path.join(CONVERSATIONS_DIR, filename)
     
-    print(f"[DEBUG] Salvando conversa em: {filepath}")
+    # print(f"[DEBUG] Salvando conversa em: {filepath}")
     
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(conversation, f, ensure_ascii=False, indent=2)
-        print("[DEBUG] Conversa salva com sucesso")
+        # print("[DEBUG] Conversa salva com sucesso")
         return True
     except Exception as e:
         print(f"[ERRO] Falha ao salvar conversa: {str(e)}")
@@ -48,13 +48,13 @@ def update_index(conversation):
     """Atualiza o arquivo de índice com os metadados da conversa"""
     ensure_directories()
     
-    print(f"[DEBUG] Atualizando índice para conversa: {conversation['id']}")
+    # print(f"[DEBUG] Atualizando índice para conversa: {conversation['id']}")
     
     try:
         with open(INDEX_FILE, 'r', encoding='utf-8') as f:
             index = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        print("[DEBUG] Arquivo de índice não encontrado ou inválido, criando novo")
+        # print("[DEBUG] Arquivo de índice não encontrado ou inválido, criando novo")
         index = []
     
     entry = {
@@ -72,7 +72,7 @@ def update_index(conversation):
     try:
         with open(INDEX_FILE, 'w', encoding='utf-8') as f:
             json.dump(index, f, ensure_ascii=False, indent=2)
-        print("[DEBUG] Índice atualizado com sucesso")
+        # print("[DEBUG] Índice atualizado com sucesso")
         return True
     except Exception as e:
         print(f"[ERRO] Falha ao atualizar índice: {str(e)}")
@@ -83,13 +83,13 @@ def get_conversation_by_id(conversation_id):
     filename = f"conversation_{conversation_id}.json"
     filepath = os.path.join(CONVERSATIONS_DIR, filename)
     
-    print(f"[DEBUG] Buscando conversa: {conversation_id}")
+    # print(f"[DEBUG] Buscando conversa: {conversation_id}")
     
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print(f"[DEBUG] Conversa não encontrada: {conversation_id}")
+        # print(f"[DEBUG] Conversa não encontrada: {conversation_id}")
         return None
     except json.JSONDecodeError:
         print(f"[ERRO] Arquivo de conversa corrompido: {conversation_id}")
@@ -102,7 +102,7 @@ def get_conversation_history():
     """Recupera o histórico de todas as conversas"""
     ensure_directories()
     
-    print("[DEBUG] Carregando histórico de conversas")
+    # print("[DEBUG] Carregando histórico de conversas")
     
     try:
         with open(INDEX_FILE, 'r', encoding='utf-8') as f:
@@ -115,11 +115,12 @@ def get_conversation_history():
             if os.path.exists(filepath):
                 valid_entries.append(entry)
             else:
-                print(f"[DEBUG] Arquivo não encontrado para conversa {entry.get('id')}: {filepath}")
+                # print(f"[DEBUG] Arquivo não encontrado para conversa {entry.get('id')}: {filepath}")
+                pass
                 
         return valid_entries
     except (FileNotFoundError, json.JSONDecodeError):
-        print("[DEBUG] Arquivo de índice não encontrado ou inválido")
+        # print("[DEBUG] Arquivo de índice não encontrado ou inválido")
         return []
     except Exception as e:
         print(f"[ERRO] Erro ao carregar histórico: {str(e)}")
@@ -127,10 +128,12 @@ def get_conversation_history():
 
 def add_message_to_conversation(conversation_id, content, role):
     """Adiciona uma mensagem a uma conversa existente"""
+    # print(f"[DEBUG] Adicionando mensagem tipo '{role}' à conversa {conversation_id}")
+    
     conversation = get_conversation_by_id(conversation_id)
     
     if not conversation:
-        print(f"[DEBUG] Criando nova conversa para ID: {conversation_id}")
+        # print(f"[DEBUG] Criando nova conversa para ID: {conversation_id}")
         conversation = {
             "id": conversation_id,
             "title": "Nova conversa",
@@ -147,33 +150,38 @@ def add_message_to_conversation(conversation_id, content, role):
     conversation["messages"].append(message)
     conversation["timestamp"] = datetime.now().isoformat()
     
+    # Definir título automaticamente com base na primeira mensagem do usuário
     if role == "user" and len([m for m in conversation["messages"] if m["role"] == "user"]) == 1:
         conversation["title"] = content[:30] + "..." if len(content) > 30 else content
+        # print(f"[DEBUG] Título da conversa atualizado para: {conversation['title']}")
     
     save_conversation(conversation)
     update_index(conversation)
+    
+    return True
 
 def delete_conversation(conversation_id):
     """Exclui uma conversa e sua entrada no índice"""
     filename = f"conversation_{conversation_id}.json"
     filepath = os.path.join(CONVERSATIONS_DIR, filename)
     
-    print(f"[DEBUG] Tentando excluir conversa: {conversation_id}")
+    # print(f"[DEBUG] Tentando excluir conversa: {conversation_id}")
     
     try:
         # Remove o arquivo da conversa se existir
         if os.path.exists(filepath):
             os.remove(filepath)
-            print(f"[DEBUG] Arquivo da conversa removido: {filepath}")
+            # print(f"[DEBUG] Arquivo da conversa removido: {filepath}")
         else:
-            print(f"[DEBUG] Arquivo não encontrado: {filepath}")
+            # print(f"[DEBUG] Arquivo não encontrado: {filepath}")
+            pass
             
         # Remove a entrada do índice
         try:
             with open(INDEX_FILE, 'r', encoding='utf-8') as f:
                 index = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            print("[DEBUG] Arquivo de índice não encontrado ou inválido")
+            # print("[DEBUG] Arquivo de índice não encontrado ou inválido")
             index = []
             
         # Filtra a conversa do índice
@@ -183,7 +191,7 @@ def delete_conversation(conversation_id):
         with open(INDEX_FILE, 'w', encoding='utf-8') as f:
             json.dump(index, f, ensure_ascii=False, indent=2)
         
-        print("[DEBUG] Conversa excluída com sucesso")
+        # print("[DEBUG] Conversa excluída com sucesso")
         return True
     except Exception as e:
         print(f"[ERRO] Falha ao excluir conversa: {str(e)}")
@@ -191,7 +199,7 @@ def delete_conversation(conversation_id):
 
 def rename_conversation(conversation_id, new_title):
     """Renomeia uma conversa existente"""
-    print(f"[DEBUG] Tentando renomear conversa {conversation_id} para: {new_title}")
+    # print(f"[DEBUG] Tentando renomear conversa {conversation_id} para: {new_title}")
     
     conversation = get_conversation_by_id(conversation_id)
     if not conversation:
@@ -208,7 +216,7 @@ def rename_conversation(conversation_id, new_title):
         conversation["title"] = new_title
         conversation["timestamp"] = datetime.now().isoformat() # Atualiza timestamp
         
-        print(f"[DEBUG] Novo título salvo: {conversation['title']}")
+        # print(f"[DEBUG] Novo título salvo: {conversation['title']}")
         
         # Salva as alterações
         save_success = save_conversation(conversation)
@@ -221,7 +229,7 @@ def rename_conversation(conversation_id, new_title):
             print("[ERRO] Falha ao atualizar índice")
             return False
         
-        print("[DEBUG] Conversa renomeada com sucesso")
+        # print("[DEBUG] Conversa renomeada com sucesso")
         return True
     except Exception as e:
         print(f"[ERRO] Falha ao renomear conversa: {str(e)}")

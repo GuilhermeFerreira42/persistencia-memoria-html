@@ -4,7 +4,8 @@ import {
     iniciarChat,
     mostrarTelaInicial,
     adicionarMensagem,
-    melhorarBlocosCodigo
+    melhorarBlocosCodigo,
+    inicializarSync
 } from './chat.js';
 import { enviarMensagem, interromperResposta } from './chat/chatActions.js';
 import { 
@@ -22,6 +23,7 @@ import { copiarMensagem, regenerarResposta } from './chat/chatUtils.js';
 window.currentModel = 'gemma2:2b';
 window.conversas = [];
 window.conversaAtual = null;
+window.conversations = {}; // Nova estrutura global para mapear conversas por ID
 window.copiarMensagem = copiarMensagem;
 window.regenerarResposta = regenerarResposta;
 
@@ -29,7 +31,8 @@ let welcomeBar = null;
 let chatBar = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[DEBUG] DOM Carregado, inicializando aplicação...');
+    // Inicializar WebSocket para sincronização entre abas
+    inicializarSync();
     
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
@@ -108,21 +111,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const message = chatInput.value.trim();
             if (!message) return;
             
+            // Verificar se há uma conversa ativa
+            if (!window.conversaAtual) {
+                criarNovaConversa();
+            }
+            
+            // Armazenar o ID da conversa atual para garantir que estamos na mesma conversa após o streaming
+            const currentConversationId = window.conversaAtual.id;
+            
             chatBar.clear();
             await enviarMensagem(message, chatInput, chatContainer, sendBtn, stopBtn);
-            atualizarListaConversas(); // Atualizar histórico após enviar mensagem
             
-            // Adicionar barras de título aos blocos de código
-            setTimeout(() => {
-                melhorarBlocosCodigo();
-            }, 100);
+            // Verificar se ainda estamos na mesma conversa
+            if (window.conversaAtual && window.conversaAtual.id === currentConversationId) {
+                atualizarListaConversas(); // Atualizar histórico após enviar mensagem
+                
+                // Adicionar barras de título aos blocos de código
+                setTimeout(() => {
+                    melhorarBlocosCodigo();
+                }, 100);
+            }
         });
     }
 
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
-        console.log('[DEBUG] Botão de nova conversa clicado');
-        
         if (window.conversaAtual) {
             atualizarListaConversas(); // Atualizar histórico antes de criar nova conversa
         }
@@ -157,10 +170,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar lista de conversas
     atualizarListaConversas();
 
-    // Evento global para atualização do histórico
-    window.addEventListener('conversaAtualizada', () => {
-        console.log('[DEBUG] Evento conversaAtualizada detectado');
+    // Eventos para gerenciamento de estado isolado
+    window.addEventListener('conversaCarregada', (e) => {
+        if (e.detail && e.detail.id) {
+            // Conversa carregada
+        }
+    });
+    
+    window.addEventListener('conversaAtualizada', (e) => {
+        if (e.detail && e.detail.id) {
+            // Conversa atualizada
+        }
         atualizarListaConversas();
+    });
+    
+    window.addEventListener('mensagemEnviada', (e) => {
+        if (window.conversaAtual) {
+            // Mensagem enviada 
+        }
     });
     
     // Processar blocos de código já existentes (ao carregar uma conversa)
@@ -179,8 +206,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     observer.observe(chatContainer, { childList: true, subtree: true });
     
-    // Log de inicialização concluída
-    console.log('[DEBUG] Aplicação inicializada com sucesso');
+    // Configurar o listener de visibilidade para sincronização
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            // Atualizar o estado quando a aba ficar visível
+            atualizarListaConversas();
+            
+            // Se houver uma conversa atual, verificar se há atualizações pendentes
+            if (window.conversaAtual && window.conversations[window.conversaAtual.id]?.pendingUpdates) {
+                carregarConversa(window.conversaAtual.id);
+                window.conversations[window.conversaAtual.id].pendingUpdates = false;
+            }
+        }
+    });
 });
 
 // Expor funções globalmente
@@ -191,3 +229,4 @@ window.interromperResposta = interromperResposta;
 window.renomearConversa = renomearConversa;
 window.excluirConversa = excluirConversa;
 window.melhorarBlocosCodigo = melhorarBlocosCodigo;
+
