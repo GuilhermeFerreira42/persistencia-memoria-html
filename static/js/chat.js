@@ -3,10 +3,7 @@ import {
     iniciarChat,
     mostrarTelaInicial,
     adicionarMensagem,
-    mostrarCarregamento,
-    iniciarStreamingMensagem,
-    atualizarStreamingMensagem,
-    finalizarStreamingMensagem
+    mostrarCarregamento
 } from './chat/chatUI.js';
 
 import {
@@ -27,8 +24,7 @@ import {
 import {
     copiarCodigo,
     copiarMensagem,
-    melhorarBlocosCodigo,
-    conversasCache
+    melhorarBlocosCodigo
 } from './chat/chatUtils.js';
 
 import {
@@ -102,80 +98,6 @@ window.copiarMensagem = function(button) {
     });
 };
 
-// Função modificada para enviar mensagem com efeito de digitação
-window.enviarMensagemComEfeitoDigitacao = async function(texto, chatContainer, conversationId) {
-    // Verificar se já existe uma conversa ativa
-    if (!conversationId && window.conversaAtual) {
-        conversationId = window.conversaAtual.id;
-    }
-    
-    if (!conversationId) {
-        console.error('[ERRO] Sem ID de conversa para enviar mensagem');
-        return;
-    }
-    
-    // Adicionar mensagem do usuário
-    adicionarMensagem(chatContainer, texto, 'user');
-    
-    // Salvar mensagem do usuário no backend
-    try {
-        await fetch('/save_message', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                conversation_id: conversationId,
-                content: texto,
-                role: 'user'
-            })
-        });
-    } catch (error) {
-        console.error('[ERRO] Falha ao salvar mensagem do usuário:', error);
-    }
-    
-    // Iniciar o streaming de resposta
-    const streamingMsg = iniciarStreamingMensagem(chatContainer);
-    
-    // Iniciar EventSource para streaming
-    const eventSource = new EventSource(`/stream?conversation_id=${conversationId}&message=${encodeURIComponent(texto)}`);
-    let respostaCompleta = '';
-    
-    eventSource.onmessage = function(event) {
-        const chunk = event.data;
-        respostaCompleta += chunk;
-        
-        // Atualizar a mensagem em streaming
-        atualizarStreamingMensagem(chunk);
-    };
-    
-    eventSource.onerror = function(error) {
-        console.error('[ERRO] Erro no streaming:', error);
-        eventSource.close();
-        
-        // Finalizar mensagem em streaming
-        finalizarStreamingMensagem();
-        
-        // Salvar resposta no histórico, se houver conteúdo
-        if (respostaCompleta) {
-            adicionarMensagemAoHistorico(conversationId, respostaCompleta, 'assistant');
-        }
-    };
-    
-    // Quando o streaming terminar
-    eventSource.addEventListener('end', function() {
-        eventSource.close();
-        
-        // Finalizar mensagem em streaming
-        finalizarStreamingMensagem();
-        
-        // Salvar resposta no histórico
-        adicionarMensagemAoHistorico(conversationId, respostaCompleta, 'assistant');
-    });
-    
-    return streamingMsg;
-};
-
 // Função para regenerar resposta (útil para depuração)
 window.regenerarResposta = function(button) {
     if (!window.conversaAtual) {
@@ -208,23 +130,15 @@ window.regenerarResposta = function(button) {
             
             // Re-enviar a mensagem do usuário para gerar nova resposta
             const chatContainer = document.querySelector('.chat-container');
+            const sendBtn = document.getElementById('send-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const dummyInput = { value: '' };
             
-            // Usar o novo método com efeito de digitação
-            window.enviarMensagemComEfeitoDigitacao(lastUserMessage, chatContainer, conversationId);
+            enviarMensagem(lastUserMessage, dummyInput, chatContainer, sendBtn, stopBtn);
         } else {
             console.error('[ERRO] Não foi possível encontrar a última mensagem do usuário');
         }
     }
-};
-
-// Limpar cache para uma conversa específica
-window.limparCacheConversa = function(conversationId) {
-    if (conversationId && conversasCache[conversationId]) {
-        delete conversasCache[conversationId];
-        console.log(`[DEBUG] Cache limpo para conversa: ${conversationId}`);
-        return true;
-    }
-    return false;
 };
 
 // Inicializar a sincronização via WebSockets quando o DOM estiver carregado
@@ -256,8 +170,5 @@ export {
     melhorarBlocosCodigo,
     atualizarBotoes,
     inicializarSync,
-    entrarNaSalaDeConversa,
-    iniciarStreamingMensagem,
-    atualizarStreamingMensagem,
-    finalizarStreamingMensagem
+    entrarNaSalaDeConversa
 };
