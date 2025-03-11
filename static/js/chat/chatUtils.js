@@ -1,3 +1,4 @@
+
 export function escapeHTML(text) {
     const div = document.createElement('div');
     div.innerText = text;
@@ -51,8 +52,8 @@ export function melhorarBlocosCodigo() {
     });
 }
 
-// Função para copiar código - melhorada para preservar indentação
-window.copiarCodigo = function(button) {
+// Função para copiar código - agora exportada corretamente
+export function copiarCodigo(button) {
     const codeContainer = button.closest('.code-container');
     const codeBlock = codeContainer.querySelector('.code-block code');
     const code = codeBlock.innerText; // Usa innerText para preservar indentação
@@ -71,10 +72,10 @@ window.copiarCodigo = function(button) {
         console.error('Erro ao copiar código:', err);
         alert('Não foi possível copiar o código. Por favor, tente novamente.');
     });
-};
+}
 
-// Função para copiar mensagem completa
-window.copiarMensagem = function(button) {
+// Função para copiar mensagem completa - agora exportada corretamente
+export function copiarMensagem(button) {
     const messageDiv = button.closest('.message');
     const content = messageDiv.querySelector('.message-content').innerText; // Também usa innerText aqui
     
@@ -92,4 +93,8 @@ window.copiarMensagem = function(button) {
         console.error('Erro ao copiar mensagem:', err);
         alert('Não foi possível copiar a mensagem. Por favor, tente novamente.');
     });
-};
+}
+
+// Manter as funções também como métodos de window para compatibilidade com o HTML existente
+window.copiarCodigo = copiarCodigo;
+window.copiarMensagem = copiarMensagem;

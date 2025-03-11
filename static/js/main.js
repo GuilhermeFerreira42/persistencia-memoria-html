@@ -1,4 +1,3 @@
-
 import './init.js';
 import { 
     iniciarChat,
@@ -24,15 +23,15 @@ window.currentModel = 'gemma2:2b';
 window.conversas = [];
 window.conversaAtual = null;
 window.conversations = {}; // Nova estrutura global para mapear conversas por ID
-window.copiarMensagem = copiarMensagem;
-window.regenerarResposta = regenerarResposta;
+
+// Estas funções agora são importadas do arquivo chatUtils.js
+// copiarMensagem e regenerarResposta são importados acima
 
 let welcomeBar = null;
 let chatBar = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar WebSocket para sincronização entre abas
-    inicializarSync();
+    // Configuração inicial
     
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
@@ -43,9 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
 
-    // Configurar menu de comando usando o módulo criado
-    const welcomeCommandMenu = document.getElementById('command-menu');
-    const chatCommandMenu = document.getElementById('chat-command-menu');
+    // Configuração de menus de comando
 
     const COMMANDS = [
         { command: '/youtube', description: 'Processar vídeo do YouTube' },
@@ -54,14 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
         { command: '/config', description: 'Abrir configurações' }
     ];
 
-    // Prevenir submit padrão dos formulários
+    // Prevenção de submit padrão
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
         });
     });
 
-    // Inicializar barra de entrada da tela inicial
+    // Inicialização e configuração das barras de entrada
     if (welcomeInput && welcomeCommandMenu) {
         welcomeBar = initializeInputBar(
             welcomeInput, 
@@ -134,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Configurar botão de nova conversa
+    // Configuração do botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
         if (window.conversaAtual) {
             atualizarListaConversas(); // Atualizar histórico antes de criar nova conversa
@@ -162,15 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Configurar botão de parar resposta
+    // Configuração do botão de parar resposta
     stopBtn?.addEventListener('click', () => {
         interromperResposta();
     });
 
-    // Inicializar lista de conversas
+    // Inicialização da lista de conversas
     atualizarListaConversas();
 
-    // Eventos para gerenciamento de estado isolado
+    // Eventos para gerenciamento de estado
     window.addEventListener('conversaCarregada', (e) => {
         if (e.detail && e.detail.id) {
             // Conversa carregada
@@ -193,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Processar blocos de código já existentes (ao carregar uma conversa)
     melhorarBlocosCodigo();
     
-    // Observar mudanças no DOM para processar novos blocos de código
+    // Observador de mutações para processar novos blocos de código
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.addedNodes.length > 0) {
@@ -206,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     observer.observe(chatContainer, { childList: true, subtree: true });
     
-    // Configurar o listener de visibilidade para sincronização
+    // Configuração do listener de visibilidade
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             // Atualizar o estado quando a aba ficar visível
@@ -229,4 +226,5 @@ window.interromperResposta = interromperResposta;
 window.renomearConversa = renomearConversa;
 window.excluirConversa = excluirConversa;
 window.melhorarBlocosCodigo = melhorarBlocosCodigo;
-
+// As funções copiarMensagem e copiarCodigo são exportadas e definidas em chatUtils.js
+// e também disponibilizadas globalmente lá
