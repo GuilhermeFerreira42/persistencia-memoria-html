@@ -1,7 +1,8 @@
 import { adicionarMensagem } from './chatUI.js';
 import { atualizarBotoes } from './chatActions.js';
 import { entrarNaSalaDeConversa } from './chatSync.js';
-import { melhorarBlocosCodigo } from './chatUtils.js';
+import { melhorarBlocosCodigo, escapeHTML } from './chatUtils.js';
+import { renderMessage } from '../messageRenderer.js';
 
 // Cache para conversas já carregadas
 const conversationCache = {};
@@ -184,7 +185,14 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
                     
                     const messageContent = document.createElement('div');
                     messageContent.className = 'message-content';
-                    messageContent.innerHTML = msg.content;
+                    
+                    // Aplicar renderização de Markdown para mensagens do assistente
+                    if (msg.role === 'assistant') {
+                        messageContent.innerHTML = renderMessage(msg.content);
+                    } else {
+                        // Para mensagens do usuário, apenas escape HTML e quebras de linha
+                        messageContent.innerHTML = `<p>${escapeHTML(msg.content).replace(/\n/g, '<br>')}</p>`;
+                    }
                     
                     const messageActions = document.createElement('div');
                     messageActions.className = 'message-actions';
