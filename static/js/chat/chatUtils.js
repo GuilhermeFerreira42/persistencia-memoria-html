@@ -1,4 +1,3 @@
-
 export function escapeHTML(text) {
     const div = document.createElement('div');
     div.innerText = text;
@@ -95,6 +94,35 @@ export function copiarMensagem(button) {
     });
 }
 
+// Função para regenerar resposta
+export function regenerarResposta(messageId) {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!messageElement) {
+        console.error('Mensagem não encontrada');
+        return;
+    }
+
+    // Limpar a resposta atual
+    const responseElement = messageElement.nextElementSibling;
+    if (responseElement && responseElement.classList.contains('message')) {
+        responseElement.remove();
+    }
+
+    // Reenviar a mensagem original
+    const messageContent = messageElement.querySelector('.message-content').textContent;
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const chatContainer = document.querySelector('.chat-container');
+
+    if (chatInput && sendBtn && stopBtn && chatContainer) {
+        chatInput.value = messageContent;
+        const submitEvent = new Event('submit');
+        document.getElementById('chat-form').dispatchEvent(submitEvent);
+    }
+}
+
 // Manter as funções também como métodos de window para compatibilidade com o HTML existente
 window.copiarCodigo = copiarCodigo;
 window.copiarMensagem = copiarMensagem;
+window.regenerarResposta = regenerarResposta;
