@@ -28,6 +28,12 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     // Limpar referência da conversa atual para evitar mistura de contextos
     window.conversaAtual = null;
     console.log('[DEBUG] Retornando para tela inicial, conversa atual limpa');
+    
+    // Remover qualquer listener de scroll
+    if (chatContainer._scrollListener) {
+        chatContainer.removeEventListener('scroll', chatContainer._scrollListener);
+        chatContainer._scrollListener = null;
+    }
 }
 
 export function adicionarMensagem(chatContainer, texto, tipo) {
@@ -119,3 +125,29 @@ export function mostrarCarregamento(chatContainer) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
     return loadingDiv;
 }
+
+// Adicionar CSS para os novos elementos
+const style = document.createElement('style');
+style.textContent = `
+.loading-indicator {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.error-message {
+    padding: 1rem;
+    text-align: center;
+    color: var(--error);
+    font-weight: bold;
+}
+
+.empty-message {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+`;
+document.head.appendChild(style);
