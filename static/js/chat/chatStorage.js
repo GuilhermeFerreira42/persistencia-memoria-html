@@ -1,8 +1,7 @@
 import { adicionarMensagem } from './chatUI.js';
 import { atualizarBotoes } from './chatActions.js';
 import { entrarNaSalaDeConversa } from './chatSync.js';
-import { melhorarBlocosCodigo, escapeHTML } from './chatUtils.js';
-import { renderMessage } from '../messageRenderer.js';
+import { melhorarBlocosCodigo } from './chatUtils.js';
 
 // Cache para conversas já carregadas
 const conversationCache = {};
@@ -76,8 +75,7 @@ export function carregarConversa(id) {
                 eventSource: existingConversation ? existingConversation.eventSource : null,
                 abortController: existingConversation ? existingConversation.abortController : null,
                 pendingUpdates: false,
-                totalMessages: conversa.messages.length,
-                loadedMessages: new Set() // Controle de mensagens já carregadas
+                totalMessages: conversa.messages.length
             };
             
             // Limpar o container e preparar para lazy loading
@@ -105,26 +103,6 @@ export function carregarConversa(id) {
 function carregarMensagensEmLotes(conversationId, offset, limit) {
     const chatContainer = document.querySelector('.chat-container');
     
-    // Verificar se o container existe
-    if (!chatContainer) {
-        console.error('[ERRO] Chat container não encontrado');
-        return;
-    }
-    
-    // Verificar se a conversa existe na estrutura global
-    if (!window.conversations || !window.conversations[conversationId]) {
-        console.error('[ERRO] Conversa não encontrada na estrutura global');
-        return;
-    }
-    
-    // Flag para controlar se está carregando
-    if (window.conversations[conversationId].isLoading) {
-        console.log('[INFO] Já existe carregamento em andamento, ignorando requisição');
-        return;
-    }
-    
-    window.conversations[conversationId].isLoading = true;
-    
     // Mostrar indicador de carregamento se for o primeiro lote
     if (offset === 0) {
         const loadingIndicator = document.createElement('div');
@@ -133,8 +111,6 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
         loadingIndicator.id = 'loading-indicator';
         chatContainer.appendChild(loadingIndicator);
     }
-    
-    console.log(`[DEBUG] Carregando lote de mensagens: offset=${offset}, limit=${limit}`);
     
     fetch(`/get_conversation/${conversationId}/${offset}/${limit}`)
         .then(response => response.json())
@@ -147,93 +123,25 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
             
             if (data.error) {
                 console.error('Erro ao carregar mensagens:', data.error);
-                window.conversations[conversationId].isLoading = false;
                 return;
             }
             
-            const messages = data.messages || [];
-            const hasMore = data.hasMore || false;
-            const total = data.total || 0;
-            
-            console.log(`[DEBUG] Recebido lote com ${messages.length} mensagens. hasMore=${hasMore}, total=${total}`);
+            const messages = data.messages;
+            const hasMore = data.hasMore;
             
             // Se for o primeiro lote e não há mensagens, exibir mensagem
-            if (offset === 0 && messages.length === 0) {
+            if (offset === 0 && (!messages || messages.length === 0)) {
                 const emptyMessage = document.createElement('div');
                 emptyMessage.className = 'empty-message';
                 emptyMessage.textContent = 'Nenhuma mensagem nesta conversa.';
                 chatContainer.appendChild(emptyMessage);
-                window.conversations[conversationId].isLoading = false;
                 return;
             }
             
-            // Criar um fragmento para adicionar todas as mensagens de uma vez
-            const fragment = document.createDocumentFragment();
-            const loadedMessages = window.conversations[conversationId].loadedMessages;
-            
             // Adicionar mensagens ao chat
-            messages.forEach((msg, idx) => {
-                // Criar identificador único para a mensagem (offset + índice)
-                const messageId = `${offset + idx}`;
-                
-                // Verificar se a mensagem já foi carregada
-                if (!loadedMessages.has(messageId)) {
-                    loadedMessages.add(messageId);
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `message ${msg.role === 'assistant' ? 'assistant' : 'user'}`;
-                    messageDiv.dataset.messageId = messageId;
-                    
-                    const messageContent = document.createElement('div');
-                    messageContent.className = 'message-content';
-                    
-                    // Aplicar renderização de Markdown para mensagens do assistente
-                    if (msg.role === 'assistant') {
-                        messageContent.innerHTML = renderMessage(msg.content);
-                    } else {
-                        // Para mensagens do usuário, apenas escape HTML e quebras de linha
-                        messageContent.innerHTML = `<p>${escapeHTML(msg.content).replace(/\n/g, '<br>')}</p>`;
-                    }
-                    
-                    const messageActions = document.createElement('div');
-                    messageActions.className = 'message-actions';
-                    messageActions.innerHTML = `
-                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        ${msg.role === 'assistant' ? `
-                            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                                <i class="fas fa-redo"></i>
-                            </button>
-                        ` : ''}
-                    `;
-                    
-                    messageDiv.appendChild(messageContent);
-                    messageDiv.appendChild(messageActions);
-                    
-                    if (offset === 0) {
-                        // No primeiro lote, adiciona no final (ordem cronológica)
-                        fragment.appendChild(messageDiv);
-                    } else {
-                        // Nos lotes seguintes, adiciona no início (mensagens mais antigas)
-                        fragment.insertBefore(messageDiv, fragment.firstChild);
-                    }
-                } else {
-                    console.log(`[DEBUG] Mensagem ${messageId} já carregada, ignorando`);
-                }
+            messages.forEach(msg => {
+                adicionarMensagem(chatContainer, msg.content, msg.role === 'assistant' ? 'assistant' : 'user');
             });
-            
-            // Adicionar todas as mensagens ao container de uma vez
-            if (offset === 0) {
-                // Primeiro lote: adiciona ao final
-                chatContainer.appendChild(fragment);
-            } else {
-                // Lotes seguintes: adiciona ao início
-                if (chatContainer.firstChild) {
-                    chatContainer.insertBefore(fragment, chatContainer.firstChild);
-                } else {
-                    chatContainer.appendChild(fragment);
-                }
-            }
             
             // Aplicar formatação especial aos blocos de código
             setTimeout(() => {
@@ -247,39 +155,18 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
                 atualizarBotoes(sendBtn, stopBtn);
             }
             
-            // Lembrar a altura antes de adicionar mais conteúdo
-            const oldHeight = chatContainer.scrollHeight;
-            const oldScrollTop = chatContainer.scrollTop;
-            
-            // Configurar scroll para carregar mais quando chegar ao topo, apenas se houver mais mensagens
+            // Configurar scroll para carregar mais quando chegar ao topo
             if (hasMore) {
-                console.log(`[DEBUG] Ainda há mais mensagens, configurando scroll listener`);
                 configureScrollListener(conversationId, offset + limit, limit);
-            } else {
-                console.log(`[DEBUG] Todas as mensagens foram carregadas, não configurando scroll listener`);
-                // Se não há mais mensagens, remover qualquer listener existente
-                if (chatContainer._scrollListener) {
-                    chatContainer.removeEventListener('scroll', chatContainer._scrollListener);
-                    chatContainer._scrollListener = null;
-                }
             }
             
             // Scroll para o final se for o primeiro lote
             if (offset === 0) {
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-            } else {
-                // Calcular a nova posição do scroll para preservar a posição visual
-                const newHeight = chatContainer.scrollHeight;
-                const newScrollTop = oldScrollTop + (newHeight - oldHeight);
-                chatContainer.scrollTop = newScrollTop;
             }
-            
-            // Liberar o flag de carregamento
-            window.conversations[conversationId].isLoading = false;
         })
         .catch(error => {
             console.error('Erro ao carregar lote de mensagens:', error);
-            window.conversations[conversationId].isLoading = false;
             const loadingIndicator = document.getElementById('loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.textContent = 'Erro ao carregar mensagens. Tente novamente.';
@@ -294,20 +181,27 @@ function configureScrollListener(conversationId, nextOffset, limit) {
     // Remover listeners existentes para evitar duplicação
     if (chatContainer._scrollListener) {
         chatContainer.removeEventListener('scroll', chatContainer._scrollListener);
-        chatContainer._scrollListener = null;
     }
     
     // Criar novo listener
     const scrollListener = function() {
-        // Verificar se já está carregando
-        if (window.conversations[conversationId] && window.conversations[conversationId].isLoading) {
-            return;
-        }
-        
         // Carregar mais quando o usuário estiver próximo do topo
         if (chatContainer.scrollTop < 100) {
-            console.log(`[DEBUG] Usuário chegou ao topo, carregando mais mensagens`);
+            // Remover listener para evitar múltiplas chamadas
+            chatContainer.removeEventListener('scroll', scrollListener);
+            
+            // Lembrar da posição de scroll atual
+            const oldHeight = chatContainer.scrollHeight;
+            const oldScrollTop = chatContainer.scrollTop;
+            
+            // Carregar mais mensagens
             carregarMensagensEmLotes(conversationId, nextOffset, limit);
+            
+            // Restaurar posição de scroll após carregamento
+            setTimeout(() => {
+                const newHeight = chatContainer.scrollHeight;
+                chatContainer.scrollTop = oldScrollTop + (newHeight - oldHeight);
+            }, 100);
         }
     };
     

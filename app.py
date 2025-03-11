@@ -63,9 +63,6 @@ def get_conversation_batch(conversation_id, offset, limit):
             end_index = min(offset + limit, len(messages))
             batch = messages[offset:end_index]
             
-            # Adicionar log para depuração
-            print(f"[DEBUG] Carregando lote: conversation_id={conversation_id}, offset={offset}, limit={limit}, retornando {len(batch)} mensagens, hasMore={end_index < len(messages)}")
-            
             return jsonify({
                 'messages': batch,
                 'total': len(messages),

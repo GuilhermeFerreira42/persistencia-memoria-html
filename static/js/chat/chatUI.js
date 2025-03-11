@@ -36,7 +36,7 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     }
 }
 
-export function adicionarMensagem(chatContainer, texto, tipo, messageId = null) {
+export function adicionarMensagem(chatContainer, texto, tipo) {
     // Verificar se o contêiner de chat existe
     if (!chatContainer) {
         console.error('[ERRO] Contêiner de chat não encontrado ao adicionar mensagem');
@@ -51,19 +51,8 @@ export function adicionarMensagem(chatContainer, texto, tipo, messageId = null) 
         console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
     }
     
-    // Verificar se a mensagem com esse ID já existe
-    if (messageId && document.querySelector(`.message[data-message-id="${messageId}"]`)) {
-        console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando`);
-        return;
-    }
-    
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
-    
-    // Se tiver um ID específico, adiciona como atributo de dados
-    if (messageId) {
-        mensagemDiv.dataset.messageId = messageId;
-    }
     
     // Associar ID da conversa para garantir isolamento
     if (conversationId) {

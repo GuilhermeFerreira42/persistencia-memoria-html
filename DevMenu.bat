@@ -164,45 +164,10 @@ goto outras_opcoes
 
 :executar_python
 setlocal enabledelayedexpansion
-py --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Python nao encontrado no sistema! Certifique-se de que esta instalado e adicionado ao PATH.
-    pause
-    goto menu_principal
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    set "python_path=%%P"
+    goto :list_files
 )
-
-:list_files
-cd /d %~dp0
-set "counter=0"
-echo.
-echo Arquivos Python encontrados:
-for %%i in (*.py) do (
-    set /a counter+=1
-    set "file_!counter!=%%i"
-    echo [!counter!] %%i
-)
-
-if %counter% equ 0 (
-    echo Nenhum arquivo Python encontrado neste diretorio.
-    pause
-    goto menu_principal
-)
-
-echo.
-set /p "file_num=Digite o numero do arquivo que deseja executar: "
-set /a file_num=%file_num%
-for /l %%n in (1,1,%counter%) do (
-    if %%n equ %file_num% (
-        echo Executando: !file_%%n!
-        py "!file_%%n!"
-        echo.
-        echo Pressione qualquer tecla para voltar ao menu principal...
-        pause >nul
-    )
-)
-endlocal
-goto menu_principal
-
 
 if not defined python_path (
     echo Python nao encontrado no sistema!
