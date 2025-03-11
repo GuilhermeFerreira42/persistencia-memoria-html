@@ -16,6 +16,11 @@ export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     } else {
         console.log('[DEBUG] Iniciando chat sem conversa ativa');
     }
+    
+    // Limpar qualquer estado de loading
+    if (chatContainer.hasOwnProperty('isLoading')) {
+        chatContainer.isLoading = false;
+    }
 }
 
 export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer, welcomeInput, chatInput) {
@@ -33,6 +38,11 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     if (chatContainer._scrollListener) {
         chatContainer.removeEventListener('scroll', chatContainer._scrollListener);
         chatContainer._scrollListener = null;
+    }
+    
+    // Limpar estado de loading
+    if (chatContainer.hasOwnProperty('isLoading')) {
+        chatContainer.isLoading = false;
     }
 }
 

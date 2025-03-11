@@ -1,3 +1,4 @@
+
 import { adicionarMensagem } from './chatUI.js';
 import { atualizarBotoes } from './chatActions.js';
 import { entrarNaSalaDeConversa } from './chatSync.js';
@@ -103,6 +104,11 @@ export function carregarConversa(id) {
 function carregarMensagensEmLotes(conversationId, offset, limit) {
     const chatContainer = document.querySelector('.chat-container');
     
+    if (!chatContainer) {
+        console.error('[ERRO] Chat container não encontrado');
+        return Promise.reject('Chat container não encontrado');
+    }
+    
     // Mostrar indicador de carregamento se for o primeiro lote
     if (offset === 0) {
         const loadingIndicator = document.createElement('div');
@@ -112,7 +118,7 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
         chatContainer.appendChild(loadingIndicator);
     }
     
-    fetch(`/get_conversation/${conversationId}/${offset}/${limit}`)
+    return fetch(`/get_conversation/${conversationId}/${offset}/${limit}`)
         .then(response => response.json())
         .then(data => {
             // Remover indicador de carregamento
@@ -174,9 +180,15 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
         });
 }
 
-// Configurar detector de scroll para lazy loading
+// Configurar detector de scroll para lazy loading com controle para evitar duplicações
 function configureScrollListener(conversationId, nextOffset, limit) {
     const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Inicializar flag isLoading se não existir
+    if (!chatContainer.hasOwnProperty('isLoading')) {
+        chatContainer.isLoading = false;
+    }
     
     // Remover listeners existentes para evitar duplicação
     if (chatContainer._scrollListener) {
@@ -185,9 +197,8 @@ function configureScrollListener(conversationId, nextOffset, limit) {
     
     // Criar novo listener
     const scrollListener = function() {
-        // Carregar mais quando o usuário estiver próximo do topo
-        if (chatContainer.scrollTop < 100) {
-            // Remover listener para evitar múltiplas chamadas
+        if (chatContainer.scrollTop < 100 && !chatContainer.isLoading) {
+            chatContainer.isLoading = true;
             chatContainer.removeEventListener('scroll', scrollListener);
             
             // Lembrar da posição de scroll atual
@@ -195,13 +206,17 @@ function configureScrollListener(conversationId, nextOffset, limit) {
             const oldScrollTop = chatContainer.scrollTop;
             
             // Carregar mais mensagens
-            carregarMensagensEmLotes(conversationId, nextOffset, limit);
-            
-            // Restaurar posição de scroll após carregamento
-            setTimeout(() => {
-                const newHeight = chatContainer.scrollHeight;
-                chatContainer.scrollTop = oldScrollTop + (newHeight - oldHeight);
-            }, 100);
+            carregarMensagensEmLotes(conversationId, nextOffset, limit)
+                .then(() => {
+                    chatContainer.isLoading = false;
+                    chatContainer.addEventListener('scroll', scrollListener);
+                    const newHeight = chatContainer.scrollHeight;
+                    chatContainer.scrollTop = oldScrollTop + (newHeight - oldHeight);
+                })
+                .catch(() => {
+                    chatContainer.isLoading = false;
+                    chatContainer.addEventListener('scroll', scrollListener);
+                });
         }
     };
     
