@@ -9,17 +9,28 @@ echo Diretorio atual: %cd%
 echo =====================================
 echo MENU PRINCIPAL
 echo =====================================
-echo 1. Abrir no VS Code
-echo 2. Atualizar Git
-echo 3. Executar Script Python
-echo 4. Sair
+echo 1. Abrir no Cursor
+echo 2. Abrir no VS Code
+echo 3. Atualizar Git
+echo 4. Executar Script Python
+echo 5. Sair
 echo =====================================
 set /p escolha="Escolha uma opcao: "
 
-if "%escolha%"=="1" goto abrir_vscode
-if "%escolha%"=="2" goto atualizar_git
-if "%escolha%"=="3" goto executar_python
-if "%escolha%"=="4" goto fim
+if "%escolha%"=="1" goto abrir_cursor
+if "%escolha%"=="2" goto abrir_vscode
+if "%escolha%"=="3" goto atualizar_git
+if "%escolha%"=="4" goto executar_python
+if "%escolha%"=="5" goto fim
+goto menu_principal
+
+:abrir_cursor
+cls
+echo Abrindo no Cursor...
+start "" cursor .
+echo.
+echo Cursor aberto. Pressione qualquer tecla para voltar ao menu principal...
+pause >nul
 goto menu_principal
 
 :abrir_vscode
