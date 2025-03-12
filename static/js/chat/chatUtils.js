@@ -1,4 +1,3 @@
-
 export function escapeHTML(text) {
     const div = document.createElement('div');
     div.innerText = text;
@@ -83,9 +82,9 @@ export function copiarCodigo(button) {
  * Adiciona barras de títulos e botões de copiar aos blocos de código
  */
 export function melhorarBlocosCodigo() {
-    console.log('[DEBUG] Melhorando blocos de código...');
+    // console.log('[DEBUG] Melhorando blocos de código...');
     const temaAtual = document.documentElement.getAttribute('data-theme');
-    console.log('[DEBUG] Tema atual:', temaAtual);
+    // console.log('[DEBUG] Tema atual:', temaAtual);
     
     document.querySelectorAll('pre code').forEach((block) => {
         // Evitar duplicação se já tiver sido processado
@@ -94,13 +93,13 @@ export function melhorarBlocosCodigo() {
         }
 
         // Extrair a linguagem da classe - melhorada para capturar apenas letras/números
-        console.log('[DEBUG] Classes do bloco:', block.className);
+        // console.log('[DEBUG] Classes do bloco:', block.className);
         const langMatch = block.className.match(/language-([a-zA-Z0-9]+)/i);
         let language = langMatch ? langMatch[1] : 'plaintext';
         
         // Capitalizar apenas a primeira letra para exibição mais elegante
         language = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
-        console.log('[DEBUG] Linguagem detectada:', language);
+        // console.log('[DEBUG] Linguagem detectada:', language);
 
         // Criar container principal
         const container = document.createElement('div');
