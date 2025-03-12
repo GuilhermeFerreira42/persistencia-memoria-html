@@ -1,7 +1,7 @@
 {
   "id": "1741174682053",
   "title": "faça uma calculadora em py",
-  "timestamp": "2025-03-05T08:40:19.825438",
+  "timestamp": "2025-03-12T17:38:07.926693",
   "messages": [
     {
       "role": "assistant",
@@ -17,6 +17,5 @@
       "role": "assistant",
       "content": "```python \ndef soma(x, y):\n  \"\"\"Soma dois números.\"\"\"\n  return x + y\n\ndef subtracao(x, y):\n  \"\"\"Subtrai dois números.\"\"\"\n  return x - y\n\ndef multiplicacao(x, y):\n  \"\"\"Multiplica dois números.\"\"\"\n  return x * y\n\ndef divisao(x, y):\n  \"\"\"Divide dois números.\"\"\"\n  if y == 0:\n    return \"Erro! Divisão por zero.\"\n  else:\n    return x / y\n\nwhile True:\n  print(\"Selecione a operação:\")\n  print(\"1. Soma\")\n  print(\"2. Subtração\")\n  print(\"3. Multiplicação\")\n  print(\"4. Divisão\")\n  print(\"5. Sair\") \n\n  escolha = input(\"\\nDigite a opção desejada (1/2/3/4/5): \")\n\n  if escolha in ('1', '2', '3', '4'):\n    try:\n      num1 = float(input(\"\\nDigite o primeiro número: \"))\n      num2 = float(input(\"Digite o segundo número: \"))\n    except ValueError:\n      print(\"Entrada inválida. Digite um valor numérico.\")\n      continue\n\n  op = escolha\n    \n  if op == '1': \n    print(f\"{num1} + {num2} = {soma(num1, num2)}\")\n\n  elif op == '2':\n    print(f\"{num1} - {num2} = {subtracao(num1, num2)}\")\n\n  elif op == '3': \n    print(f\"{num1} * {num2} = {multiplicacao(num1, num2)}\")\n\n  elif op == '4': \n    print(f\"{num1} / {num2} = {divisao(num1, num2)}\")\n\n  elif escolha == '5': \n    break \n\n  else:\n    print(\"Opção inválida. Por favor, digite de 1 a 5.\")  \n```\n\n\nEste código é um programa simples de calculadora que implementa quatro operações básicas: soma, subtração, multiplicação e divisão. Ele aceita dois números como entrada do usuário e realiza as operações correspondentes. \n\nPara executar o código, salve-o em um arquivo `.py` (por exemplo, `calculadora.py`) e, em seguida, utilize o terminal para executá-lo com o comando `python calculadora.py`.",
       "timestamp": "2025-03-05T08:40:19.825438"
-    }
-  ]
+    }  ]
 }

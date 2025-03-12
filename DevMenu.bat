@@ -174,30 +174,16 @@ pause
 goto outras_opcoes
 
 :executar_python
-setlocal enabledelayedexpansion
-for /f "delims=" %%P in ('where python 2^>nul') do (
-    set "python_path=%%P"
-    goto :list_files
-)
-
-if not defined python_path (
-    echo Python nao encontrado no sistema!
-    pause
-    goto menu_principal
-)
-
-:list_files
-cd /d %~dp0
-set "counter=0"
-echo.
+cls
 echo Arquivos Python encontrados:
+set "counter=0"
 for %%i in (*.py) do (
     set /a counter+=1
     set "file_!counter!=%%i"
     echo [!counter!] %%i
 )
 
-if %counter% equ 0 (
+if !counter! equ 0 (
     echo Nenhum arquivo Python encontrado neste diretorio.
     pause
     goto menu_principal
@@ -205,17 +191,19 @@ if %counter% equ 0 (
 
 echo.
 set /p "file_num=Digite o numero do arquivo que deseja executar: "
-set /a file_num=%file_num%
-for /l %%n in (1,1,%counter%) do (
-    if %%n equ %file_num% (
-        echo Executando: !file_%%n!
-        "%python_path%" "!file_%%n!"
-        echo.
-        echo Pressione qualquer tecla para voltar ao menu principal...
-        pause >nul
-    )
+set /a file_num=!file_num!
+
+if !file_num! gtr 0 if !file_num! leq !counter! (
+    call set "chosen_file=%%file_!file_num!%%"
+    echo Executando: !chosen_file!
+    py "!chosen_file!"
+    echo.
+    echo Pressione qualquer tecla para voltar ao menu principal...
+    pause >nul
+) else (
+    echo Escolha invalida!
+    pause
 )
-endlocal
 goto menu_principal
 
 :fim
