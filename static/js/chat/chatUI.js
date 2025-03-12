@@ -46,12 +46,20 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     const conversationId = window.conversaAtual?.id;
     if (!conversationId) {
         console.warn('[AVISO] Tentando adicionar mensagem sem conversa ativa');
-    } else {
-        // console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
+    }
+
+    // Gerar um ID único para a mensagem baseado no timestamp e conteúdo
+    const messageId = `${Date.now()}_${texto.slice(0, 20)}`;
+    
+    // Verificar se a mensagem já existe
+    if (document.querySelector(`.message[data-message-id="${messageId}"]`)) {
+        console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando duplicata`);
+        return;
     }
     
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
+    mensagemDiv.dataset.messageId = messageId;
     
     // Associar ID da conversa para garantir isolamento
     if (conversationId) {
@@ -61,11 +69,8 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     // Processamento de Markdown para mensagens do assistente
     let conteudoHtml;
     if (tipo === 'assistant') {
-        // Aplicar formatação Markdown apenas nas mensagens do assistente
         conteudoHtml = renderMessage(texto);
-        // console.log('[DEBUG] HTML renderizado (primeiros 150 caracteres):', conteudoHtml.substring(0, 150) + '...');
     } else {
-        // Para mensagens do usuário, apenas escape HTML e quebras de linha
         conteudoHtml = `<p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>`;
     }
     
