@@ -1,7 +1,7 @@
-
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
+import { renderMessage } from '../messageRenderer.js';
 
 let abortControllers = {};
 
@@ -110,6 +110,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     // console.log(`[DEBUG] Enviando mensagem para conversa: ${conversationId}`);
 
     const conversation = inicializarConversa(conversationId);
+    const timestamp = Date.now();
     
     adicionarMensagem(chatContainer, mensagem, 'user');
     adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
@@ -119,7 +120,26 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     input.value = '';
     input.style.height = 'auto';
     
-    const loadingDiv = mostrarCarregamento(chatContainer);
+    // Cria UMA mensagem para o assistente com animação inicial
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message assistant streaming-message';
+    const safeTimestamp = `${timestamp}_response`; // Evita caracteres inválidos
+    messageDiv.dataset.messageId = safeTimestamp;
+    messageDiv.innerHTML = `
+        <div class="message-content">
+            <span class="typing-animation">...</span>
+        </div>
+        <div class="message-actions">
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                <i class="fas fa-copy"></i>
+            </button>
+            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+    `;
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 
     // Marcar conversa como streaming e atualizar botões
     conversation.streaming = true;
@@ -149,8 +169,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
-        
-        let streamingDiv = null;
+        const contentDiv = messageDiv.querySelector('.message-content');
 
         while (true) {
             const { value, done } = await reader.read();
@@ -166,17 +185,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                         if (jsonData.content) {
                             conversation.currentResponse += jsonData.content;
                             
-                            if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-                                if (!streamingDiv) {
-                                    loadingDiv.remove();
-                                    streamingDiv = document.createElement('div');
-                                    streamingDiv.className = 'message assistant streaming-message';
-                                    chatContainer.appendChild(streamingDiv);
-                                }
-                                
-                                streamingDiv.innerHTML = `<div class="message-content"><p>${conversation.currentResponse.replace(/\n/g, '<br>')}</p></div>`;
-                                chatContainer.scrollTop = chatContainer.scrollHeight;
-                            }
+                            // Remove animação na primeira atualização
+                            const typingSpan = contentDiv.querySelector('.typing-animation');
+                            if (typingSpan) typingSpan.remove();
+
+                            // Atualiza com Markdown em tempo real
+                            contentDiv.innerHTML = renderMessage(conversation.currentResponse);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
                         }
                     } catch (e) {
                         console.error('Erro ao processar chunk:', e);
@@ -185,21 +200,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             }
         }
 
-        if (streamingDiv) {
-            streamingDiv.remove();
-        } else if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-            loadingDiv.remove();
-        }
+        // Finaliza a mensagem
+        messageDiv.classList.remove('streaming-message'); // Remove a classe de streaming
         
-        if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-            adicionarMensagem(chatContainer, conversation.currentResponse, 'assistant');
-            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
-            window.dispatchEvent(new CustomEvent('mensagemEnviada'));
-        } else {
-            // console.log(`[DEBUG] Conversa mudou durante streaming. Não atualizando UI.`);
-        }
-        
-        // Sempre salvar a mensagem no histórico local, independentemente da conversa ativa
+        // Salvar a mensagem no histórico local
         adicionarMensagemAoHistorico(conversation.currentResponse, 'assistant', conversationId);
         // Atualiza lista de conversas após receber resposta
         atualizarListaConversas();
@@ -207,21 +211,11 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     } catch (erro) {
         if (erro.name === 'AbortError') {
             // console.log('Geração de resposta interrompida pelo usuário');
-            if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-                loadingDiv.remove();
-            }
+            messageDiv.querySelector('.message-content').innerHTML = '<p><em>Resposta interrompida pelo usuário</em></p>';
         } else {
             console.error('Erro:', erro);
-            if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-                loadingDiv.remove();
-            }
-            const errorMsg = 'Erro ao conectar com o servidor. Por favor, tente novamente.';
-            
-            if (window.conversaAtual && window.conversaAtual.id === conversationId) {
-                adicionarMensagem(chatContainer, errorMsg, 'assistant');
-            }
-            
-            adicionarMensagemAoHistorico(errorMsg, 'assistant', conversationId);
+            messageDiv.querySelector('.message-content').innerHTML = '<p><em>Erro ao conectar com o servidor. Por favor, tente novamente.</em></p>';
+            adicionarMensagemAoHistorico('Erro ao conectar com o servidor. Por favor, tente novamente.', 'assistant', conversationId);
         }
     } finally {
         if (conversation) {
