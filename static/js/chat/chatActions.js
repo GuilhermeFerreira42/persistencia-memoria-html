@@ -1,8 +1,8 @@
-
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
 import { renderMessage, renderStreamingMessage } from '../messageRenderer.js';
+import { melhorarBlocosCodigo } from './chatUtils.js';
 
 let abortControllers = {};
 
@@ -42,8 +42,6 @@ export function atualizarBotoes(sendBtn, stopBtn) {
         sendBtn.style.display = 'flex';
         stopBtn.style.display = 'none';
     }
-    
-    // console.log(`[DEBUG] Botões atualizados para conversa ${conversationId}: streaming=${conversation?.streaming}`);
 }
 
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
@@ -117,15 +115,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     input.value = '';
     input.style.height = 'auto';
     
-    // Cria UMA mensagem para o assistente com animação inicial
+    // Cria UMA mensagem para o assistente com estrutura simples
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message assistant streaming-message';
     const safeTimestamp = `${timestamp}_response`; // Evita caracteres inválidos
     messageDiv.dataset.messageId = safeTimestamp;
     messageDiv.innerHTML = `
-        <div class="message-content">
-            <span class="typing-animation">...</span>
-        </div>
+        <div class="message-content"></div>
         <div class="message-actions">
             <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                 <i class="fas fa-copy"></i>
@@ -136,7 +132,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         </div>
     `;
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Verificar se o usuário está no final do chat para scroll automático
+    const isAtBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 30;
+    
+    if (isAtBottom) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
 
     // Marcar conversa como streaming e atualizar botões
     conversation.streaming = true;
@@ -146,6 +148,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     abortControllers[conversationId] = conversation.abortController;
 
     conversation.currentResponse = '';
+    const contentDiv = messageDiv.querySelector('.message-content');
 
     try {
         const response = await fetch('/send_message', {
@@ -166,7 +169,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
-        const contentDiv = messageDiv.querySelector('.message-content');
+        
+        // Adicionar animação de digitação para o primeiro momento
+        contentDiv.innerHTML = '<span class="typing-animation">...</span>';
         
         let isFirstChunk = true;
 
@@ -185,15 +190,23 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                             // Adicionar o novo conteúdo à resposta acumulada
                             conversation.currentResponse += jsonData.content;
                             
-                            // Remover animação na primeira atualização
+                            // Remover animação de digitação no primeiro chunk
                             if (isFirstChunk) {
                                 contentDiv.innerHTML = '';
                                 isFirstChunk = false;
                             }
-
+                            
                             // Renderizar o Markdown em tempo real
                             contentDiv.innerHTML = renderMessage(conversation.currentResponse);
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                            
+                            // Melhorar blocos de código em tempo real
+                            melhorarBlocosCodigo();
+                            
+                            // Scroll inteligente - só desce se o usuário estiver próximo do final
+                            const userIsAtBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 30;
+                            if (userIsAtBottom) {
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }
                         }
                     } catch (e) {
                         console.error('Erro ao processar chunk:', e);
@@ -202,11 +215,14 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             }
         }
 
-        // Finaliza a mensagem
+        // Finaliza a mensagem - renderização final completa
         messageDiv.classList.remove('streaming-message'); // Remove a classe de streaming
         
         // Renderiza o conteúdo final completo
         contentDiv.innerHTML = renderMessage(conversation.currentResponse);
+        
+        // Aplicar melhorias finais aos blocos de código
+        melhorarBlocosCodigo();
         
         // Salvar a mensagem no histórico local
         adicionarMensagemAoHistorico(conversation.currentResponse, 'assistant', conversationId);

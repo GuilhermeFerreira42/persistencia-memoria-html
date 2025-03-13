@@ -86,7 +86,7 @@ export function renderMessage(text) {
 
 /**
  * Renderiza incrementalmente mensagens durante o streaming
- * Melhorada para suportar formatação Markdown em tempo real
+ * Otimizada para suportar formatação Markdown em tempo real com melhor performance
  * @param {string} text - Texto em formato Markdown
  * @returns {string} HTML formatado
  */
@@ -96,8 +96,9 @@ export function renderStreamingMessage(text) {
             return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
         }
         
-        // Configuração simples para renderização rápida
+        // Configuração para renderização rápida de streaming
         marked.setOptions({
+            gfm: true,
             breaks: true,   // Converter \n em <br> para streaming
             highlight: function(code, lang) {
                 try {
@@ -115,9 +116,9 @@ export function renderStreamingMessage(text) {
         // Parsear o Markdown
         const htmlContent = marked.parse(text);
         
-        // Sanitizar o HTML (versão simplificada para streaming)
+        // Sanitizar o HTML (configuração otimizada para streaming)
         const finalHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'span'],
+            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'blockquote'],
             ALLOWED_ATTR: ['class']
         });
         
