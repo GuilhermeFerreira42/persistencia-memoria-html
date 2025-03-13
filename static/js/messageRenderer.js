@@ -86,9 +86,9 @@ export function renderMessage(text) {
 
 /**
  * Renderiza incrementalmente mensagens durante o streaming
- * Otimizada para suportar formatação Markdown em tempo real com melhor performance
- * @param {string} text - Texto em formato Markdown
- * @returns {string} HTML formatado
+ * Otimizada para processar chunks individuais com melhor performance
+ * @param {string} text - Chunk de texto em formato Markdown
+ * @returns {string} HTML formatado para o chunk individual
  */
 export function renderStreamingMessage(text) {
     try {
@@ -96,29 +96,20 @@ export function renderStreamingMessage(text) {
             return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
         }
         
-        // Configuração para renderização rápida de streaming
+        // Configuração otimizada para streaming rápido
         marked.setOptions({
             gfm: true,
-            breaks: true,   // Converter \n em <br> para streaming
-            highlight: function(code, lang) {
-                try {
-                    if (typeof hljs !== 'undefined') {
-                        const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-                        return hljs.highlight(code, { language }).value;
-                    }
-                    return code;
-                } catch (error) {
-                    return code;
-                }
-            }
+            breaks: true,   // Converter \n em <br> para chunks individuais
+            highlight: null  // Desativar highlight.js durante streaming para performance
         });
         
-        // Parsear o Markdown
+        // Parsear o Markdown do chunk
         const htmlContent = marked.parse(text);
         
-        // Sanitizar o HTML (configuração otimizada para streaming)
+        // Sanitizar com configuração mínima para velocidade
         const finalHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'blockquote'],
+            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li', 
+                          'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'span'],
             ALLOWED_ATTR: ['class']
         });
         

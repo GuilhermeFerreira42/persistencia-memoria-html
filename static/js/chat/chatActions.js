@@ -1,3 +1,4 @@
+
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
@@ -118,10 +119,12 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     // Cria UMA mensagem para o assistente com estrutura simples
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message assistant streaming-message';
-    const safeTimestamp = `${timestamp}_response`; // Evita caracteres inválidos
+    const safeTimestamp = `${timestamp}_response`; 
     messageDiv.dataset.messageId = safeTimestamp;
     messageDiv.innerHTML = `
-        <div class="message-content"></div>
+        <div class="message-content">
+            <span class="typing-animation">...</span>
+        </div>
         <div class="message-actions">
             <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                 <i class="fas fa-copy"></i>
@@ -170,9 +173,6 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         
-        // Adicionar animação de digitação para o primeiro momento
-        contentDiv.innerHTML = '<span class="typing-animation">...</span>';
-        
         let isFirstChunk = true;
 
         while (true) {
@@ -187,8 +187,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                     try {
                         const jsonData = JSON.parse(line.slice(6));
                         if (jsonData.content) {
-                            // Adicionar o novo conteúdo à resposta acumulada
-                            conversation.currentResponse += jsonData.content;
+                            // Guardar o novo chunk
+                            const newChunk = jsonData.content;
+                            conversation.currentResponse += newChunk;
                             
                             // Remover animação de digitação no primeiro chunk
                             if (isFirstChunk) {
@@ -196,17 +197,20 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                                 isFirstChunk = false;
                             }
                             
-                            // Renderizar o Markdown em tempo real
-                            contentDiv.innerHTML = renderMessage(conversation.currentResponse);
+                            // Renderizar apenas o novo chunk em Markdown e adicionar ao conteúdo
+                            const renderedChunk = renderStreamingMessage(newChunk);
+                            contentDiv.insertAdjacentHTML('beforeend', renderedChunk);
                             
-                            // Melhorar blocos de código em tempo real
+                            // Melhorar blocos de código 
                             melhorarBlocosCodigo();
                             
                             // Scroll inteligente - só desce se o usuário estiver próximo do final
-                            const userIsAtBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 30;
-                            if (userIsAtBottom) {
-                                chatContainer.scrollTop = chatContainer.scrollHeight;
-                            }
+                            requestAnimationFrame(() => {
+                                const userIsAtBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 30;
+                                if (userIsAtBottom) {
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            });
                         }
                     } catch (e) {
                         console.error('Erro ao processar chunk:', e);
@@ -231,10 +235,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     } catch (erro) {
         if (erro.name === 'AbortError') {
             // console.log('Geração de resposta interrompida pelo usuário');
-            messageDiv.querySelector('.message-content').innerHTML = '<p><em>Resposta interrompida pelo usuário</em></p>';
+            contentDiv.innerHTML = '<p><em>Resposta interrompida pelo usuário</em></p>';
         } else {
             console.error('Erro:', erro);
-            messageDiv.querySelector('.message-content').innerHTML = '<p><em>Erro ao conectar com o servidor. Por favor, tente novamente.</em></p>';
+            contentDiv.innerHTML = '<p><em>Erro ao conectar com o servidor. Por favor, tente novamente.</em></p>';
             adicionarMensagemAoHistorico('Erro ao conectar com o servidor. Por favor, tente novamente.', 'assistant', conversationId);
         }
     } finally {
