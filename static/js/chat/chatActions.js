@@ -1,7 +1,8 @@
+
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
-import { renderMessage } from '../messageRenderer.js';
+import { renderMessage, renderStreamingMessage } from '../messageRenderer.js';
 
 let abortControllers = {};
 
@@ -102,19 +103,15 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     }
 
     if (!window.conversaAtual) {
-        // console.log("[DEBUG] Criando nova conversa...");
         criarNovaConversa();
     }
 
     const conversationId = window.conversaAtual.id;
-    // console.log(`[DEBUG] Enviando mensagem para conversa: ${conversationId}`);
-
     const conversation = inicializarConversa(conversationId);
     const timestamp = Date.now();
     
     adicionarMensagem(chatContainer, mensagem, 'user');
     adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
-    // Atualiza lista de conversas após enviar mensagem do usuário
     atualizarListaConversas();
 
     input.value = '';
@@ -170,6 +167,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         const contentDiv = messageDiv.querySelector('.message-content');
+        
+        let isFirstChunk = true;
 
         while (true) {
             const { value, done } = await reader.read();
@@ -183,13 +182,16 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                     try {
                         const jsonData = JSON.parse(line.slice(6));
                         if (jsonData.content) {
+                            // Adicionar o novo conteúdo à resposta acumulada
                             conversation.currentResponse += jsonData.content;
                             
-                            // Remove animação na primeira atualização
-                            const typingSpan = contentDiv.querySelector('.typing-animation');
-                            if (typingSpan) typingSpan.remove();
+                            // Remover animação na primeira atualização
+                            if (isFirstChunk) {
+                                contentDiv.innerHTML = '';
+                                isFirstChunk = false;
+                            }
 
-                            // Atualiza com Markdown em tempo real
+                            // Renderizar o Markdown em tempo real
                             contentDiv.innerHTML = renderMessage(conversation.currentResponse);
                             chatContainer.scrollTop = chatContainer.scrollHeight;
                         }
@@ -203,9 +205,11 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         // Finaliza a mensagem
         messageDiv.classList.remove('streaming-message'); // Remove a classe de streaming
         
+        // Renderiza o conteúdo final completo
+        contentDiv.innerHTML = renderMessage(conversation.currentResponse);
+        
         // Salvar a mensagem no histórico local
         adicionarMensagemAoHistorico(conversation.currentResponse, 'assistant', conversationId);
-        // Atualiza lista de conversas após receber resposta
         atualizarListaConversas();
         
     } catch (erro) {

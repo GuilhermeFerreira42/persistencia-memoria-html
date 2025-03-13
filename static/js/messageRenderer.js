@@ -86,24 +86,44 @@ export function renderMessage(text) {
 
 /**
  * Renderiza incrementalmente mensagens durante o streaming
- * Versão otimizada para atualizações rápidas durante streaming
+ * Melhorada para suportar formatação Markdown em tempo real
+ * @param {string} text - Texto em formato Markdown
+ * @returns {string} HTML formatado
  */
 export function renderStreamingMessage(text) {
-    // Para streaming, usamos uma versão simplificada para melhor performance
     try {
         if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
             return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
         }
         
-        // Sanitizar o texto em Markdown
+        // Configuração simples para renderização rápida
+        marked.setOptions({
+            breaks: true,   // Converter \n em <br> para streaming
+            highlight: function(code, lang) {
+                try {
+                    if (typeof hljs !== 'undefined') {
+                        const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+                        return hljs.highlight(code, { language }).value;
+                    }
+                    return code;
+                } catch (error) {
+                    return code;
+                }
+            }
+        });
+        
+        // Parsear o Markdown
         const htmlContent = marked.parse(text);
+        
+        // Sanitizar o HTML (versão simplificada para streaming)
         const finalHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li'],
+            ALLOWED_TAGS: ['p', 'strong', 'em', 'code', 'pre', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'span'],
+            ALLOWED_ATTR: ['class']
         });
         
         return finalHtml;
     } catch (error) {
-        // Fallback seguro se houver erro
+        console.error('Erro no streaming:', error);
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }
