@@ -1,4 +1,3 @@
-
 /**
  * Renderiza uma mensagem formatada com Markdown usando marked.js e highlight.js
  * @param {string} text - Texto em formato Markdown
@@ -87,26 +86,28 @@ export function renderMessage(text) {
 /**
  * Renderiza incrementalmente mensagens durante o streaming
  * Otimizada para processar chunks individuais com melhor performance
- * @param {string} text - Chunk de texto em formato Markdown
+ * @param {string} chunk - Chunk de texto em formato Markdown
  * @returns {string} HTML formatado para o chunk individual
  */
-export function renderStreamingMessage(text) {
+export function renderStreamingMessage(chunk) {
+    if (!chunk) return '';
+    
     try {
         if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-            return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+            return `<p>${chunk.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
         }
         
-        // Configuração específica para streaming otimizada para velocidade
+        // Configuração otimizada para streaming
         marked.setOptions({
             gfm: true,
             breaks: true,   // Converter \n em <br> para streaming
             highlight: null, // Desativar highlight durante streaming para performance
             mangle: false,   // Desativar transformações complexas
-            headerIds: false // Desativar geração de IDs para headers (melhora performance)
+            headerIds: false // Desativar geração de IDs para headers
         });
         
         // Parsear o Markdown do chunk
-        const htmlContent = marked.parse(text);
+        const htmlContent = marked.parse(chunk);
         
         // Sanitizar com configuração mínima para velocidade
         const finalHtml = DOMPurify.sanitize(htmlContent, {
@@ -118,6 +119,6 @@ export function renderStreamingMessage(text) {
         return finalHtml;
     } catch (error) {
         console.error('Erro no streaming:', error);
-        return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+        return `<p>${chunk.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

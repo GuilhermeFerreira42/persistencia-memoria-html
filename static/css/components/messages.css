@@ -243,3 +243,57 @@
     background-color: #1e1e1e !important;
     color: #d4d4d4 !important;
 }
+
+/* Estilos para scroll suave e comportamento de scroll */
+.chat-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* Melhor suporte para iOS */
+    overscroll-behavior: contain; /* Previne scroll em cascata */
+}
+
+/* Estilos para mensagens em streaming */
+.message.streaming-message {
+    opacity: 0.95;
+    transition: opacity 0.3s ease;
+}
+
+.message.streaming-message .message-content {
+    position: relative;
+}
+
+/* Indicador de scroll */
+.scroll-indicator {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.scroll-indicator.visible {
+    opacity: 1;
+}
+
+.scroll-indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Animação de digitação */
+.typing-animation {
+    display: inline-block;
+    animation: typing 1s infinite;
+}
+
+@keyframes typing {
+    0% { opacity: 0.2; }
+    20% { opacity: 1; }
+    100% { opacity: 0.2; }
+}

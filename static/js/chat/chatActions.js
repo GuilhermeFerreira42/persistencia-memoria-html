@@ -1,4 +1,3 @@
-
 import { mostrarCarregamento } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
@@ -42,6 +41,51 @@ export function atualizarBotoes(sendBtn, stopBtn) {
         sendBtn.style.display = 'flex';
         stopBtn.style.display = 'none';
     }
+}
+
+// Função para verificar se o usuário está no final do chat
+function isUserAtBottom(container) {
+    const threshold = 50; // pixels de tolerância
+    return container.scrollHeight - container.scrollTop <= container.clientHeight + threshold;
+}
+
+// Função para rolar suavemente para o final
+function scrollToBottom(container) {
+    container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+// Função para gerenciar scroll durante streaming
+function handleStreamingScroll(container, content) {
+    let userScrolledUp = false;
+    let scrollTimeout = null;
+    
+    const scrollListener = () => {
+        userScrolledUp = !isUserAtBottom(container);
+        
+        // Limpar timeout anterior
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+        
+        // Se o usuário rolar para baixo até o final, resetar o estado
+        if (userScrolledUp && isUserAtBottom(container)) {
+            userScrolledUp = false;
+        }
+    };
+    
+    // Adicionar listener de scroll
+    container.addEventListener('scroll', scrollListener);
+    
+    // Retornar função para limpar o listener
+    return () => {
+        container.removeEventListener('scroll', scrollListener);
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+    };
 }
 
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
@@ -151,14 +195,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     const contentDiv = messageDiv.querySelector('.message-content');
     contentDiv.innerHTML = '<span class="typing-animation">...</span>'; // Animação inicial
     
-    // Variável para rastrear estado do scroll
+    // Configurar gerenciamento de scroll
+    const cleanupScroll = handleStreamingScroll(chatContainer);
     let userScrolledUp = false;
-    
-    // Adicionar listener para detectar quando usuário rola manualmente
-    const scrollListener = () => {
-        userScrolledUp = chatContainer.scrollTop + chatContainer.clientHeight < chatContainer.scrollHeight - 50;
-    };
-    chatContainer.addEventListener('scroll', scrollListener);
 
     try {
         const response = await fetch('/send_message', {
@@ -177,6 +216,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             throw new Error('Erro na resposta do servidor');
         }
 
+        // Configurar gerenciamento de scroll
+        const cleanupScroll = handleStreamingScroll(chatContainer);
+        let userScrolledUp = false;
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         
@@ -190,38 +233,33 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             const chunk = decoder.decode(value, { stream: true });
             buffer += chunk;
             
-            // Processamento de buffer por linhas completas
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Mantém último pedaço incompleto no buffer
+            buffer = lines.pop() || '';
             
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
                         const jsonData = JSON.parse(line.slice(6));
                         if (jsonData.content) {
-                            // Guardar o novo chunk
                             const newChunk = jsonData.content;
                             conversation.currentResponse += newChunk;
                             
-                            // Remover animação no primeiro chunk
                             if (isFirstChunk) {
                                 contentDiv.innerHTML = '';
                                 isFirstChunk = false;
                             }
                             
-                            // Renderizar apenas o novo chunk em Markdown e adicionar ao conteúdo
                             requestAnimationFrame(() => {
                                 const renderedChunk = renderStreamingMessage(newChunk);
                                 contentDiv.insertAdjacentHTML('beforeend', renderedChunk);
                                 
-                                // Melhorar blocos de código de forma assíncrona
                                 setTimeout(() => {
                                     melhorarBlocosCodigo();
                                 }, 0);
                                 
-                                // Scroll inteligente - só desce se o usuário não rolou para cima
+                                // Scroll inteligente
                                 if (!userScrolledUp) {
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    scrollToBottom(chatContainer);
                                 }
                             });
                         }
@@ -232,8 +270,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             }
         }
 
+        // Limpar gerenciamento de scroll
+        cleanupScroll();
+        
         // Finaliza a mensagem - renderização final completa
-        chatContainer.removeEventListener('scroll', scrollListener);
         messageDiv.classList.remove('streaming-message');
         
         // Renderiza o conteúdo final completo
@@ -247,7 +287,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         atualizarListaConversas();
         
     } catch (erro) {
-        chatContainer.removeEventListener('scroll', scrollListener);
+        // Limpar gerenciamento de scroll em caso de erro
+        cleanupScroll();
         
         if (erro.name === 'AbortError') {
             console.log('Geração de resposta interrompida pelo usuário');
