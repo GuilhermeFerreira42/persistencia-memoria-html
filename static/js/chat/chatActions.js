@@ -9,7 +9,6 @@ let abortControllers = {};
 
 function inicializarConversa(conversationId) {
     if (!window.conversations[conversationId]) {
-        // console.log(`[DEBUG] Inicializando estrutura para conversa ${conversationId}`);
         window.conversations[conversationId] = {
             data: { 
                 id: conversationId,
@@ -122,9 +121,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     const safeTimestamp = `${timestamp}_response`; 
     messageDiv.dataset.messageId = safeTimestamp;
     messageDiv.innerHTML = `
-        <div class="message-content">
-            <span class="typing-animation">...</span>
-        </div>
+        <div class="message-content"></div>
         <div class="message-actions">
             <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                 <i class="fas fa-copy"></i>
@@ -152,6 +149,16 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
     conversation.currentResponse = '';
     const contentDiv = messageDiv.querySelector('.message-content');
+    contentDiv.innerHTML = '<span class="typing-animation">...</span>'; // Animação inicial
+    
+    // Variável para rastrear estado do scroll
+    let userScrolledUp = false;
+    
+    // Adicionar listener para detectar quando usuário rola manualmente
+    const scrollListener = () => {
+        userScrolledUp = chatContainer.scrollTop + chatContainer.clientHeight < chatContainer.scrollHeight - 50;
+    };
+    chatContainer.addEventListener('scroll', scrollListener);
 
     try {
         const response = await fetch('/send_message', {
@@ -174,14 +181,19 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const decoder = new TextDecoder('utf-8');
         
         let isFirstChunk = true;
+        let buffer = '';
 
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-
+            buffer += chunk;
+            
+            // Processamento de buffer por linhas completas
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Mantém último pedaço incompleto no buffer
+            
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
@@ -191,23 +203,24 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                             const newChunk = jsonData.content;
                             conversation.currentResponse += newChunk;
                             
-                            // Remover animação de digitação no primeiro chunk
+                            // Remover animação no primeiro chunk
                             if (isFirstChunk) {
                                 contentDiv.innerHTML = '';
                                 isFirstChunk = false;
                             }
                             
                             // Renderizar apenas o novo chunk em Markdown e adicionar ao conteúdo
-                            const renderedChunk = renderStreamingMessage(newChunk);
-                            contentDiv.insertAdjacentHTML('beforeend', renderedChunk);
-                            
-                            // Melhorar blocos de código 
-                            melhorarBlocosCodigo();
-                            
-                            // Scroll inteligente - só desce se o usuário estiver próximo do final
                             requestAnimationFrame(() => {
-                                const userIsAtBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 30;
-                                if (userIsAtBottom) {
+                                const renderedChunk = renderStreamingMessage(newChunk);
+                                contentDiv.insertAdjacentHTML('beforeend', renderedChunk);
+                                
+                                // Melhorar blocos de código de forma assíncrona
+                                setTimeout(() => {
+                                    melhorarBlocosCodigo();
+                                }, 0);
+                                
+                                // Scroll inteligente - só desce se o usuário não rolou para cima
+                                if (!userScrolledUp) {
                                     chatContainer.scrollTop = chatContainer.scrollHeight;
                                 }
                             });
@@ -220,7 +233,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         }
 
         // Finaliza a mensagem - renderização final completa
-        messageDiv.classList.remove('streaming-message'); // Remove a classe de streaming
+        chatContainer.removeEventListener('scroll', scrollListener);
+        messageDiv.classList.remove('streaming-message');
         
         // Renderiza o conteúdo final completo
         contentDiv.innerHTML = renderMessage(conversation.currentResponse);
@@ -233,8 +247,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         atualizarListaConversas();
         
     } catch (erro) {
+        chatContainer.removeEventListener('scroll', scrollListener);
+        
         if (erro.name === 'AbortError') {
-            // console.log('Geração de resposta interrompida pelo usuário');
+            console.log('Geração de resposta interrompida pelo usuário');
             contentDiv.innerHTML = '<p><em>Resposta interrompida pelo usuário</em></p>';
         } else {
             console.error('Erro:', erro);
@@ -258,8 +274,6 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 export function interromperResposta() {
     const conversationId = window.conversaAtual?.id;
     if (!conversationId) return;
-    
-    // console.log(`[DEBUG] Interrompendo resposta para conversa: ${conversationId}`);
     
     if (abortControllers[conversationId]) {
         abortControllers[conversationId].abort();

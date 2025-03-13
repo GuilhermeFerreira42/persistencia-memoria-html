@@ -21,6 +21,9 @@
     width: 100%;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    overflow-anchor: none; /* Previne ajuste automático de scroll */
+    scroll-behavior: smooth; /* Rolagem suave */
+    contain: paint; /* Melhora performance */
 }
 
 .chat-container::-webkit-scrollbar {

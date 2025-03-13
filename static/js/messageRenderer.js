@@ -96,11 +96,13 @@ export function renderStreamingMessage(text) {
             return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
         }
         
-        // Configuração otimizada para streaming rápido
+        // Configuração específica para streaming otimizada para velocidade
         marked.setOptions({
             gfm: true,
-            breaks: true,   // Converter \n em <br> para chunks individuais
-            highlight: null  // Desativar highlight.js durante streaming para performance
+            breaks: true,   // Converter \n em <br> para streaming
+            highlight: null, // Desativar highlight durante streaming para performance
+            mangle: false,   // Desativar transformações complexas
+            headerIds: false // Desativar geração de IDs para headers (melhora performance)
         });
         
         // Parsear o Markdown do chunk
