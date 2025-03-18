@@ -36,6 +36,12 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
 }
 
 export function adicionarMensagem(chatContainer, texto, tipo) {
+    console.log('[DEBUG] Iniciando adição de mensagem:', {
+        tipo,
+        tamanhoTexto: texto?.length,
+        containerExiste: !!chatContainer
+    });
+
     // Verificar se o contêiner de chat existe
     if (!chatContainer) {
         console.error('[ERRO] Contêiner de chat não encontrado ao adicionar mensagem');
@@ -48,15 +54,22 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
         console.warn('[AVISO] Tentando adicionar mensagem sem conversa ativa');
     }
 
-    // Gerar um ID único para a mensagem baseado no timestamp e conteúdo
-    const messageId = `${Date.now()}_${texto.slice(0, 20)}`;
+    console.log('[DEBUG] Contexto da conversa:', {
+        conversationId,
+        conversaAtual: window.conversaAtual
+    });
+
+    // Gerar um ID único para a mensagem
+    const messageId = `${Date.now()}_${tipo}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Verificar se a mensagem já existe
-    if (document.querySelector(`.message[data-message-id="${messageId}"]`)) {
-        console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando duplicata`);
+    const existingMessage = document.querySelector(`.message[data-message-id="${messageId}"]`);
+    if (existingMessage) {
+        console.warn('[DEBUG] Mensagem duplicada detectada:', messageId);
         return;
     }
     
+    console.log('[DEBUG] Criando novo elemento de mensagem:', messageId);
     const mensagemDiv = document.createElement('div');
     mensagemDiv.className = `message ${tipo}`;
     mensagemDiv.dataset.messageId = messageId;
@@ -66,67 +79,124 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
         mensagemDiv.dataset.conversationId = conversationId;
     }
     
+    console.log('[DEBUG] Processando conteúdo da mensagem');
     // Processamento de Markdown para mensagens do assistente
     let conteudoHtml;
-    if (tipo === 'assistant') {
-        conteudoHtml = renderMessage(texto);
-    } else {
-        conteudoHtml = `<p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>`;
+    try {
+        if (tipo === 'assistant') {
+            console.log('[DEBUG] Renderizando markdown para mensagem do assistente');
+            conteudoHtml = renderMessage(texto);
+        } else {
+            console.log('[DEBUG] Processando texto simples para mensagem do usuário');
+            conteudoHtml = `<p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>`;
+        }
+        
+        console.log('[DEBUG] Conteúdo HTML gerado:', {
+            tamanho: conteudoHtml.length,
+            preview: conteudoHtml.substring(0, 50) + '...'
+        });
+    } catch (error) {
+        console.error('[ERRO] Falha ao processar conteúdo da mensagem:', error);
+        conteudoHtml = `<p>Erro ao processar mensagem</p>`;
     }
+
+    // Criar estrutura da mensagem
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.innerHTML = conteudoHtml;
+
+    const messageActions = document.createElement('div');
+    messageActions.className = 'message-actions';
     
-    const conteudo = `
-        <div class="message-content">${conteudoHtml}</div>
-        <div class="message-actions">
+    // Adicionar botões de ação
+    if (tipo === 'assistant') {
+        messageActions.innerHTML = `
             <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                 <i class="fas fa-copy"></i>
             </button>
-            ${tipo === 'assistant' ? `
-                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                    <i class="fas fa-redo"></i>
-                </button>
-            ` : ''}
-        </div>
-    `;
-    
-    mensagemDiv.innerHTML = conteudo;
-    chatContainer.appendChild(mensagemDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    
-    // Melhorar os blocos de código imediatamente após adicionar a mensagem
-    if (tipo === 'assistant') {
-        setTimeout(() => {
-            // console.log('[DEBUG] Aplicando melhorias aos blocos de código...');
-            melhorarBlocosCodigo();
-        }, 0);
+            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                <i class="fas fa-redo"></i>
+            </button>
+        `;
+    } else {
+        messageActions.innerHTML = `
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                <i class="fas fa-copy"></i>
+            </button>
+        `;
     }
+
+    // Montar a mensagem
+    mensagemDiv.appendChild(messageContent);
+    mensagemDiv.appendChild(messageActions);
+
+    console.log('[DEBUG] Adicionando mensagem ao DOM');
+    // Adicionar ao DOM com animação
+    mensagemDiv.style.opacity = '0';
+    mensagemDiv.style.transform = 'translateY(20px)';
+    chatContainer.appendChild(mensagemDiv);
+
+    // Forçar reflow e aplicar transição
+    void mensagemDiv.offsetHeight;
+    
+    requestAnimationFrame(() => {
+        console.log('[DEBUG] Aplicando animação de entrada');
+        mensagemDiv.style.opacity = '1';
+        mensagemDiv.style.transform = 'translateY(0)';
+        
+        // Garantir que a mensagem seja visível
+        requestAnimationFrame(() => {
+            console.log('[DEBUG] Atualizando scroll');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    });
+
+    console.log('[DEBUG] Mensagem adicionada com sucesso:', messageId);
+    return messageId;
 }
 
 export function mostrarCarregamento(chatContainer) {
-    // Verificar se o contêiner de chat existe
+    console.log('[DEBUG] Iniciando exibição de carregamento');
+    
     if (!chatContainer) {
-        console.error('[ERRO] Contêiner de chat não encontrado ao mostrar carregamento');
-        return document.createElement('div'); // Retorna um div vazio como fallback
+        console.error('[ERRO] Container não encontrado para mostrar carregamento');
+        return null;
     }
-    
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'loading message assistant';
-    
-    // Associar ID da conversa para garantir isolamento
+
     const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        console.warn('[AVISO] Tentando mostrar carregamento sem conversa ativa');
+    }
+
+    const loadingId = `loading_${Date.now()}`;
+    console.log('[DEBUG] Criando elemento de carregamento:', loadingId);
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant loading';
+    loadingDiv.dataset.messageId = loadingId;
     if (conversationId) {
         loadingDiv.dataset.conversationId = conversationId;
-        // console.log(`[DEBUG] Mostrando carregamento para conversa: ${conversationId}`);
-    } else {
-        console.warn('[AVISO] Mostrando carregamento sem conversa ativa');
     }
-    
-    loadingDiv.innerHTML = `
-        <span></span>
-        <span></span>
-        <span></span>
-    `;
+    loadingDiv.innerHTML = '<div class="message-content"><span class="typing-animation">...</span></div>';
+
+    // Adicionar com animação
+    loadingDiv.style.opacity = '0';
     chatContainer.appendChild(loadingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // Forçar reflow e aplicar transição
+    void loadingDiv.offsetHeight;
+    
+    requestAnimationFrame(() => {
+        console.log('[DEBUG] Aplicando animação do carregamento');
+        loadingDiv.style.opacity = '1';
+        
+        requestAnimationFrame(() => {
+            console.log('[DEBUG] Atualizando scroll após carregamento');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    });
+
+    console.log('[DEBUG] Carregamento exibido com sucesso');
     return loadingDiv;
 }
 

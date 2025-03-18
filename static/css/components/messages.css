@@ -297,3 +297,134 @@
     20% { opacity: 1; }
     100% { opacity: 0.2; }
 }
+
+/* Estilos para mensagens */
+.message {
+    position: relative;
+    max-width: 80%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.message.user {
+    background-color: var(--msg-user);
+    margin-left: auto;
+    color: var(--text-primary);
+}
+
+.message.assistant {
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+}
+
+/* Estilos para mensagem de carregamento */
+.message.loading {
+    opacity: 0.8;
+}
+
+.message.loading .message-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+}
+
+.typing-animation {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.typing-animation::before,
+.typing-animation::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+}
+
+.typing-animation::after {
+    animation-delay: 0.7s;
+}
+
+@keyframes typing {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+/* Estilos para mensagens de erro */
+.message.error {
+    background-color: var(--error-bg);
+    color: var(--error);
+}
+
+/* Estilos para conteúdo Markdown */
+.message-content {
+    line-height: 1.6;
+}
+
+.message-content p {
+    margin: 0.5rem 0;
+}
+
+.message-content pre {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: var(--code-bg);
+    overflow-x: auto;
+}
+
+.message-content code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.message-content ul,
+.message-content ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.message-content blockquote {
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* Botões de ação */
+.message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+.action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}

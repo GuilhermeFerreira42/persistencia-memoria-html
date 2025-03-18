@@ -1,0 +1,131 @@
+/* Estilos para o container do chat */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    padding: 1rem;
+    gap: 1rem;
+    scroll-behavior: smooth;
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+    contain: paint;
+}
+
+/* Estilos base para mensagens */
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    margin: 0.5rem 0;
+    position: relative;
+    opacity: 1;
+    transform: translateY(0);
+    transition: 
+        opacity 0.2s ease-out,
+        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    contain: content;
+}
+
+/* Animação de entrada para novas mensagens */
+.message.entering {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: 
+        opacity 0.3s ease-out,
+        transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Mensagens do usuário */
+.message.user {
+    align-self: flex-end;
+    background-color: var(--msg-user-bg, #007bff);
+    color: var(--msg-user-text, #ffffff);
+    border-radius: 1rem 1rem 0 1rem;
+    padding: 0.8rem 1rem;
+    margin-left: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 2;
+    transform-origin: bottom right;
+}
+
+/* Mensagens do assistente */
+.message.assistant {
+    align-self: flex-start;
+    background-color: var(--msg-assistant-bg, #f8f9fa);
+    color: var(--msg-assistant-text, #212529);
+    border-radius: 1rem 1rem 1rem 0;
+    padding: 1rem;
+    margin-right: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    z-index: 1;
+    transform-origin: bottom left;
+}
+
+/* Conteúdo da mensagem */
+.message-content {
+    display: block;
+    width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+}
+
+/* Animação de carregamento */
+.message.loading {
+    opacity: 0.8;
+    animation: pulse 2s infinite;
+}
+
+.typing-animation {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    animation: typing 1.4s steps(5, end) infinite;
+}
+
+@keyframes typing {
+    0%, 20% { content: "."; }
+    40% { content: ".."; }
+    60% { content: "..."; }
+    80%, 100% { content: ""; }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.6; }
+}
+
+/* Mensagens de erro */
+.message.error {
+    background-color: var(--msg-error-bg, #dc3545);
+    color: var(--msg-error-text, #ffffff);
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Estado inicial das mensagens */
+.message[style*="opacity: 0"] {
+    transform: translateY(20px);
+}
+
+/* Otimizações de performance */
+.chat-container,
+.message {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    backface-visibility: hidden;
+    perspective: 1000px;
+    transform: translate3d(0,0,0);
+} 

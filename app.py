@@ -336,16 +336,11 @@ def process_with_ai_stream(text, conversation_id=None):
         context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
         print(f"{context_header}Iniciando streaming para: {text[:50]}...")
         
-        # Opção para incluir histórico de mensagens da conversa específica
-        conversation = None
-        if conversation_id:
-            conversation = get_conversation_by_id(conversation_id)
-        
-        # Mensagem do sistema é sempre necessária
-        messages = [{"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código. Exemplo:\nTexto normal aqui.\n```python\nprint('Código aqui')\n```\nMais texto normal aqui."}]
-        
-        # Adicionar mensagem do usuário
-        messages.append({"role": "user", "content": text})
+        # Configuração da requisição para a API de IA
+        messages = [
+            {"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown."},
+            {"role": "user", "content": text}
+        ]
         
         payload = {
             "model": MODEL_NAME,
@@ -356,6 +351,7 @@ def process_with_ai_stream(text, conversation_id=None):
         response = requests.post(API_URL, json=payload, headers=headers, stream=True)
         response.raise_for_status()
 
+        accumulated_response = ""
         for line in response.iter_lines(decode_unicode=True):
             if line.strip() and line.startswith("data: "):
                 line = line[6:].strip()
@@ -365,10 +361,23 @@ def process_with_ai_stream(text, conversation_id=None):
                         delta = response_data['choices'][0]['delta']
                         if "content" in delta:
                             content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            accumulated_response += content
                             print(f"{context_header}Chunk: {len(content)} caracteres")
+                            # Emitir chunk via SocketIO
+                            socketio.emit('message_chunk', {
+                                'content': content,
+                                'conversation_id': conversation_id
+                            }, room=conversation_id)
                             yield content
                 except json.JSONDecodeError:
                     print(f"[Debug] Erro ao decodificar JSON: {line}")
+        
+        # Após o loop, emitir evento de conclusão com a resposta completa
+        socketio.emit('response_complete', {
+            'conversation_id': conversation_id,
+            'complete_response': accumulated_response
+        }, room=conversation_id)
+        print(f"{context_header}Streaming concluído.")
     except requests.exceptions.RequestException as e:
         print(f"[Debug] Erro na requisição HTTP: {str(e)}")
     except Exception as e:
