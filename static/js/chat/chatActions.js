@@ -34,6 +34,19 @@ socket.on('message_chunk', (data) => {
         return;
     }
     
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Verifica se já existe um placeholder de streaming
+    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (!streamingMessage) {
+        streamingMessage = document.createElement('div');
+        streamingMessage.className = 'message assistant streaming-message';
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+        chatContainer.appendChild(streamingMessage);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
     console.log('[DEBUG] Processando chunk para conversa:', conversation_id);
     // Marca conversa como em streaming
     streamingStates.set(conversation_id, true);
@@ -70,11 +83,11 @@ socket.on('response_complete', (data) => {
     const chatContainer = document.querySelector('.chat-container');
     if (!chatContainer) return;
 
-    // Remove mensagem de carregamento
+    // Remove qualquer placeholder de streaming ou carregamento
     const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
-    if (loadingMessage) {
-        loadingMessage.remove();
-    }
+    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (loadingMessage) loadingMessage.remove();
+    if (streamingMessage) streamingMessage.remove();
 
     try {
         // Renderiza resposta completa
@@ -119,9 +132,6 @@ socket.on('response_complete', (data) => {
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';
         chatContainer.appendChild(errorDiv);
-    } finally {
-        // Garante que a resposta acumulada seja limpa em caso de erro
-        clearAccumulatedResponse(conversation_id);
     }
 });
 
@@ -238,8 +248,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     }
 
     const conversationId = window.conversaAtual?.id;
-    const userTimestamp = new Date().toISOString(); // Gerar timestamp no frontend
-    const userMessageId = userTimestamp; // Usar timestamp como ID
+    const userTimestamp = new Date().toISOString();
+    const userMessageId = userTimestamp;
     console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
 
     try {
@@ -276,16 +286,6 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
         adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
 
-        setTimeout(() => {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message assistant loading';
-            loadingDiv.dataset.conversationId = conversationId;
-            loadingDiv.innerHTML = '<div class="message-content"><span class="typing-animation">...</span></div>';
-            loadingDiv.style.opacity = '0';
-            chatContainer.appendChild(loadingDiv);
-            forcarRenderizacao(loadingDiv);
-        }, 100);
-
         // Enviar mensagem com timestamp para o backend
         console.log('[DEBUG] Iniciando requisição para o backend');
         const response = await fetch('/send_message', {
@@ -296,7 +296,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             body: JSON.stringify({
                 message: mensagem,
                 conversation_id: conversationId,
-                timestamp: userTimestamp // Enviar timestamp para o backend
+                timestamp: userTimestamp
             })
         });
 
@@ -455,28 +455,18 @@ export function interromperResposta() {
         clearAccumulatedResponse(conversationId);
     }
     
-    const conversation = window.conversations[conversationId];
-    if (conversation) {
-        if (conversation.eventSource) {
-            conversation.eventSource.close();
-            conversation.eventSource = null;
-        }
-        conversation.streaming = false;
-        
-        // Remove mensagem de carregamento
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
-            const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
-            if (loadingMessage) {
-                loadingMessage.remove();
-            }
-        }
-        
-        // Atualizar botões após interromper
-        const sendBtn = document.getElementById('send-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        if (sendBtn && stopBtn) {
-            atualizarBotoes(sendBtn, stopBtn);
-        }
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+        const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+        if (streamingMessage) streamingMessage.remove();
+        if (loadingMessage) loadingMessage.remove();
+    }
+    
+    // Atualizar botões após interromper
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (sendBtn && stopBtn) {
+        atualizarBotoes(sendBtn, stopBtn);
     }
 }

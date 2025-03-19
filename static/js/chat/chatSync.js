@@ -194,46 +194,23 @@ function atualizarMensagemEmStream(fragmento) {
     if (!chatContainer) return;
     
     // Encontrar a mensagem em streaming atual ou criar uma nova
-    let streamingMessage = chatContainer.querySelector('.streaming-message');
+    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
     
     // Se não existir, criar uma nova mensagem para streaming
     if (!streamingMessage) {
         streamingMessage = document.createElement('div');
         streamingMessage.className = 'message assistant streaming-message';
-        streamingMessage.innerHTML = '<div class="message-content"></div>';
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
         chatContainer.appendChild(streamingMessage);
     }
     
-    // Atualizar a mensagem com o novo fragmento
-    const messageContent = streamingMessage.querySelector('.message-content');
-    if (messageContent) {
-        // Inicializar currentResponse se não existir
-        const conversation = window.conversations[window.conversaAtual.id];
-        if (!conversation.currentResponse) conversation.currentResponse = '';
-        
-        // Acumular o fragmento
-        conversation.currentResponse += fragmento;
-        
-        // Usar importação dinâmica para renderizar markdown em tempo real
-        try {
-            const { renderStreamingMessage } = window.messageRenderer || { renderStreamingMessage: (text) => text };
-            const renderedHtml = renderStreamingMessage(conversation.currentResponse);
-            messageContent.innerHTML = renderedHtml;
-        } catch (error) {
-            // Fallback para texto simples se houver erro
-            messageContent.innerHTML = `<p>${conversation.currentResponse}</p>`;
-        }
-        
-        // Melhorar blocos de código quando apropriado
-        setTimeout(() => {
-            if (typeof window.melhorarBlocosCodigo === 'function') {
-                window.melhorarBlocosCodigo(streamingMessage);
-            }
-        }, 100);
-        
-        // Rolar para o final
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+    // Apenas acumular o fragmento, sem renderizar
+    const conversation = window.conversations[window.conversaAtual.id];
+    if (!conversation.currentResponse) conversation.currentResponse = '';
+    conversation.currentResponse += fragmento;
+    
+    // Rolar para o final
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 /**

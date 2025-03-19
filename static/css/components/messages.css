@@ -247,55 +247,64 @@
 /* Estilos para scroll suave e comportamento de scroll */
 .chat-container {
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* Melhor suporte para iOS */
-    overscroll-behavior: contain; /* Previne scroll em cascata */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 /* Estilos para mensagens em streaming */
 .message.streaming-message {
     opacity: 0.95;
     transition: opacity 0.3s ease;
+    position: relative;
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+    border-radius: 1rem 1rem 1rem 0;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    max-width: 80%;
 }
 
 .message.streaming-message .message-content {
     position: relative;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
 }
 
-/* Indicador de scroll */
-.scroll-indicator {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: var(--primary-color);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    z-index: 1000;
+.message.streaming-message .message-content::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
 }
 
-.scroll-indicator.visible {
-    opacity: 1;
-}
-
-.scroll-indicator:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.message.streaming-message .message-content::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+    animation-delay: 0.7s;
 }
 
 /* Animação de digitação */
-.typing-animation {
-    display: inline-block;
-    animation: typing 1s infinite;
-}
-
 @keyframes typing {
-    0% { opacity: 0.2; }
-    20% { opacity: 1; }
-    100% { opacity: 0.2; }
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
 }
 
 /* Estilos para mensagens */
@@ -307,19 +316,21 @@
     border-radius: 0.5rem;
     line-height: 1.5;
     opacity: 1;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .message.user {
     background-color: var(--msg-user);
     margin-left: auto;
     color: var(--text-primary);
+    border-radius: 1rem 1rem 0 1rem;
 }
 
 .message.assistant {
     background-color: var(--msg-bot);
     margin-right: auto;
     color: var(--text-primary);
+    border-radius: 1rem 1rem 1rem 0;
 }
 
 /* Estilos para mensagem de carregamento */
@@ -334,32 +345,6 @@
     min-height: 2rem;
 }
 
-.typing-animation {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.typing-animation::before,
-.typing-animation::after {
-    content: '';
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background-color: currentColor;
-    animation: typing 1.4s infinite;
-}
-
-.typing-animation::after {
-    animation-delay: 0.7s;
-}
-
-@keyframes typing {
-    0%, 100% { opacity: 0.2; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1); }
-}
-
 /* Estilos para mensagens de erro */
 .message.error {
     background-color: var(--error-bg);
@@ -369,6 +354,8 @@
 /* Estilos para conteúdo Markdown */
 .message-content {
     line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .message-content p {
@@ -403,28 +390,51 @@
 
 /* Botões de ação */
 .message-actions {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    display: none;
+    display: flex;
     gap: 0.5rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
 .message:hover .message-actions {
-    display: flex;
+    opacity: 1;
 }
 
 .action-btn {
-    background: transparent;
+    background: none;
     border: none;
-    color: var(--text-secondary);
-    padding: 0.5rem;
-    border-radius: 4px;
+    padding: 0.25rem;
     cursor: pointer;
-    transition: all 0.2s;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
 }
 
 .action-btn:hover {
-    background-color: var(--action-hover);
     color: var(--text-primary);
+}
+
+/* Indicador de scroll */
+.scroll-indicator {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.scroll-indicator.visible {
+    opacity: 1;
+}
+
+.scroll-indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }

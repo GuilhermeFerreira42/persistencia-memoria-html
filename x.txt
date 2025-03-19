@@ -1,0 +1,3764 @@
+
+
+
+pfp
+Mensagem para Continuação do Desenvolvimento no Site Oficial
+Até agora, avançamos bastante: a inteligência artificial já responde com o texto formatado em Markdown, e meu objetivo inicial de eliminar a digitação em tempo real foi alcançado, exibindo a resposta completa de uma vez após o processamento, desde que eu permaneça no mesmo chat. No entanto, ainda enfrento alguns desafios que precisam ser resolvidos para garantir uma experiência consistente antes de avançarmos para o próximo passo, que é exibir a resposta gradualmente com um efeito de revelação progressiva.
+O comportamento atual é o seguinte: quando envio uma mensagem e fico no mesmo chat, a digitação em tempo real não aparece, e ao final do processo vejo apenas a resposta formatada em Markdown, como planejado. Porém, se a IA está gerando a resposta e eu alterno para outro chat e volto, a digitação em tempo real da IA começa a ser exibida nesse chat, o que não deveria acontecer. Além disso, ao final do processamento, aparecem dois textos: o texto bruto da digitação em tempo real e o texto renderizado em Markdown, resultando em duplicação. Após alternar entre chats pelo menos uma vez, esse problema persiste em todos os chats, mostrando tanto a digitação em tempo real quanto a resposta formatada, o que compromete a consistência. Outro ponto é que, ao transitar entre chats, quero que o sistema exiba apenas as mensagens do usuário e as respostas finais da IA, sem repetições ou vestígios da digitação em tempo real. Depois de resolvermos isso, meu plano é implementar um sistema onde a resposta seja carregada em buffer e exibida gradualmente, a cada 100 palavras ou caracteres, com um efeito de revelação progressiva que faça o texto surgir do invisível para o visível conforme é gerado.
+Para seguirmos adiante, vou fornecer o código original e o código completo do projeto. Precisamos discutir e implementar soluções para: (1) garantir que, ao alternar entre chats, apenas as mensagens finais sejam exibidas, mantendo o histórico limpo e consistente; (2) ocultar completamente a digitação em tempo real, especialmente ao alternar entre chats e voltar, assegurando que ela nunca seja visível ao usuário; e, só depois disso, (3) adicionar o carregamento em buffer com o efeito de revelação progressiva. Estou enviando esta mensagem para o seu site oficial como um feedback do nosso progresso, e continuarei o desenvolvimento aqui, trazendo atualizações para nossa discussão. Aguardo seu retorno para definirmos os próximos passos e resolvermos esses desafios juntos!
+
+primeiro, vamos trabalha agora apenas em 1 e 2
+
+------
+
+exemplo que aconteceu no meu sistema
+
+
+<div class="chat-container" style="display: block;"><div class="message user" data-message-id="2025-03-18T15:37:57.287446" data-conversation-id="1742323077280"><div class="message-content"><p>escreva uma redação com 420 palavras</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant streaming-message"><div class="message-content">#### A A Import Importânciaância da da Divers Diversidadeidade na na Era Era Digital Digital
+
+
+AA era era digital digital,, definida definida por por avan avançosços tecnológicos tecnológicos que que mold moldaramaram nossa nossa sociedade sociedade,, trouxe trouxe consigo consigo a a frag fragmentaçãomentação e e o o aumento aumento da da polar polarizaçãoização social social.. O O acesso acesso à à informação informação se se torna torna cada cada vez vez mais mais fácil fácil,, mas mas simult simultaneamenteaneamente o o cenário cenário informativo informativo se se torna torna um um mar mar de de ** **diferentesdiferentes vis visõesões e e opini opiniõesões.**.** Assim Assim,, a a importância importância de de promover promover a a ** **diversdiversidadeidade**** em em todos todos os os níveis níveis,, desde desde a a formação formação básica básica até até a a estrutura estrutura organiz organizacionalacional,, se se torna torna crucial crucial para para garantir garantir uma uma sociedade sociedade mais mais justa justa e e equili equilibradabrada..
+
+
+
+AA divers diversidadeidade não não se se limita limita apenas apenas à à mera mera representa representaçãoção de de diferentes diferentes cor corpospos,, et etniasnias,, orig origensens cultura culturaisis ou ou gênero gênero.. Ela Ela eng englolobaba também também ** **aa plural pluralidadeidade de de pensamentos pensamentos**** que que mold moldamam nosso nosso ent entendimentoendimento do do mundo mundo.. A A incorpor incorporaçãoação de de perspectivas perspectivas diversas diversas dentro dentro da da esfera esfera da da educação educação é é fundamental fundamental para para gerar gerar um um aprend aprendizadoizado mais mais espaço espaço para para novas novas conex conexõesões e e desco descobertasbertas.. Imagine Imagine um um como como a a mudança mudança clim clim</div></div><div class="message assistant" data-message-id="2025-03-18T15:39:43.020056" data-conversation-id="1742323077280" style="opacity: 1; transform: translateY(0px);">
+                                <div class="message-content"><h2>A Importância da Diversidade na Era Digital</h2>
+<p>A era digital, definida por avanços tecnológicos que moldaram nossa sociedade, trouxe consigo a fragmentação e o aumento da polarização social. O acesso à informação se torna cada vez mais fácil, mas simultaneamente o cenário informativo se torna um mar de <strong>diferentes visões e opiniões.</strong> Assim, a importância de promover a <strong>diversidade</strong> em todos os níveis, desde a formação básica até a estrutura organizacional, se torna crucial para garantir uma sociedade mais justa e equilibrada.</p>
+<p>A diversidade não se limita apenas à mera representação de diferentes corpos, etnias, origens culturais ou gênero. Ela engloba também <strong>a pluralidade de pensamentos</strong> que moldam nosso entendimento do mundo. A incorporação de perspectivas diversas dentro da esfera da educação é fundamental para gerar um aprendizado mais profundo e contextualizado. </p>
+<p>Diversidades de opinião e ideias alimentam a <strong>criatividade, o debate construtivo e a empatia.</strong> Em ambientes onde se tem o contato com diferentes pontos de vista, encontramos a <strong>capacidade de questionar nossos próprios preconceitos em um processo contínuo</strong>.  As discussões podem se tornar mais rica e complexas, abrindo espaço para novas conexões e descobertas. Imagine um debate sobre questões sociais, onde todas as partes, seja em aulas ou salas de classe, tenham acesso à história por diferentes perspectivas. </p>
+<p>É impossível prever o futuro sem considerar a <strong>influência do multidisciplinar</strong>. Para se adaptar e responder aos desafios emergentes, como a mudança climática, doenças complexas, crises econômicas ou violência social, é necessário unir forças e ideias. A interação entre diferentes campos de conhecimento – a economia, a ciência, a cultura, a política, etc. – se tornará essencial para encontrar soluções criativas e inovadoras.</p>
+<p>A <strong>construção de comunidades inclusivas</strong> também está intimamente ligada à diversidade. As redes sociais, apesar de oferecerem um amplo palco para o debate, podem também perpetuar a polarização e germinar a intolerância. É preciso promover ambientes online que estimulem o diálogo respeitoso e construtivo, evitando o discurso de ódio e a promoção de ideias perigosas.</p>
+<p>O <strong>direito à liberdade de expressão</strong> é um conceito fundamental para um sistema democrático, mas não deve ser usado como instrumento para perpetuar violência ou discriminação. É preciso que o debate se baseie na <strong>compreensão e na empatia</strong>, buscando construir pontes de diálogo entre diferentes grupos sociais. </p>
+<p>A diversidade, em suma, não se limita a uma questão estética ou moral, mas engloba um aspecto crucial para o desenvolvimento da nossa sociedade. A inclusão social, a aprendizagem intercultural e o debate construtivo são pilares essenciais para construir um futuro mais justo para todos. As ferramentas tecnológicas podem ser instrumentos poderosos para essa transformação. Através da <strong>comunicação online</strong>, a possibilidade de trocar ideias, culturas e perspectivas se torna real e impactante, criando pontes entre pessoas e grupos diferentes.</p>
+<p> Ao cultivar a <strong>Diversidade</strong> em nossa era digital, estamos, portanto, plantando sementes de um futuro promissor que valoriza a criatividade, o diálogo aberto e o respeito mútuo, abrindo espaço para uma sociedade mais justa, equilibrada e pacífica. </p>
+</div>
+                                <div class="message-actions">
+                                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    
+                                        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    
+                                </div>
+                            </div></div>
+codigo_completo.txt
+
+
+
+3 / 3
+
+
+
+
+Pensamento para
+30s
+Expandir para detalhes
+Entendido! Vamos resolver os dois problemas que você mencionou no seu sistema de chat com IA: (1) garantir que, ao alternar entre chats, apenas as mensagens finais sejam exibidas, mantendo o histórico limpo e consistente; e (2) ocultar completamente a digitação em tempo real, especialmente ao alternar entre chats e voltar, assegurando que ela nunca seja visível ao usuário. Vou basear minha resposta no código fornecido e no exemplo que você compartilhou, oferecendo uma solução completa e prática para esses desafios.
+
+Problema Identificado
+No exemplo que você forneceu, ao enviar uma mensagem como "escreva uma redação com 420 palavras" e alternar entre chats enquanto a resposta está sendo gerada, o comportamento indesejado ocorre:
+
+Duplicação de mensagens: Aparecem duas versões da resposta da IA no mesmo chat:
+Uma mensagem com a classe streaming-message, contendo texto bruto e incompleto da digitação em tempo real.
+Outra mensagem com a classe assistant, contendo o texto final renderizado em Markdown.
+Digitação em tempo real visível: Após alternar entre chats e voltar, a digitação em tempo real começa a ser exibida, mesmo que isso não aconteça quando você permanece no mesmo chat.
+Isso indica que:
+
+O estado da mensagem em streaming não está sendo gerenciado corretamente ao alternar conversas.
+A mensagem em streaming está sendo persistida ou renderizada acidentalmente junto com a mensagem final.
+Nosso objetivo é:
+
+Exibir apenas as mensagens finais (do usuário e da IA) ao carregar ou alternar entre conversas.
+Eliminar completamente a visibilidade da digitação em tempo real, tratando-a como um estado temporário que nunca aparece no histórico ou na interface após alternar chats.
+Solução Proposta
+Vamos ajustar o código para resolver esses problemas em três frentes principais: gerenciamento de estado, renderização de mensagens e limpeza ao alternar conversas. Aqui está o plano detalhado:
+
+1. Gerenciamento de Estado por Conversa
+Cada conversa deve ter seu próprio histórico de mensagens armazenado (via chat_storage.py), contendo apenas mensagens do usuário e respostas finais da IA.
+A mensagem em streaming deve ser tratada como um estado temporário no frontend, nunca salva no histórico ou recarregada ao alternar conversas.
+2. Renderização de Mensagens
+Ao carregar uma conversa, apenas as mensagens armazenadas (finais) devem ser exibidas.
+A mensagem em streaming deve ser exibida temporariamente durante o processamento e removida assim que a resposta final for recebida.
+3. Limpeza ao Alternar Conversas
+Ao mudar de conversa, qualquer mensagem em streaming em andamento deve ser interrompida e removida da interface.
+O sistema deve garantir que, ao voltar para uma conversa, apenas o histórico final seja recarregado, sem vestígios do streaming.
+Implementação Detalhada
+Passo 1: Modificar a Função de Envio de Mensagem (main.js)
+Vamos ajustar a função enviarMensagem para tratar a mensagem em streaming como temporária e removê-la ao final do processamento.
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+// static/js/main.js
+async function enviarMensagem(message, inputElement, chatContainer, sendBtn, stopBtn) {
+    if (!message) return;
+
+    // Adicionar mensagem do usuário ao chat e ao histórico
+    adicionarMensagem(message, 'user', chatContainer);
+    const conversationId = window.conversaAtual ? window.conversaAtual.id : criarNovaConversa();
+    adicionarMensagemAoHistorico(conversationId, message, 'user');
+
+    // Criar elemento temporário para streaming
+    const streamingMessage = document.createElement('div');
+    streamingMessage.className = 'message assistant streaming-message';
+    streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+    chatContainer.appendChild(streamingMessage);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // Desativar botão de envio e mostrar botão de parar
+    sendBtn.disabled = true;
+    stopBtn.style.display = 'block';
+
+    try {
+        // Fazer requisição ao endpoint de streaming
+        const response = await fetch(`/stream?conversation_id=${conversationId}&message=${encodeURIComponent(message)}`, {
+            headers: { 'Accept': 'text/event-stream' }
+        });
+
+        const reader = response.body.getReader();
+        let finalResponse = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = new TextDecoder().decode(value);
+            finalResponse += chunk.split('data: ')[1]; // Simplificação para SSE
+        }
+
+        // Remover mensagem temporária e adicionar resposta final
+        streamingMessage.remove();
+        adicionarMensagem(finalResponse, 'assistant', chatContainer);
+        adicionarMensagemAoHistorico(conversationId, finalResponse, 'assistant');
+
+    } catch (error) {
+        console.error('Erro ao processar streaming:', error);
+        streamingMessage.remove();
+        adicionarMensagem('Erro ao gerar resposta.', 'assistant', chatContainer);
+    } finally {
+        sendBtn.disabled = false;
+        stopBtn.style.display = 'none';
+    }
+}
+Mudanças principais:
+
+A mensagem em streaming é um placeholder simples ("Gerando resposta...") e não exibe o texto bruto em tempo real.
+Após o streaming, a mensagem temporária é removida com remove() e substituída pela resposta final renderizada.
+Passo 2: Ajustar o Carregamento de Conversas (chatStorage.js)
+Garantir que, ao carregar uma conversa, apenas as mensagens finais sejam exibidas, sem resíduos de streaming.
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+// static/js/chat/chatStorage.js
+export function carregarConversa(conversationId) {
+    fetch(`/get_conversation/${conversationId}`)
+        .then(response => response.json())
+        .then(conversation => {
+            if (conversation.error) throw new Error(conversation.error);
+
+            const chatContainer = document.querySelector('.chat-container');
+            chatContainer.innerHTML = ''; // Limpar completamente o container
+
+            window.conversaAtual = conversation;
+            conversation.messages.forEach(msg => {
+                adicionarMensagem(msg.content, msg.role, chatContainer);
+            });
+
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            window.dispatchEvent(new CustomEvent('conversaCarregada', { detail: { id: conversationId } }));
+        })
+        .catch(error => console.error('Erro ao carregar conversa:', error));
+}
+Mudanças principais:
+
+chatContainer.innerHTML = '' limpa qualquer conteúdo anterior, incluindo mensagens em streaming.
+Apenas as mensagens armazenadas no backend (finais) são renderizadas.
+Passo 3: Interromper e Limpar Streaming ao Alternar Conversas (main.js)
+Adicionar um mecanismo para interromper o streaming e limpar mensagens temporárias ao mudar de conversa.
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+// static/js/main.js
+let streamingController = null;
+
+async function enviarMensagem(message, inputElement, chatContainer, sendBtn, stopBtn) {
+    // ... (código anterior)
+
+    streamingController = new AbortController();
+    try {
+        const response = await fetch(`/stream?conversation_id=${conversationId}&message=${encodeURIComponent(message)}`, {
+            headers: { 'Accept': 'text/event-stream' },
+            signal: streamingController.signal
+        });
+
+        // ... (processamento do streaming)
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('Erro ao processar streaming:', error);
+            streamingMessage.remove();
+            adicionarMensagem('Erro ao gerar resposta.', 'assistant', chatContainer);
+        }
+    } finally {
+        streamingController = null;
+        sendBtn.disabled = false;
+        stopBtn.style.display = 'none';
+    }
+}
+
+function interromperResposta() {
+    if (streamingController) {
+        streamingController.abort();
+        const streamingMessage = document.querySelector('.streaming-message');
+        if (streamingMessage) streamingMessage.remove();
+    }
+}
+
+// Listener para alternância de conversas
+document.addEventListener('DOMContentLoaded', () => {
+    const chatList = document.querySelector('.chat-list');
+    chatList.addEventListener('click', (e) => {
+        const chatItem = e.target.closest('.chat-item');
+        if (chatItem) {
+            const conversationId = chatItem.dataset.conversationId;
+            interromperResposta(); // Interromper streaming atual
+            carregarConversa(conversationId); // Carregar nova conversa
+        }
+    });
+
+    // Configurar botão de nova conversa
+    const newChatBtn = document.querySelector('.new-chat-btn');
+    newChatBtn.addEventListener('click', () => {
+        interromperResposta(); // Interromper streaming antes de criar nova conversa
+        criarNovaConversa();
+        mostrarTelaInicial(/* parâmetros */);
+    });
+});
+Mudanças principais:
+
+Introduzimos um AbortController para interromper o streaming quando necessário.
+O evento interromperResposta remove a mensagem em streaming e aborta a requisição.
+Ao clicar em um item da lista de chats ou no botão "Novo Chat", o streaming é interrompido antes de mudar de conversa.
+Passo 4: Ajustar o Backend (app.py)
+Garantir que o backend só envie a resposta final no endpoint /stream, evitando chunks visíveis ao usuário.
+
+python
+
+Recolher
+
+Encapsular
+
+Copiar
+# app.py
+@app.route('/stream')
+def stream():
+    conversation_id = request.args.get('conversation_id')
+    message = request.args.get('message', '')
+    
+    if not conversation_id:
+        return jsonify({'error': 'ID de conversa não fornecido'}), 400
+
+    def event_stream():
+        # Processar a resposta completa antes de enviar
+        complete_response = process_with_ai(message, conversation_id)
+        yield f"data: {complete_response}\n\n"
+    
+    response = Response(event_stream(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
+Mudanças principais:
+
+Substituímos process_with_ai_stream por process_with_ai para enviar a resposta completa de uma vez, evitando chunks intermediários.
+Resultado Esperado
+Com essas mudanças:
+
+Apenas mensagens finais serão exibidas: Ao alternar entre chats, o chatContainer será limpo e recarregado apenas com as mensagens armazenadas (usuário e respostas finais da IA), conforme salvo em chat_storage.py.
+Digitação em tempo real oculta: A mensagem em streaming será um placeholder temporário ("Gerando resposta...") que é removido ao final do processamento ou ao alternar conversas, nunca aparecendo como texto bruto ou persistindo na interface.
+No exemplo que você forneceu:
+
+Após enviar "escreva uma redação com 420 palavras" e alternar chats, ao voltar você verá apenas:
+A mensagem do usuário: <div class="message user">escreva uma redação com 420 palavras</div>.
+A resposta final da IA: <div class="message assistant">[redação formatada em Markdown]</div>.
+A <div class="message assistant streaming-message"> não aparecerá mais, pois será descartada.
+Testando a Solução
+Execute o servidor com python app.py.
+Envie uma mensagem longa (ex.: "escreva uma redação com 420 palavras").
+Enquanto a IA processa, alterne para outro chat e volte.
+Verifique se:
+Apenas a mensagem do usuário e a resposta final aparecem.
+Não há duplicação ou texto em streaming visível.
+Se tudo funcionar conforme esperado, teremos resolvido os pontos 1 e 2. Depois disso, podemos avançar para o efeito de revelação progressiva (ponto 3) em uma próxima etapa!
+
+Aguardo seu feedback sobre essas alterações e os resultados dos testes!
+
+
+
+
+
+
+
+ainda esta aparecendo a digitação em streming ao transitar entre chats
+nao resolveu
+
+-----
+
+saiu assim
+
+<div class="chat-container" style="display: block;"><div class="message user" data-message-id="2025-03-19T11:02:37.310690" data-conversation-id="1742392957276"><div class="message-content"><p>oi</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant" data-message-id="2025-03-19T11:02:55.062696" data-conversation-id="1742392957276"><div class="message-content"><p>Olá! 😄  Como posso ajudar você hoje? </p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        
+                    </div></div><div class="message user" data-message-id="2025-03-19T11:03:05.866916" data-conversation-id="1742392957276"><div class="message-content"><p>escreva uma msg bonita</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant"><div class="message-content"> de de várias várias cores cores e e aromas aromas incríveis incríveis!! Pres Prestete atenção atenção ao ao que que se se move move no no vento vento,, ou ouçaça as as melo melodiasdias da da natureza natureza.. É É nesse nesse espaço espaço mágico mágico que que encontramos encontramos a a beleza beleza e e o o significado significado da da nossa nossa jornada jornada.. ✨ ✨
+
+
+
+
+
+
+
+------
+
+
+
+VocêVocê pode pode me me pedir pedir para para escrever escrever uma uma mensagem mensagem personalizada personalizada:: 😉 😉
+
+
+
+** ** **ParaPara quem quem?:?:**** Um Um amigo amigo,, um um ente ente amado amado,, um um colega colega de de trabalho trabalho...?...?  
+
+** ** **QualQual sentimento sentimento você você quer quer express expressarar??**:**: Aleg Alegriaria,, carinho carinho,, grat gratidãoidão......  ☀️☀️
+
+** ** **SobreSobre o o que que a a mensagem mensagem está está fo focadacada??**:**: Uma Uma especial especial data data,, um um momento momento feliz feliz,, uma uma sau saudadedade afe afegantegante......💖💖
+
+
+
+
+
+------
+
+
+
+LLembreembre--sese:: a a beleza beleza da da mensagem mensagem é é na na sua sua sincer sinceridadeidade e e significado significado.. 💖 💖
+
+</div></div><div class="message assistant"><div class="message-content"> de de várias várias cores cores e e aromas aromas incríveis incríveis!! Pres Prestete atenção atenção ao ao que que se se move move no no vento vento,, ou ouçaça as as melo melodiasdias da da natureza natureza.. É É nesse nesse espaço espaço mágico mágico que que encontramos encontramos a a beleza beleza e e o o significado significado da da nossa nossa jornada jornada.. ✨ ✨
+
+
+
+
+
+
+
+------
+
+
+
+VocêVocê pode pode me me pedir pedir para para escrever escrever uma uma mensagem mensagem personalizada personalizada:: 😉 😉
+
+
+
+** ** **ParaPara quem quem?:?:**** Um Um amigo amigo,, um um ente ente amado amado,, um um colega colega de de trabalho trabalho...?...?  
+
+** ** **QualQual sentimento sentimento você você quer quer express expressarar??**:**: Aleg Alegriaria,, carinho carinho,, grat gratidãoidão......  ☀️☀️
+
+** ** **SobreSobre o o que que a a mensagem mensagem está está fo focadacada??**:**: Uma Uma especial especial data data,, um um momento momento feliz feliz,, uma uma sau saudadedade afe afegantegante......💖💖
+
+
+
+
+
+------
+
+
+
+LLembreembre--sese:: a a beleza beleza da da mensagem mensagem é é na na sua sua sincer sinceridadeidade e e significado significado.. 💖 💖
+
+</div></div><div class="message assistant" data-message-id="2025-03-19T11:03:28.004389" data-conversation-id="1742392957276" style="opacity: 1; transform: translateY(0px);">
+                                <div class="message-content"><blockquote>
+<p>🌻  A vida é como um jardim, repleto de flores de várias cores e aromas incríveis! Preste atenção ao que se move no vento, ouça as melodias da natureza. É nesse espaço mágico que encontramos a beleza e o significado da nossa jornada. ✨</p>
+</blockquote>
+
+<p>Você pode me pedir para escrever uma mensagem personalizada: 😉</p>
+<ul>
+<li><strong>Para quem?:</strong> Um amigo, um ente amado, um colega de trabalho...? </li>
+<li><strong>Qual sentimento você quer expressar?</strong>: Alegria, carinho, gratidão... ☀️</li>
+<li><strong>Sobre o que a mensagem está focada?</strong>: Uma especial data, um momento feliz, uma saudade afegante...💖</li>
+</ul>
+
+<p>Lembre-se: a beleza da mensagem é na sua sinceridade e significado. 💖</p>
+</div>
+                                <div class="message-actions">
+                                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    
+                                        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    
+                                </div>
+                            </div></div>
+
+
+----
+após alternar entre chats
+
+<div class="chat-container" style="display: block;"><div class="message user" data-message-id="2025-03-19T11:02:37.310690" data-conversation-id="1742392957276"><div class="message-content"><p>oi</p></div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant" data-message-id="2025-03-19T11:02:55.062696" data-conversation-id="1742392957276"><div class="message-content"><p>Olá! 😄  Como posso ajudar você hoje? </p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        
+                    </div></div><div class="message user" data-message-id="2025-03-19T11:03:05.866916" data-conversation-id="1742392957276"><div class="message-content"><p>escreva uma msg bonita</p></div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant" data-message-id="2025-03-19T11:03:28.004389" data-conversation-id="1742392957276"><div class="message-content"><blockquote>
+<p>🌻  A vida é como um jardim, repleto de flores de várias cores e aromas incríveis! Preste atenção ao que se move no vento, ouça as melodias da natureza. É nesse espaço mágico que encontramos a beleza e o significado da nossa jornada. ✨</p>
+</blockquote>
+
+<p>Você pode me pedir para escrever uma mensagem personalizada: 😉</p>
+<ul>
+<li><strong>Para quem?:</strong> Um amigo, um ente amado, um colega de trabalho...? </li>
+<li><strong>Qual sentimento você quer expressar?</strong>: Alegria, carinho, gratidão... ☀️</li>
+<li><strong>Sobre o que a mensagem está focada?</strong>: Uma especial data, um momento feliz, uma saudade afegante...💖</li>
+</ul>
+
+<p>Lembre-se: a beleza da mensagem é na sua sinceridade e significado. 💖</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        
+                    </div></div></div>
+
+
+
+___
+
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\app.py
+import init_eventlet
+
+from flask import Flask, render_template, request, jsonify, Response
+import json
+import os
+from datetime import datetime
+import requests
+from utils.text_processor import split_text, clean_and_format_text
+from youtube_handler import YoutubeHandler
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from utils.chat_storage import (
+    create_new_conversation,
+    add_message_to_conversation,
+    get_conversation_by_id,
+    get_conversation_history,
+    delete_conversation,
+    rename_conversation
+)
+
+app = Flask(__name__, static_folder='static')
+app.secret_key = 'sua_chave_secreta_aqui'
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+
+API_URL = "http://localhost:11434/v1/chat/completions"
+MODEL_NAME = "gemma2:2b"
+youtube_handler = YoutubeHandler()
+
+@app.route('/')
+def home():
+    conversations = get_conversation_history()
+    return render_template('index.html', conversations=conversations)
+
+@app.route('/get_conversation_history')
+def conversation_history():
+    try:
+        conversations = get_conversation_history()
+        return jsonify(conversations)
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter histÃ³rico de conversas: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get_conversation/<conversation_id>')
+def get_conversation(conversation_id):
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            return jsonify(conversation)
+        print(f"[ERRO] Conversa nÃ£o encontrada: {conversation_id}")
+        return jsonify({'error': 'Conversa nÃ£o encontrada'}), 404
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get_conversation/<conversation_id>/<int:offset>/<int:limit>')
+def get_conversation_batch(conversation_id, offset, limit):
+    """Endpoint para carregar mensagens em lotes para lazy loading"""
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            messages = conversation['messages']
+            # Garantir que offset e limit estÃ£o dentro dos limites
+            offset = min(offset, len(messages))
+            end_index = min(offset + limit, len(messages))
+            batch = messages[offset:end_index]
+
+            return jsonify({
+                'messages': batch,
+                'total': len(messages),
+                'hasMore': end_index < len(messages)
+            })
+
+        print(f"[ERRO] Conversa nÃ£o encontrada para batch loading: {conversation_id}")
+        return jsonify({'error': 'Conversa nÃ£o encontrada'}), 404
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter lote de mensagens: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/stream')
+def stream():
+    """Endpoint para streaming de respostas usando Server-Sent Events (SSE)"""
+    conversation_id = request.args.get('conversation_id')
+    message = request.args.get('message', '')
+
+    if not conversation_id:
+        return jsonify({'error': 'ID de conversa nÃ£o fornecido'}), 400
+
+    print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
+
+    def event_stream():
+        accumulated_response = ""
+        try:
+            for part in process_with_ai_stream(message, conversation_id):
+                if part:
+                    accumulated_response += part
+                    # Emitir apenas para a conversa atual
+                    socketio.emit('message_chunk', {
+                        'content': part,
+                        'conversation_id': conversation_id
+                    }, room=conversation_id)
+                    yield f"data: {part}\n\n"
+
+            # Salvar apenas a resposta final
+            if accumulated_response:
+                add_message_to_conversation(conversation_id, accumulated_response, "assistant")    
+                # Notificar que a resposta estÃ¡ completa
+                socketio.emit('response_complete', {
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                # Notificar que a conversa foi atualizada
+                socketio.emit('conversation_updated', {
+                    'conversation_id': conversation_id
+                })
+        except Exception as e:
+            print(f"[ERRO] Erro durante streaming: {str(e)}")
+            # Em caso de erro, notificar o cliente
+            socketio.emit('stream_error', {
+                'conversation_id': conversation_id,
+                'error': str(e)
+            }, room=conversation_id)
+
+    response = Response(event_stream(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # Para Nginx
+    return response
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    if not conversation_id:
+        conversation_id = create_new_conversation()
+        print(f"[DEBUG] Nova conversa criada com ID: {conversation_id}")
+    else:
+        print(f"[DEBUG] Usando conversa existente: {conversation_id}")
+
+    # Salvar mensagem do usuÃ¡rio
+    add_message_to_conversation(conversation_id, message, "user")
+    print(f"[DEBUG] Mensagem do usuÃ¡rio salva na conversa: {conversation_id}")
+
+    # Processar resposta da IA
+    accumulated_response = []
+
+    def generate_streamed_response():
+        try:
+            for part in process_with_ai_stream(message, conversation_id):
+                if part:
+                    accumulated_response.append(part)
+                    # Emitir via WebSocket apenas para a conversa atual
+                    socketio.emit('message_chunk', {
+                        'content': part,
+                        'conversation_id': conversation_id
+                    }, room=conversation_id)
+                    yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id})}\n\n"
+
+            # Salvar apenas a resposta final
+            if accumulated_response:
+                complete_response = ''.join(accumulated_response)
+                print(f"[DEBUG] Salvando resposta final para {conversation_id}")
+                add_message_to_conversation(conversation_id, complete_response, "assistant")       
+                # Notificar que a resposta estÃ¡ completa
+                socketio.emit('response_complete', {
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                # Notificar que a conversa foi atualizada
+                socketio.emit('conversation_updated', {
+                    'conversation_id': conversation_id
+                })
+                print(f"[DEBUG] Resposta final da IA salva na conversa: {conversation_id}")        
+        except Exception as e:
+            print(f"[ERRO] Erro durante streaming: {str(e)}")
+            # Em caso de erro, notificar o cliente
+            socketio.emit('stream_error', {
+                'conversation_id': conversation_id,
+                'error': str(e)
+            }, room=conversation_id)
+
+    response = Response(generate_streamed_response(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+@app.route('/save_message', methods=['POST'])
+def save_message():
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        content = data.get('content')
+        role = data.get('role')
+
+        if not all([conversation_id, content, role]):
+            return jsonify({'error': 'Dados incompletos'}), 400
+
+        print(f"[DEBUG] Salvando mensagem para conversa: {conversation_id}, role: {role}")
+        add_message_to_conversation(conversation_id, content, role)
+
+        # Notificar clientes via WebSocket
+        socketio.emit('conversation_updated', {
+            'conversation_id': conversation_id
+        })
+
+        return jsonify({'status': 'success', 'conversation_id': conversation_id})
+    except Exception as e:
+        print(f"Erro ao salvar mensagem: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process_youtube', methods=['POST'])
+def process_youtube():
+    try:
+        data = request.json
+        video_url = data.get('video_url')
+        conversation_id = data.get('conversation_id')
+        comando = data.get('comando')  # Novo: pegar o comando original
+
+        if not video_url:
+            return jsonify({'error': 'URL nÃ£o fornecida'}), 400
+
+        # Baixar legendas e obter tÃ­tulo
+        subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
+        if not subtitle_file:
+            return jsonify({'error': 'NÃ£o foi possÃ­vel baixar as legendas deste vÃ­deo'}), 404   
+
+        # Limpar legendas
+        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
+        if not cleaned_text:
+            return jsonify({'error': 'Erro ao processar legendas'}), 500
+
+        # Salvar comando do usuÃ¡rio na conversa
+        if conversation_id and comando:
+            add_message_to_conversation(
+                conversation_id,
+                comando,
+                "user"
+            )
+            print(f"[DEBUG] Comando do usuÃ¡rio salvo na conversa: {conversation_id}")
+
+        # Salvar transcriÃ§Ã£o com tÃ­tulo na conversa
+        formatted_response = f"ðŸ“¹ {video_title}\n\n{cleaned_text}"
+        if conversation_id:
+            add_message_to_conversation(
+                conversation_id,
+                formatted_response,
+                "assistant"
+            )
+            print(f"[DEBUG] Resposta do YouTube salva na conversa: {conversation_id}")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_updated', {
+                'conversation_id': conversation_id
+            })
+
+        return jsonify({
+            'text': formatted_response,
+            'title': video_title,
+            'conversation_id': conversation_id
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rename_conversation/<conversation_id>', methods=['POST'])
+def handle_rename_conversation(conversation_id):
+    try:
+        print(f"[BACKEND] Recebendo solicitaÃ§Ã£o para renomear conversa: {conversation_id}")      
+
+        # ForÃ§ar decodificaÃ§Ã£o do corpo JSON
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            data = {}
+            print("[BACKEND] Request body vazio ou invÃ¡lido")
+
+        new_title = data.get('title', '').strip()
+        print(f"[BACKEND] Novo tÃ­tulo: '{new_title}'")
+
+        if not new_title:
+            print("[BACKEND] TÃ­tulo invÃ¡lido")
+            return jsonify({'error': 'TÃ­tulo invÃ¡lido'}), 400
+
+        success = rename_conversation(conversation_id, new_title)
+        if success:
+            print(f"[BACKEND] Conversa renomeada com sucesso para: {new_title}")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_renamed', {
+                'conversation_id': conversation_id,
+                'new_title': new_title
+            })
+
+            return jsonify({'success': True, 'new_title': new_title, 'conversation_id': conversation_id})
+        else:
+            print("[BACKEND] Falha ao renomear conversa")
+            return jsonify({'error': 'Falha ao renomear conversa'}), 500
+    except Exception as e:
+        print(f"[BACKEND] Erro ao renomear conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
+def handle_delete_conversation(conversation_id):
+    try:
+        print(f"[BACKEND] Recebendo solicitaÃ§Ã£o para excluir conversa: {conversation_id}")       
+
+        success = delete_conversation(conversation_id)
+        if success:
+            print(f"[BACKEND] Conversa {conversation_id} excluÃ­da com sucesso")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_deleted', {
+                'conversation_id': conversation_id
+            })
+
+            return jsonify({'success': True, 'conversation_id': conversation_id})
+        else:
+            print(f"[BACKEND] Falha ao excluir conversa {conversation_id}")
+            return jsonify({'error': 'Falha ao excluir conversa'}), 500
+    except Exception as e:
+        print(f"[BACKEND] Erro ao excluir conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ---- WebSocket event handlers ----
+
+@socketio.on('connect')
+def handle_connect():
+    print(f"[SOCKET] Cliente conectado: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"[SOCKET] Cliente desconectado: {request.sid}")
+
+@socketio.on('join_conversation')
+def handle_join_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        join_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} entrou na sala: {conversation_id}")
+
+@socketio.on('leave_conversation')
+def handle_leave_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        leave_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} saiu da sala: {conversation_id}")
+
+def process_with_ai(text, conversation_id=None):
+    try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Processando com IA: {text[:50]}...")
+
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "VocÃª Ã© um assistente Ãºtil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de cÃ³digo, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de cÃ³digo."},
+                {"role": "user", "content": text}
+            ],
+            "stream": False
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+
+        response_data = response.json()
+        if 'choices' in response_data and len(response_data['choices']) > 0:
+            return response_data['choices'][0]['message']['content']
+        return "Erro: Nenhuma resposta vÃ¡lida recebida da IA."
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisiÃ§Ã£o HTTP: {str(e)}")
+        return "Ocorreu um erro ao se conectar com a IA."
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+        return "Ocorreu um erro inesperado ao processar sua mensagem."
+
+def process_with_ai_stream(text, conversation_id=None):
+    try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Iniciando streaming para: {text[:50]}...")
+
+        # ConfiguraÃ§Ã£o da requisiÃ§Ã£o para a API de IA
+        messages = [
+            {"role": "system", "content": "VocÃª Ã© um assistente Ãºtil. Formate suas respostas em Markdown."},
+            {"role": "user", "content": text}
+        ]
+
+        payload = {
+            "model": MODEL_NAME,
+            "messages": messages,
+            "stream": True
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+
+        accumulated_response = ""
+        for line in response.iter_lines(decode_unicode=True):
+            if line.strip() and line.startswith("data: "):
+                line = line[6:].strip()
+                try:
+                    response_data = json.loads(line)
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        delta = response_data['choices'][0]['delta']
+                        if "content" in delta:
+                            content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            accumulated_response += content
+                            print(f"{context_header}Chunk: {len(content)} caracteres")
+                            # Emitir chunk via SocketIO
+                            socketio.emit('message_chunk', {
+                                'content': content,
+                                'conversation_id': conversation_id
+                            }, room=conversation_id)
+                            yield content
+                except json.JSONDecodeError:
+                    print(f"[Debug] Erro ao decodificar JSON: {line}")
+
+        # ApÃ³s o loop, emitir evento de conclusÃ£o com a resposta completa
+        socketio.emit('response_complete', {
+            'conversation_id': conversation_id,
+            'complete_response': accumulated_response
+        }, room=conversation_id)
+        print(f"{context_header}Streaming concluÃ­do.")
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisiÃ§Ã£o HTTP: {str(e)}")
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+
+if __name__ == '__main__':
+    print("Iniciando servidor com Eventlet em modo de desenvolvimento...")
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html>
+
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\static\css\components\messages.css
+/* BotÃµes de aÃ§Ã£o nas mensagens */
+.message .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.message .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+.message .action-btn.copied {
+    color: #4CAF50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.message .message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+/* Estilos para formataÃ§Ã£o de mensagens com Markdown */
+.message-content {
+    line-height: 1.6;
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+    margin: 1rem 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.message-content h1 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.message-content h2 {
+    font-size: 1.3rem;
+}
+
+.message-content h3 {
+    font-size: 1.1rem;
+}
+
+.message-content code {
+    background-color: var(--action-hover);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+/* Container para o bloco de cÃ³digo com cabeÃ§alho */
+.code-container {
+    position: relative;
+    margin: 1em 0;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 0; /* Remove padding extra */
+}
+
+.code-header {
+    background-color: #2d2d2d !important;
+    color: #ffffff;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0; /* Remove margens */
+    border-bottom: none; /* Remove borda para colar com o bloco */
+}
+
+.language-label {
+    text-transform: uppercase;
+    font-size: 0.8em;
+    letter-spacing: 1px;
+    flex: 1; /* Expande para empurrar o botÃ£o */
+}
+
+/* Blocos de cÃ³digo estilo terminal */
+.message-content .code-block {
+    background-color: #1e1e1e !important; /* Fundo preto estilo terminal */
+    color: #f8f8f2; /* Texto branco */
+    padding: 15px;
+    border-radius: 0; /* Remove bordas arredondadas para colar com o header */
+    font-family: 'Consolas', 'Courier New', monospace;
+    position: relative;
+    overflow-x: auto; /* Para cÃ³digos longos */
+    border: 1px solid #333;
+    margin: 0; /* Remove margem para alinhar com o cabeÃ§alho */
+    border-top: none; /* Remove borda superior para colar com o header */
+}
+
+.message-content .code-block code {
+    background: none !important;
+    padding: 0;
+    color: #f8f8f2 !important;
+    display: block;
+    white-space: pre;
+}
+
+/* BotÃ£o de copiar cÃ³digo */
+.code-copy-btn {
+    background: transparent;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    transition: background-color 0.2s;
+    margin-left: auto; /* Alinha o botÃ£o Ã  direita */
+}
+
+.code-copy-btn:hover {
+    background: #666;
+}
+
+.code-copy-btn.copied {
+    background: #4CAF50;
+}
+
+/* Estilos para tabelas Markdown */
+.chat-container .message-content table {
+    width: 100%; /* Ocupa toda a largura disponÃ­vel */
+    border-collapse: collapse; /* Une as bordas das cÃ©lulas */
+    margin: 0.5rem 0; /* EspaÃ§o reduzido acima e abaixo */
+    padding: 0;
+    table-layout: fixed; /* Evita cÃ©lulas desproporcionais */
+}
+
+.chat-container .message-content th,
+.chat-container .message-content td {
+    border: 1px solid var(--border-color); /* Bordas visÃ­veis */
+    padding: 0.5rem; /* EspaÃ§o interno reduzido */
+    text-align: left; /* Alinhamento Ã  esquerda */
+    vertical-align: top; /* Evita alinhamentos estranhos */
+    word-wrap: break-word; /* Quebra palavras longas */
+    overflow-wrap: break-word;
+}
+
+.chat-container .message-content th {
+    background-color: var(--action-hover); /* Fundo leve para cabeÃ§alhos */
+    font-weight: bold; /* CabeÃ§alhos em negrito */
+}
+
+.chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.05); /* Efeito zebrado nas linhas pares */
+}
+
+/* Ajuste para tema escuro, se necessÃ¡rio */
+[data-theme="dark"] .chat-container .message-content th {
+    background-color: var(--action-hover);
+}
+
+[data-theme="dark"] .chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Estilos para citaÃ§Ãµes */
+.message-content blockquote {
+    border-left: 4px solid var(--text-secondary);
+    margin: 0.5rem 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    color: var(--text-secondary);
+    background-color: rgba(125, 125, 125, 0.1);
+    border-radius: 0 4px 4px 0;
+}
+
+/* Estilos para listas */
+.message-content ul,
+.message-content ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.message-content ul li,
+.message-content ol li {
+    margin-bottom: 0.25rem;
+}
+
+/* Estilos para links */
+.message-content a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.message-content a:hover {
+    text-decoration: underline;
+}
+
+/* Estilos para mensagens especÃ­ficas */
+.message.assistant .message-content {
+    color: var(--text-primary);
+}
+
+.message.user .message-content {
+    color: var(--text-primary);
+}
+
+/* Estilos para highlight.js */
+.hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    font-family: 'Consolas', 'Courier New', monospace !important;
+    line-height: 1.6 !important;
+    tab-size: 4 !important;
+}
+
+/* Ajustes para temas claro/escuro */
+[data-theme="dark"] .hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+/* ForÃ§ar tema claro para o highlight.js */
+[data-theme="light"] .hljs {
+    background: #f8f8f8 !important;
+    color: #333;
+}
+
+/* ForÃ§a o fundo escuro para os blocos de cÃ³digo em ambos os temas */
+[data-theme="light"] pre code,
+[data-theme="dark"] pre code {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+/* Estilos para scroll suave e comportamento de scroll */
+.chat-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Estilos para mensagens em streaming */
+.message.streaming-message {
+    opacity: 0.95;
+    transition: opacity 0.3s ease;
+    position: relative;
+}
+
+.message.streaming-message .message-content {
+    position: relative;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.message.streaming-message .message-content::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+}
+
+.message.streaming-message .message-content::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+    animation-delay: 0.7s;
+}
+
+/* AnimaÃ§Ã£o de digitaÃ§Ã£o */
+@keyframes typing {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+/* Estilos para mensagens */
+.message {
+    position: relative;
+    max-width: 80%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.message.user {
+    background-color: var(--msg-user);
+    margin-left: auto;
+    color: var(--text-primary);
+}
+
+.message.assistant {
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+}
+
+/* Estilos para mensagem de carregamento */
+.message.loading {
+    opacity: 0.8;
+}
+
+.message.loading .message-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+}
+
+/* Estilos para mensagens de erro */
+.message.error {
+    background-color: var(--error-bg);
+    color: var(--error);
+}
+
+/* Estilos para conteÃºdo Markdown */
+.message-content {
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.message-content p {
+    margin: 0.5rem 0;
+}
+
+.message-content pre {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: var(--code-bg);
+    overflow-x: auto;
+}
+
+.message-content code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.message-content ul,
+.message-content ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.message-content blockquote {
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* BotÃµes de aÃ§Ã£o */
+.message-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.action-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Indicador de scroll */
+.scroll-indicator {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.scroll-indicator.visible {
+    opacity: 1;
+}
+
+.scroll-indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\static\js\chat\chatActions.js
+import { mostrarCarregamento } from './chatUI.js';
+import { adicionarMensagem } from './chatUI.js';
+import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
+import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse } from '../messageRenderer.js';
+import { melhorarBlocosCodigo } from './chatUtils.js';
+
+// Mapa para controlar o estado de streaming por conversa
+const streamingStates = new Map();
+
+// Inicializa o socket
+const socket = io();
+
+// Adicionar log de conexÃ£o
+socket.on('connect', () => {
+    console.log('[DEBUG] WebSocket conectado com sucesso');
+});
+
+socket.on('connect_error', (error) => {
+    console.error('[ERRO] Falha na conexÃ£o WebSocket:', error);
+});
+
+// Listener para chunks da mensagem
+socket.on('message_chunk', (data) => {
+    console.log('[DEBUG] Recebido chunk:', { data });
+    const { content, conversation_id } = data;
+    if (!content || !conversation_id) {
+        console.warn('[DEBUG] Chunk invÃ¡lido recebido:', data);
+        return;
+    }
+
+    // Verificar se Ã© a conversa atual
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando chunk de outra conversa');
+        return;
+    }
+
+    console.log('[DEBUG] Processando chunk para conversa:', conversation_id);
+    // Marca conversa como em streaming
+    streamingStates.set(conversation_id, true);
+
+    // Apenas acumula o chunk, sem renderizar
+    accumulateChunk(content, conversation_id);
+    console.log('[DEBUG] Chunk acumulado com sucesso');
+});
+
+// Listener para resposta completa
+socket.on('response_complete', (data) => {
+    console.log('[DEBUG] Resposta completa recebida:', data);
+    const { conversation_id } = data;
+    if (!conversation_id) {
+        console.warn('[DEBUG] ID da conversa nÃ£o fornecido na resposta completa');
+        return;
+    }
+
+    // Verifica se Ã© a conversa atual
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando resposta de outra conversa:', {
+            atual: window.conversaAtual?.id,
+            recebido: conversation_id
+        });
+        clearAccumulatedResponse(conversation_id);
+        streamingStates.delete(conversation_id);
+        return;
+    }
+
+    // Remove estado de streaming
+    streamingStates.delete(conversation_id);
+
+    // Encontra o container do chat
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Remove mensagem de carregamento e streaming
+    const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');  
+    if (loadingMessage) loadingMessage.remove();
+    if (streamingMessage) streamingMessage.remove();
+
+    try {
+        // Renderiza resposta completa
+        const renderedHtml = renderCompleteResponse(conversation_id);
+        if (!renderedHtml) {
+            throw new Error('Resposta vazia ou invÃ¡lida');
+        }
+
+        // Cria elemento da mensagem
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant';
+        messageDiv.dataset.messageId = `${Date.now()}_assistant`;
+        messageDiv.dataset.conversationId = conversation_id;
+        messageDiv.innerHTML = `
+            <div class="message-content">${renderedHtml}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        `;
+
+        // Adiciona ao chat e rola para baixo
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Melhora blocos de cÃ³digo
+        setTimeout(() => {
+            melhorarBlocosCodigo(messageDiv);
+        }, 0);
+
+        // Salva no histÃ³rico
+        const completeResponse = messageDiv.querySelector('.message-content').textContent;
+        adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
+        atualizarListaConversas();
+    } catch (error) {
+        console.error('[ERRO] Falha ao processar resposta:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';    
+        chatContainer.appendChild(errorDiv);
+    }
+});
+
+function inicializarConversa(conversationId) {
+    if (!window.conversations[conversationId]) {
+        window.conversations[conversationId] = {
+            data: {
+                id: conversationId,
+                title: "Nova Conversa",
+                messages: []
+            },
+            streaming: false,
+            currentResponse: '',
+            eventSource: null,
+            abortController: null
+        };
+    }
+    return window.conversations[conversationId];
+}
+
+// FunÃ§Ã£o para atualizar os botÃµes com base na conversa atual
+export function atualizarBotoes(sendBtn, stopBtn) {
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        // Se nÃ£o houver conversa ativa, mostrar apenas o botÃ£o de enviar
+        sendBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+        return;
+    }
+
+    const conversation = window.conversations[conversationId];
+    if (conversation && conversation.streaming) {
+        sendBtn.style.display = 'none';
+        stopBtn.style.display = 'flex';
+    } else {
+        sendBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+    }
+}
+
+// FunÃ§Ã£o para verificar se o usuÃ¡rio estÃ¡ no final do chat
+function isUserAtBottom(container) {
+    const threshold = 50; // pixels de tolerÃ¢ncia
+    return container.scrollHeight - container.scrollTop <= container.clientHeight + threshold;     
+}
+
+// FunÃ§Ã£o para rolar suavemente para o final
+function scrollToBottom(container) {
+    container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+// FunÃ§Ã£o para gerenciar scroll durante streaming
+function handleStreamingScroll(container, content) {
+    let userScrolledUp = false;
+    let scrollTimeout = null;
+
+    const scrollListener = () => {
+        userScrolledUp = !isUserAtBottom(container);
+
+        // Limpar timeout anterior
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+
+        // Se o usuÃ¡rio rolar para baixo atÃ© o final, resetar o estado
+        if (userScrolledUp && isUserAtBottom(container)) {
+            userScrolledUp = false;
+        }
+    };
+
+    // Adicionar listener de scroll
+    container.addEventListener('scroll', scrollListener);
+
+    // Retornar funÃ§Ã£o para limpar o listener
+    return () => {
+        container.removeEventListener('scroll', scrollListener);
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+    };
+}
+
+// FunÃ§Ã£o auxiliar para forÃ§ar renderizaÃ§Ã£o
+function forcarRenderizacao(elemento) {
+    // ForÃ§ar reflow
+    void elemento.offsetHeight;
+
+    // Usar requestAnimationFrame para garantir a renderizaÃ§Ã£o
+    requestAnimationFrame(() => {
+        elemento.style.opacity = '1';
+        elemento.style.transform = 'translateY(0)';
+
+        // Segundo frame para garantir que a transiÃ§Ã£o seja aplicada
+        requestAnimationFrame(() => {
+            if (elemento.parentElement) {
+                elemento.parentElement.scrollTop = elemento.parentElement.scrollHeight;
+            }
+        });
+    });
+}
+
+export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
+    if (!mensagem.trim()) {
+        console.warn('[DEBUG] Tentativa de enviar mensagem vazia');
+        return;
+    }
+
+    if (!window.conversaAtual) {
+        console.log('[DEBUG] Criando nova conversa');
+        criarNovaConversa();
+    }
+
+    const conversationId = window.conversaAtual?.id;
+    const userTimestamp = new Date().toISOString(); // Gerar timestamp no frontend
+    const userMessageId = userTimestamp; // Usar timestamp como ID
+    console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
+
+    try {
+        if (sendBtn) {
+            console.log('[DEBUG] Desabilitando botÃ£o de envio');
+            sendBtn.disabled = true;
+            sendBtn.style.display = 'none';
+        }
+        if (stopBtn) {
+            console.log('[DEBUG] Mostrando botÃ£o de parar');
+            stopBtn.style.display = 'flex';
+        }
+
+        input.value = '';
+        input.style.height = 'auto';
+
+        // Adicionar mensagem do usuÃ¡rio ao DOM
+        console.log('[DEBUG] Adicionando mensagem do usuÃ¡rio ao DOM');
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'message user';
+        userMessageDiv.dataset.messageId = userMessageId;
+        userMessageDiv.dataset.conversationId = conversationId;
+        userMessageDiv.innerHTML = `
+            <div class="message-content">${renderMessage(mensagem)}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        `;
+        userMessageDiv.style.opacity = '0';
+        chatContainer.appendChild(userMessageDiv);
+        forcarRenderizacao(userMessageDiv);
+
+        adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
+
+        setTimeout(() => {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant loading';
+            loadingDiv.dataset.conversationId = conversationId;
+            loadingDiv.innerHTML = '<div class="message-content"><span class="typing-animation">...</span></div>';
+            loadingDiv.style.opacity = '0';
+            chatContainer.appendChild(loadingDiv);
+            forcarRenderizacao(loadingDiv);
+        }, 100);
+
+        // Enviar mensagem com timestamp para o backend
+        console.log('[DEBUG] Iniciando requisiÃ§Ã£o para o backend');
+        const response = await fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: mensagem,
+                conversation_id: conversationId,
+                timestamp: userTimestamp // Enviar timestamp para o backend
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na resposta do servidor: ${response.status}`);
+        }
+
+        console.log('[DEBUG] Mensagem enviada com sucesso para o backend');
+    } catch (error) {
+        console.error('[ERRO] Falha ao enviar mensagem:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
+        errorDiv.style.opacity = '0';
+        chatContainer.appendChild(errorDiv);
+        forcarRenderizacao(errorDiv);
+    } finally {
+        console.log('[DEBUG] Finalizando processo de envio');
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.display = 'flex';
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+        }
+    }
+}
+
+// Adicionar MutationObserver para garantir renderizaÃ§Ã£o
+const chatContainer = document.querySelector('.chat-container');
+if (chatContainer) {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+            }
+        });
+    });
+
+    observer.observe(chatContainer, {
+        childList: true,
+        subtree: true
+    });
+}
+
+// Adicionar listener para atualizaÃ§Ã£o de conversa
+socket.on('conversation_updated', (data) => {
+    console.log('[DEBUG] Evento conversation_updated recebido:', data);
+    const { conversation_id } = data;
+
+    if (window.conversaAtual?.id === conversation_id) {
+        console.log('[DEBUG] Atualizando conversa atual:', conversation_id);
+        const chatContainer = document.querySelector('.chat-container');
+        if (!chatContainer) {
+            console.warn('[DEBUG] Container do chat nÃ£o encontrado');
+            return;
+        }
+
+        const loadingMsg = chatContainer.querySelector('.message.assistant.loading');
+        if (loadingMsg) {
+            loadingMsg.remove();
+        }
+
+        const existingMessages = new Map(
+            Array.from(chatContainer.querySelectorAll('.message')).map(msg => [
+                msg.dataset.messageId,
+                msg
+            ])
+        );
+
+        fetch(`/get_conversation/${conversation_id}/0/20`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.messages) {
+                    data.messages.forEach(msg => {
+                        const messageId = msg.timestamp;
+                        let existingMsg = existingMessages.get(messageId);
+
+                        if (!existingMsg) {
+                            // Procurar por uma mensagem com conteÃºdo idÃªntico (caso o timestamp tenha mudado)
+                            for (const [id, elem] of existingMessages) {
+                                const content = elem.querySelector('.message-content').innerHTML;  
+                                if (content === renderMessage(msg.content) && elem.classList.contains(msg.role)) {
+                                    existingMsg = elem;
+                                    console.log('[DEBUG] Encontrada mensagem correspondente por conteÃºdo, atualizando ID:', {
+                                        oldId: id,
+                                        newId: messageId,
+                                        role: msg.role,
+                                        content: content
+                                    });
+                                    elem.dataset.messageId = messageId; // Atualizar o ID
+                                    existingMessages.delete(id); // Remover o ID antigo
+                                    existingMessages.set(messageId, elem); // Adicionar com o novo ID
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (existingMsg) {
+                            console.log('[DEBUG] Mensagem jÃ¡ existe, verificando atualizaÃ§Ã£o:', {
+                                messageId,
+                                role: msg.role,
+                                contentPreview: msg.content.substring(0, 50)
+                            });
+                            const currentContent = existingMsg.querySelector('.message-content').innerHTML;
+                            const newContent = renderMessage(msg.content);
+                            if (currentContent !== newContent) {
+                                existingMsg.querySelector('.message-content').innerHTML = newContent;
+                            }
+                        } else {
+                            console.log('[DEBUG] Adicionando nova mensagem:', {
+                                messageId,
+                                role: msg.role,
+                                contentPreview: msg.content.substring(0, 50)
+                            });
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${msg.role}`;
+                            messageDiv.dataset.messageId = messageId;
+                            messageDiv.dataset.conversationId = conversation_id;
+                            messageDiv.innerHTML = `
+                                <div class="message-content">${renderMessage(msg.content)}</div>   
+                                <div class="message-actions">
+                                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    ${msg.role === 'assistant' ? `
+                                        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `;
+                            chatContainer.appendChild(messageDiv);
+                            forcarRenderizacao(messageDiv);
+                        }
+                        existingMessages.delete(messageId);
+                    });
+                }
+
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+            })
+            .catch(error => console.error('[ERRO] Falha ao atualizar conversa:', error));
+    }
+});
+
+export function interromperResposta() {
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) return;
+
+    if (streamingStates.has(conversationId)) {
+        streamingStates.delete(conversationId);
+        clearAccumulatedResponse(conversationId);
+    }
+
+    const conversation = window.conversations[conversationId];
+    if (conversation) {
+        if (conversation.eventSource) {
+            conversation.eventSource.close();
+            conversation.eventSource = null;
+        }
+        conversation.streaming = false;
+
+        // Remove mensagem de carregamento e streaming
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            const loadingMessage = chatContainer.querySelector('.message.assistant.loading');      
+            const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+            if (loadingMessage) loadingMessage.remove();
+            if (streamingMessage) streamingMessage.remove();
+        }
+
+        // Atualizar botÃµes apÃ³s interromper
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        if (sendBtn && stopBtn) {
+            atualizarBotoes(sendBtn, stopBtn);
+        }
+    }
+}
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html>
+
+
+
+
+
+
+
+Pensamento para
+41s
+Expandir para detalhes
+Entendo que o problema de exibição da digitação em streaming ao alternar entre chats ainda persiste, mesmo após as alterações sugeridas anteriormente. Vou analisar o comportamento descrito e os arquivos fornecidos para identificar a causa e propor uma solução definitiva.
+
+Análise do Problema
+Com base no HTML fornecido, ao enviar a mensagem "escreva uma msg bonita" e alternar entre chats enquanto a resposta está sendo gerada, o resultado antes de alternar contém:
+
+Mensagens corretas do usuário e da IA (com data-message-id).
+Duas mensagens extras da IA sem data-message-id, exibindo texto bruto e duplicado da digitação em streaming:
+html
+
+Recolher
+
+Encapsular
+
+Copiar
+<div class="message assistant"><div class="message-content"> de de várias várias cores cores e e aromas aromas incríveis incríveis!! ...
+Após alternar entre chats e voltar, o resultado mostra apenas as mensagens corretas (com data-message-id), indicando que o problema ocorre durante o processo de streaming e não na persistência das mensagens no histórico.
+
+O problema está relacionado ao fato de que os chunks de streaming estão sendo renderizados diretamente no DOM antes da resposta final ser concluída, e esses elementos persistem até que a alternância de chats limpe o container.
+
+Causa Identificada
+Frontend (chatActions.js):
+No listener socket.on('message_chunk'), os chunks recebidos são acumulados com accumulateChunk, mas não há controle para evitar que sejam renderizados imediatamente no DOM. O código atual apenas acumula os chunks, mas o problema sugere que outro trecho (não visível no código fornecido) está adicionando esses chunks como elementos .message.assistant diretamente no chatContainer.
+O listener socket.on('response_complete') remove apenas mensagens com a classe .loading ou .streaming-message, mas as mensagens duplicadas aparecem como .message.assistant sem essas classes específicas.
+Backend (app.py):
+O endpoint /send_message usa process_with_ai_stream, que emite chunks via socketio.emit('message_chunk'). Esses chunks são enviados continuamente e processados no frontend, mas o backend não está contribuindo diretamente para a duplicação — o problema está no tratamento frontend.
+Solução Proposta
+Para resolver o problema, precisamos garantir que:
+
+Os chunks de streaming não sejam renderizados diretamente no DOM enquanto a resposta está sendo gerada.
+Apenas um placeholder temporário ("Gerando resposta...") seja exibido durante o streaming.
+A resposta final substitua o placeholder, evitando duplicatas.
+1. Ajustar o Listener de Chunks no Frontend (chatActions.js)
+Modifique o listener socket.on('message_chunk') para apenas acumular os chunks, sem renderizá-los diretamente. Adicione um placeholder único se ainda não existir:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+socket.on('message_chunk', (data) => {
+    console.log('[DEBUG] Recebido chunk:', { data });
+    const { content, conversation_id } = data;
+    if (!content || !conversation_id) {
+        console.warn('[DEBUG] Chunk inválido recebido:', data);
+        return;
+    }
+
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando chunk de outra conversa');
+        return;
+    }
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Verifica se já existe um placeholder de streaming
+    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (!streamingMessage) {
+        streamingMessage = document.createElement('div');
+        streamingMessage.className = 'message assistant streaming-message';
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+        chatContainer.appendChild(streamingMessage);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Apenas acumula o chunk, sem renderizar
+    accumulateChunk(content, conversation_id);
+    console.log('[DEBUG] Chunk acumulado com sucesso');
+});
+Mudança: Adiciona um único placeholder com a classe streaming-message e evita renderizar os chunks diretamente.
+
+2. Ajustar o Listener de Resposta Completa (chatActions.js)
+Atualize o socket.on('response_complete') para remover o placeholder de streaming e renderizar apenas a resposta final:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+socket.on('response_complete', (data) => {
+    console.log('[DEBUG] Resposta completa recebida:', data);
+    const { conversation_id } = data;
+    if (!conversation_id) {
+        console.warn('[DEBUG] ID da conversa não fornecido na resposta completa');
+        return;
+    }
+
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando resposta de outra conversa:', {
+            atual: window.conversaAtual?.id,
+            recebido: conversation_id
+        });
+        clearAccumulatedResponse(conversation_id);
+        streamingStates.delete(conversation_id);
+        return;
+    }
+
+    streamingStates.delete(conversation_id);
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Remove qualquer placeholder de streaming ou carregamento
+    const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (loadingMessage) loadingMessage.remove();
+    if (streamingMessage) streamingMessage.remove();
+
+    try {
+        const renderedHtml = renderCompleteResponse(conversation_id);
+        if (!renderedHtml) {
+            throw new Error('Resposta vazia ou inválida');
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant';
+        messageDiv.dataset.messageId = `${Date.now()}_assistant`;
+        messageDiv.dataset.conversationId = conversation_id;
+        messageDiv.innerHTML = `
+            <div class="message-content">${renderedHtml}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        `;
+
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        setTimeout(() => {
+            melhorarBlocosCodigo(messageDiv);
+        }, 0);
+
+        const completeResponse = messageDiv.querySelector('.message-content').textContent;
+        adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
+        atualizarListaConversas();
+    } catch (error) {
+        console.error('[ERRO] Falha ao processar resposta:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';
+        chatContainer.appendChild(errorDiv);
+    }
+});
+Mudança: Garante que qualquer mensagem temporária (.loading ou .streaming-message) seja removida antes de adicionar a resposta final.
+
+3. Ajustar a Função enviarMensagem (chatActions.js)
+Remova a adição de uma mensagem de carregamento separada, pois o listener de chunks agora gerencia o placeholder:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
+    if (!mensagem.trim()) {
+        console.warn('[DEBUG] Tentativa de enviar mensagem vazia');
+        return;
+    }
+
+    if (!window.conversaAtual) {
+        console.log('[DEBUG] Criando nova conversa');
+        criarNovaConversa();
+    }
+
+    const conversationId = window.conversaAtual?.id;
+    const userTimestamp = new Date().toISOString();
+    const userMessageId = userTimestamp;
+    console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
+
+    try {
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.style.display = 'none';
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'flex';
+        }
+
+        input.value = '';
+        input.style.height = 'auto';
+
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'message user';
+        userMessageDiv.dataset.messageId = userMessageId;
+        userMessageDiv.dataset.conversationId = conversationId;
+        userMessageDiv.innerHTML = `
+            <div class="message-content">${renderMessage(mensagem)}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        `;
+        userMessageDiv.style.opacity = '0';
+        chatContainer.appendChild(userMessageDiv);
+        forcarRenderizacao(userMessageDiv);
+
+        adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
+
+        const response = await fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: mensagem,
+                conversation_id: conversationId,
+                timestamp: userTimestamp
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na resposta do servidor: ${response.status}`);
+        }
+
+        console.log('[DEBUG] Mensagem enviada com sucesso para o backend');
+    } catch (error) {
+        console.error('[ERRO] Falha ao enviar mensagem:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
+        errorDiv.style.opacity = '0';
+        chatContainer.appendChild(errorDiv);
+        forcarRenderizacao(errorDiv);
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.display = 'flex';
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+        }
+    }
+}
+Mudança: Remove o setTimeout que adicionava a mensagem de carregamento, deixando o gerenciamento do placeholder para o listener de chunks.
+
+4. Garantir Limpeza ao Alternar Conversas
+Certifique-se de que a função interromperResposta limpe qualquer estado de streaming:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+export function interromperResposta() {
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) return;
+
+    if (streamingStates.has(conversationId)) {
+        streamingStates.delete(conversationId);
+        clearAccumulatedResponse(conversationId);
+    }
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+        const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+        if (streamingMessage) streamingMessage.remove();
+        if (loadingMessage) loadingMessage.remove();
+    }
+
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (sendBtn && stopBtn) {
+        atualizarBotoes(sendBtn, stopBtn);
+    }
+}
+Mudança: Remove mensagens temporárias ao interromper a resposta.
+
+Resultado Esperado
+Com essas alterações:
+
+Ao enviar "escreva uma msg bonita", você verá:
+A mensagem do usuário: <div class="message user">escreva uma msg bonita</div>.
+Um placeholder: <div class="message assistant streaming-message">Gerando resposta...</div>.
+Os chunks de streaming não aparecerão como mensagens separadas no DOM.
+Quando a resposta estiver completa, o placeholder será substituído por:
+<div class="message assistant" data-message-id="...">[resposta formatada]</div>.
+Ao alternar entre chats, o placeholder será removido, e apenas as mensagens finais persistirão.
+Testando a Solução
+Atualize o arquivo chatActions.js com as mudanças acima.
+Reinicie o servidor com python app.py.
+Envie "escreva uma msg bonita" no frontend.
+Enquanto a resposta está sendo gerada, alterne entre chats e volte.
+Verifique se:
+Não há mensagens duplicadas com texto bruto.
+Apenas o placeholder "Gerando resposta..." aparece durante o streaming.
+Após a conclusão, apenas a mensagem final formatada é exibida.
+Se o problema persistir, adicione mais logs no listener message_chunk para verificar se outro código está interferindo na renderização dos chunks.
+
+Aguardo seu feedback sobre os resultados!
+
+
+
+
+
+
+
+problema persiste
+
+
+__________
+
+<div class="chat-container" style="display: block;"><div class="message user" data-message-id="2025-03-19T11:59:56.135023" data-conversation-id="1742396396108"><div class="message-content"><p>escreva uma msg bonita</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant"><div class="message-content"> nunca nunca des desistaista de de seus seus sonhos sonhos..  ☀️☀️💖💖
+
+
+
+ComoComo posso posso ajudar ajudar você você a a escrever escrever uma uma mensagem mensagem ainda ainda mais mais bonita bonita??    😜😜    MeMe diga diga quem quem é é para para qual qual ocasião ocasião e e o o que que você você quer quer destacar destacar.. 😊 😊 👍 👍
+
+
+
+
+
+</div></div><div class="message assistant"><div class="message-content"> nunca nunca des desistaista de de seus seus sonhos sonhos..  ☀️☀️💖💖
+
+
+
+ComoComo posso posso ajudar ajudar você você a a escrever escrever uma uma mensagem mensagem ainda ainda mais mais bonita bonita??    😜😜    MeMe diga diga quem quem é é para para qual qual ocasião ocasião e e o o que que você você quer quer destacar destacar.. 😊 😊 👍 👍
+
+
+
+
+
+</div></div><div class="message assistant" data-message-id="2025-03-19T12:00:21.835301" data-conversation-id="1742396396108" style="opacity: 1; transform: translateY(0px);">
+                                <div class="message-content"><blockquote>
+<p>✨ Bom dia! Você merece se deliciar hoje, acredite em si mesma e nunca desista de seus sonhos. ☀️💖</p>
+</blockquote>
+<p>Como posso ajudar você a escrever uma mensagem ainda mais bonita?  😜  Me diga quem é para qual ocasião e o que você quer destacar. 😊 👍</p>
+</div>
+                                <div class="message-actions">
+                                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    
+                                        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    
+                                </div>
+                            </div></div>
+
+
+
+-------
+
+<div class="chat-container" style="display: block;"><div class="message user" data-message-id="2025-03-19T11:59:56.135023" data-conversation-id="1742396396108"><div class="message-content"><p>escreva uma msg bonita</p></div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                    </div></div><div class="message assistant" data-message-id="2025-03-19T12:00:21.835301" data-conversation-id="1742396396108"><div class="message-content"><blockquote>
+<p>✨ Bom dia! Você merece se deliciar hoje, acredite em si mesma e nunca desista de seus sonhos. ☀️💖</p>
+</blockquote>
+<p>Como posso ajudar você a escrever uma mensagem ainda mais bonita?  😜  Me diga quem é para qual ocasião e o que você quer destacar. 😊 👍</p>
+</div><div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        
+                            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        
+                    </div></div></div>
+
+______
+
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\static\js\chat\chatActions.js
+import { mostrarCarregamento } from './chatUI.js';
+import { adicionarMensagem } from './chatUI.js';
+import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
+import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse } from '../messageRenderer.js';
+import { melhorarBlocosCodigo } from './chatUtils.js';
+
+// Mapa para controlar o estado de streaming por conversa
+const streamingStates = new Map();
+
+// Inicializa o socket
+const socket = io();
+
+// Adicionar log de conexÃ£o
+socket.on('connect', () => {
+    console.log('[DEBUG] WebSocket conectado com sucesso');
+});
+
+socket.on('connect_error', (error) => {
+    console.error('[ERRO] Falha na conexÃ£o WebSocket:', error);
+});
+
+// Listener para chunks da mensagem
+socket.on('message_chunk', (data) => {
+    console.log('[DEBUG] Recebido chunk:', { data });
+    const { content, conversation_id } = data;
+    if (!content || !conversation_id) {
+        console.warn('[DEBUG] Chunk invÃ¡lido recebido:', data);
+        return;
+    }
+
+    // Verificar se Ã© a conversa atual
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando chunk de outra conversa');
+        return;
+    }
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Verifica se jÃ¡ existe um placeholder de streaming
+    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');    
+    if (!streamingMessage) {
+        streamingMessage = document.createElement('div');
+        streamingMessage.className = 'message assistant streaming-message';
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';     
+        chatContainer.appendChild(streamingMessage);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    console.log('[DEBUG] Processando chunk para conversa:', conversation_id);
+    // Marca conversa como em streaming
+    streamingStates.set(conversation_id, true);
+
+    // Apenas acumula o chunk, sem renderizar
+    accumulateChunk(content, conversation_id);
+    console.log('[DEBUG] Chunk acumulado com sucesso');
+});
+
+// Listener para resposta completa
+socket.on('response_complete', (data) => {
+    console.log('[DEBUG] Resposta completa recebida:', data);
+    const { conversation_id } = data;
+    if (!conversation_id) {
+        console.warn('[DEBUG] ID da conversa nÃ£o fornecido na resposta completa');
+        return;
+    }
+
+    // Verifica se Ã© a conversa atual
+    if (window.conversaAtual?.id !== conversation_id) {
+        console.log('[DEBUG] Ignorando resposta de outra conversa:', {
+            atual: window.conversaAtual?.id,
+            recebido: conversation_id
+        });
+        clearAccumulatedResponse(conversation_id);
+        streamingStates.delete(conversation_id);
+        return;
+    }
+
+    // Remove estado de streaming
+    streamingStates.delete(conversation_id);
+
+    // Encontra o container do chat
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Remove qualquer placeholder de streaming ou carregamento
+    const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');  
+    if (loadingMessage) loadingMessage.remove();
+    if (streamingMessage) streamingMessage.remove();
+
+    try {
+        // Renderiza resposta completa
+        const renderedHtml = renderCompleteResponse(conversation_id);
+        if (!renderedHtml) {
+            throw new Error('Resposta vazia ou invÃ¡lida');
+        }
+
+        // Cria elemento da mensagem
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant';
+        messageDiv.dataset.messageId = `${Date.now()}_assistant`;
+        messageDiv.dataset.conversationId = conversation_id;
+        messageDiv.innerHTML = `
+            <div class="message-content">${renderedHtml}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        `;
+
+        // Adiciona ao chat e rola para baixo
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Melhora blocos de cÃ³digo
+        setTimeout(() => {
+            melhorarBlocosCodigo(messageDiv);
+        }, 0);
+
+        // Salva no histÃ³rico
+        const completeResponse = messageDiv.querySelector('.message-content').textContent;
+        adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
+        atualizarListaConversas();
+    } catch (error) {
+        console.error('[ERRO] Falha ao processar resposta:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';    
+        chatContainer.appendChild(errorDiv);
+    }
+});
+
+function inicializarConversa(conversationId) {
+    if (!window.conversations[conversationId]) {
+        window.conversations[conversationId] = {
+            data: {
+                id: conversationId,
+                title: "Nova Conversa",
+                messages: []
+            },
+            streaming: false,
+            currentResponse: '',
+            eventSource: null,
+            abortController: null
+        };
+    }
+    return window.conversations[conversationId];
+}
+
+// FunÃ§Ã£o para atualizar os botÃµes com base na conversa atual
+export function atualizarBotoes(sendBtn, stopBtn) {
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        // Se nÃ£o houver conversa ativa, mostrar apenas o botÃ£o de enviar
+        sendBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+        return;
+    }
+
+    const conversation = window.conversations[conversationId];
+    if (conversation && conversation.streaming) {
+        sendBtn.style.display = 'none';
+        stopBtn.style.display = 'flex';
+    } else {
+        sendBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+    }
+}
+
+// FunÃ§Ã£o para verificar se o usuÃ¡rio estÃ¡ no final do chat
+function isUserAtBottom(container) {
+    const threshold = 50; // pixels de tolerÃ¢ncia
+    return container.scrollHeight - container.scrollTop <= container.clientHeight + threshold;     
+}
+
+// FunÃ§Ã£o para rolar suavemente para o final
+function scrollToBottom(container) {
+    container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+// FunÃ§Ã£o para gerenciar scroll durante streaming
+function handleStreamingScroll(container, content) {
+    let userScrolledUp = false;
+    let scrollTimeout = null;
+
+    const scrollListener = () => {
+        userScrolledUp = !isUserAtBottom(container);
+
+        // Limpar timeout anterior
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+
+        // Se o usuÃ¡rio rolar para baixo atÃ© o final, resetar o estado
+        if (userScrolledUp && isUserAtBottom(container)) {
+            userScrolledUp = false;
+        }
+    };
+
+    // Adicionar listener de scroll
+    container.addEventListener('scroll', scrollListener);
+
+    // Retornar funÃ§Ã£o para limpar o listener
+    return () => {
+        container.removeEventListener('scroll', scrollListener);
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+    };
+}
+
+// FunÃ§Ã£o auxiliar para forÃ§ar renderizaÃ§Ã£o
+function forcarRenderizacao(elemento) {
+    // ForÃ§ar reflow
+    void elemento.offsetHeight;
+
+    // Usar requestAnimationFrame para garantir a renderizaÃ§Ã£o
+    requestAnimationFrame(() => {
+        elemento.style.opacity = '1';
+        elemento.style.transform = 'translateY(0)';
+
+        // Segundo frame para garantir que a transiÃ§Ã£o seja aplicada
+        requestAnimationFrame(() => {
+            if (elemento.parentElement) {
+                elemento.parentElement.scrollTop = elemento.parentElement.scrollHeight;
+            }
+        });
+    });
+}
+
+export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
+    if (!mensagem.trim()) {
+        console.warn('[DEBUG] Tentativa de enviar mensagem vazia');
+        return;
+    }
+
+    if (!window.conversaAtual) {
+        console.log('[DEBUG] Criando nova conversa');
+        criarNovaConversa();
+    }
+
+    const conversationId = window.conversaAtual?.id;
+    const userTimestamp = new Date().toISOString();
+    const userMessageId = userTimestamp;
+    console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
+
+    try {
+        if (sendBtn) {
+            console.log('[DEBUG] Desabilitando botÃ£o de envio');
+            sendBtn.disabled = true;
+            sendBtn.style.display = 'none';
+        }
+        if (stopBtn) {
+            console.log('[DEBUG] Mostrando botÃ£o de parar');
+            stopBtn.style.display = 'flex';
+        }
+
+        input.value = '';
+        input.style.height = 'auto';
+
+        // Adicionar mensagem do usuÃ¡rio ao DOM
+        console.log('[DEBUG] Adicionando mensagem do usuÃ¡rio ao DOM');
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'message user';
+        userMessageDiv.dataset.messageId = userMessageId;
+        userMessageDiv.dataset.conversationId = conversationId;
+        userMessageDiv.innerHTML = `
+            <div class="message-content">${renderMessage(mensagem)}</div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        `;
+        userMessageDiv.style.opacity = '0';
+        chatContainer.appendChild(userMessageDiv);
+        forcarRenderizacao(userMessageDiv);
+
+        adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
+
+        // Enviar mensagem com timestamp para o backend
+        console.log('[DEBUG] Iniciando requisiÃ§Ã£o para o backend');
+        const response = await fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: mensagem,
+                conversation_id: conversationId,
+                timestamp: userTimestamp
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na resposta do servidor: ${response.status}`);
+        }
+
+        console.log('[DEBUG] Mensagem enviada com sucesso para o backend');
+    } catch (error) {
+        console.error('[ERRO] Falha ao enviar mensagem:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant error';
+        errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
+        errorDiv.style.opacity = '0';
+        chatContainer.appendChild(errorDiv);
+        forcarRenderizacao(errorDiv);
+    } finally {
+        console.log('[DEBUG] Finalizando processo de envio');
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.style.display = 'flex';
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none';
+        }
+    }
+}
+
+// Adicionar MutationObserver para garantir renderizaÃ§Ã£o
+const chatContainer = document.querySelector('.chat-container');
+if (chatContainer) {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+            }
+        });
+    });
+
+    observer.observe(chatContainer, {
+        childList: true,
+        subtree: true
+    });
+}
+
+// Adicionar listener para atualizaÃ§Ã£o de conversa
+socket.on('conversation_updated', (data) => {
+    console.log('[DEBUG] Evento conversation_updated recebido:', data);
+    const { conversation_id } = data;
+
+    if (window.conversaAtual?.id === conversation_id) {
+        console.log('[DEBUG] Atualizando conversa atual:', conversation_id);
+        const chatContainer = document.querySelector('.chat-container');
+        if (!chatContainer) {
+            console.warn('[DEBUG] Container do chat nÃ£o encontrado');
+            return;
+        }
+
+        const loadingMsg = chatContainer.querySelector('.message.assistant.loading');
+        if (loadingMsg) {
+            loadingMsg.remove();
+        }
+
+        const existingMessages = new Map(
+            Array.from(chatContainer.querySelectorAll('.message')).map(msg => [
+                msg.dataset.messageId,
+                msg
+            ])
+        );
+
+        fetch(`/get_conversation/${conversation_id}/0/20`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.messages) {
+                    data.messages.forEach(msg => {
+                        const messageId = msg.timestamp;
+                        let existingMsg = existingMessages.get(messageId);
+
+                        if (!existingMsg) {
+                            // Procurar por uma mensagem com conteÃºdo idÃªntico (caso o timestamp tenha mudado)
+                            for (const [id, elem] of existingMessages) {
+                                const content = elem.querySelector('.message-content').innerHTML;  
+                                if (content === renderMessage(msg.content) && elem.classList.contains(msg.role)) {
+                                    existingMsg = elem;
+                                    console.log('[DEBUG] Encontrada mensagem correspondente por conteÃºdo, atualizando ID:', {
+                                        oldId: id,
+                                        newId: messageId,
+                                        role: msg.role,
+                                        content: content
+                                    });
+                                    elem.dataset.messageId = messageId; // Atualizar o ID
+                                    existingMessages.delete(id); // Remover o ID antigo
+                                    existingMessages.set(messageId, elem); // Adicionar com o novo ID
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (existingMsg) {
+                            console.log('[DEBUG] Mensagem jÃ¡ existe, verificando atualizaÃ§Ã£o:', {
+                                messageId,
+                                role: msg.role,
+                                contentPreview: msg.content.substring(0, 50)
+                            });
+                            const currentContent = existingMsg.querySelector('.message-content').innerHTML;
+                            const newContent = renderMessage(msg.content);
+                            if (currentContent !== newContent) {
+                                existingMsg.querySelector('.message-content').innerHTML = newContent;
+                            }
+                        } else {
+                            console.log('[DEBUG] Adicionando nova mensagem:', {
+                                messageId,
+                                role: msg.role,
+                                contentPreview: msg.content.substring(0, 50)
+                            });
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${msg.role}`;
+                            messageDiv.dataset.messageId = messageId;
+                            messageDiv.dataset.conversationId = conversation_id;
+                            messageDiv.innerHTML = `
+                                <div class="message-content">${renderMessage(msg.content)}</div>   
+                                <div class="message-actions">
+                                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    ${msg.role === 'assistant' ? `
+                                        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `;
+                            chatContainer.appendChild(messageDiv);
+                            forcarRenderizacao(messageDiv);
+                        }
+                        existingMessages.delete(messageId);
+                    });
+                }
+
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+            })
+            .catch(error => console.error('[ERRO] Falha ao atualizar conversa:', error));
+    }
+});
+
+export function interromperResposta() {
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) return;
+
+    if (streamingStates.has(conversationId)) {
+        streamingStates.delete(conversationId);
+        clearAccumulatedResponse(conversationId);
+    }
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+        const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
+        if (streamingMessage) streamingMessage.remove();
+        if (loadingMessage) loadingMessage.remove();
+    }
+
+    // Atualizar botÃµes apÃ³s interromper
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (sendBtn && stopBtn) {
+        atualizarBotoes(sendBtn, stopBtn);
+    }
+}
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\static\css\components\messages.css
+/* BotÃµes de aÃ§Ã£o nas mensagens */
+.message .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.message .action-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+.message .action-btn.copied {
+    color: #4CAF50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.message .message-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: none;
+    gap: 0.5rem;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+/* Estilos para formataÃ§Ã£o de mensagens com Markdown */
+.message-content {
+    line-height: 1.6;
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+    margin: 1rem 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.message-content h1 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.message-content h2 {
+    font-size: 1.3rem;
+}
+
+.message-content h3 {
+    font-size: 1.1rem;
+}
+
+.message-content code {
+    background-color: var(--action-hover);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+/* Container para o bloco de cÃ³digo com cabeÃ§alho */
+.code-container {
+    position: relative;
+    margin: 1em 0;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 0; /* Remove padding extra */
+}
+
+.code-header {
+    background-color: #2d2d2d !important;
+    color: #ffffff;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0; /* Remove margens */
+    border-bottom: none; /* Remove borda para colar com o bloco */
+}
+
+.language-label {
+    text-transform: uppercase;
+    font-size: 0.8em;
+    letter-spacing: 1px;
+    flex: 1; /* Expande para empurrar o botÃ£o */
+}
+
+/* Blocos de cÃ³digo estilo terminal */
+.message-content .code-block {
+    background-color: #1e1e1e !important; /* Fundo preto estilo terminal */
+    color: #f8f8f2; /* Texto branco */
+    padding: 15px;
+    border-radius: 0; /* Remove bordas arredondadas para colar com o header */
+    font-family: 'Consolas', 'Courier New', monospace;
+    position: relative;
+    overflow-x: auto; /* Para cÃ³digos longos */
+    border: 1px solid #333;
+    margin: 0; /* Remove margem para alinhar com o cabeÃ§alho */
+    border-top: none; /* Remove borda superior para colar com o header */
+}
+
+.message-content .code-block code {
+    background: none !important;
+    padding: 0;
+    color: #f8f8f2 !important;
+    display: block;
+    white-space: pre;
+}
+
+/* BotÃ£o de copiar cÃ³digo */
+.code-copy-btn {
+    background: transparent;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    transition: background-color 0.2s;
+    margin-left: auto; /* Alinha o botÃ£o Ã  direita */
+}
+
+.code-copy-btn:hover {
+    background: #666;
+}
+
+.code-copy-btn.copied {
+    background: #4CAF50;
+}
+
+/* Estilos para tabelas Markdown */
+.chat-container .message-content table {
+    width: 100%; /* Ocupa toda a largura disponÃ­vel */
+    border-collapse: collapse; /* Une as bordas das cÃ©lulas */
+    margin: 0.5rem 0; /* EspaÃ§o reduzido acima e abaixo */
+    padding: 0;
+    table-layout: fixed; /* Evita cÃ©lulas desproporcionais */
+}
+
+.chat-container .message-content th,
+.chat-container .message-content td {
+    border: 1px solid var(--border-color); /* Bordas visÃ­veis */
+    padding: 0.5rem; /* EspaÃ§o interno reduzido */
+    text-align: left; /* Alinhamento Ã  esquerda */
+    vertical-align: top; /* Evita alinhamentos estranhos */
+    word-wrap: break-word; /* Quebra palavras longas */
+    overflow-wrap: break-word;
+}
+
+.chat-container .message-content th {
+    background-color: var(--action-hover); /* Fundo leve para cabeÃ§alhos */
+    font-weight: bold; /* CabeÃ§alhos em negrito */
+}
+
+.chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.05); /* Efeito zebrado nas linhas pares */
+}
+
+/* Ajuste para tema escuro, se necessÃ¡rio */
+[data-theme="dark"] .chat-container .message-content th {
+    background-color: var(--action-hover);
+}
+
+[data-theme="dark"] .chat-container .message-content tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Estilos para citaÃ§Ãµes */
+.message-content blockquote {
+    border-left: 4px solid var(--text-secondary);
+    margin: 0.5rem 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    color: var(--text-secondary);
+    background-color: rgba(125, 125, 125, 0.1);
+    border-radius: 0 4px 4px 0;
+}
+
+/* Estilos para listas */
+.message-content ul,
+.message-content ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.message-content ul li,
+.message-content ol li {
+    margin-bottom: 0.25rem;
+}
+
+/* Estilos para links */
+.message-content a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.message-content a:hover {
+    text-decoration: underline;
+}
+
+/* Estilos para mensagens especÃ­ficas */
+.message.assistant .message-content {
+    color: var(--text-primary);
+}
+
+.message.user .message-content {
+    color: var(--text-primary);
+}
+
+/* Estilos para highlight.js */
+.hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    font-family: 'Consolas', 'Courier New', monospace !important;
+    line-height: 1.6 !important;
+    tab-size: 4 !important;
+}
+
+/* Ajustes para temas claro/escuro */
+[data-theme="dark"] .hljs {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+/* ForÃ§ar tema claro para o highlight.js */
+[data-theme="light"] .hljs {
+    background: #f8f8f8 !important;
+    color: #333;
+}
+
+/* ForÃ§a o fundo escuro para os blocos de cÃ³digo em ambos os temas */
+[data-theme="light"] pre code,
+[data-theme="dark"] pre code {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+/* Estilos para scroll suave e comportamento de scroll */
+.chat-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Estilos para mensagens em streaming */
+.message.streaming-message {
+    opacity: 0.95;
+    transition: opacity 0.3s ease;
+    position: relative;
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+    border-radius: 1rem 1rem 1rem 0;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    max-width: 80%;
+}
+
+.message.streaming-message .message-content {
+    position: relative;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+}
+
+.message.streaming-message .message-content::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+}
+
+.message.streaming-message .message-content::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: typing 1.4s infinite;
+    animation-delay: 0.7s;
+}
+
+/* AnimaÃ§Ã£o de digitaÃ§Ã£o */
+@keyframes typing {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+/* Estilos para mensagens */
+.message {
+    position: relative;
+    max-width: 80%;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.message.user {
+    background-color: var(--msg-user);
+    margin-left: auto;
+    color: var(--text-primary);
+    border-radius: 1rem 1rem 0 1rem;
+}
+
+.message.assistant {
+    background-color: var(--msg-bot);
+    margin-right: auto;
+    color: var(--text-primary);
+    border-radius: 1rem 1rem 1rem 0;
+}
+
+/* Estilos para mensagem de carregamento */
+.message.loading {
+    opacity: 0.8;
+}
+
+.message.loading .message-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+}
+
+/* Estilos para mensagens de erro */
+.message.error {
+    background-color: var(--error-bg);
+    color: var(--error);
+}
+
+/* Estilos para conteÃºdo Markdown */
+.message-content {
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.message-content p {
+    margin: 0.5rem 0;
+}
+
+.message-content pre {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: var(--code-bg);
+    overflow-x: auto;
+}
+
+.message-content code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.message-content ul,
+.message-content ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.message-content blockquote {
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* BotÃµes de aÃ§Ã£o */
+.message-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.action-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Indicador de scroll */
+.scroll-indicator {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.scroll-indicator.visible {
+    opacity: 1;
+}
+
+.scroll-indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html>
+
+
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html> cat c:\Users\Usuario\Desktop\persistencia-memoria-html\app.py
+import init_eventlet
+
+from flask import Flask, render_template, request, jsonify, Response
+import json
+import os
+from datetime import datetime
+import requests
+from utils.text_processor import split_text, clean_and_format_text
+from youtube_handler import YoutubeHandler
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from utils.chat_storage import (
+    create_new_conversation,
+    add_message_to_conversation,
+    get_conversation_by_id,
+    get_conversation_history,
+    delete_conversation,
+    rename_conversation
+)
+
+app = Flask(__name__, static_folder='static')
+app.secret_key = 'sua_chave_secreta_aqui'
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+
+API_URL = "http://localhost:11434/v1/chat/completions"
+MODEL_NAME = "gemma2:2b"
+youtube_handler = YoutubeHandler()
+
+@app.route('/')
+def home():
+    conversations = get_conversation_history()
+    return render_template('index.html', conversations=conversations)
+
+@app.route('/get_conversation_history')
+def conversation_history():
+    try:
+        conversations = get_conversation_history()
+        return jsonify(conversations)
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter histÃ³rico de conversas: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get_conversation/<conversation_id>')
+def get_conversation(conversation_id):
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            return jsonify(conversation)
+        print(f"[ERRO] Conversa nÃ£o encontrada: {conversation_id}")
+        return jsonify({'error': 'Conversa nÃ£o encontrada'}), 404
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get_conversation/<conversation_id>/<int:offset>/<int:limit>')
+def get_conversation_batch(conversation_id, offset, limit):
+    """Endpoint para carregar mensagens em lotes para lazy loading"""
+    try:
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            messages = conversation['messages']
+            # Garantir que offset e limit estÃ£o dentro dos limites
+            offset = min(offset, len(messages))
+            end_index = min(offset + limit, len(messages))
+            batch = messages[offset:end_index]
+
+            return jsonify({
+                'messages': batch,
+                'total': len(messages),
+                'hasMore': end_index < len(messages)
+            })
+
+        print(f"[ERRO] Conversa nÃ£o encontrada para batch loading: {conversation_id}")
+        return jsonify({'error': 'Conversa nÃ£o encontrada'}), 404
+    except Exception as e:
+        print(f"[ERRO] Falha ao obter lote de mensagens: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/stream')
+def stream():
+    """Endpoint para streaming de respostas usando Server-Sent Events (SSE)"""
+    conversation_id = request.args.get('conversation_id')
+    message = request.args.get('message', '')
+
+    if not conversation_id:
+        return jsonify({'error': 'ID de conversa nÃ£o fornecido'}), 400
+
+    print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
+
+    def event_stream():
+        accumulated_response = ""
+        try:
+            for part in process_with_ai_stream(message, conversation_id):
+                if part:
+                    accumulated_response += part
+                    # Emitir apenas para a conversa atual
+                    socketio.emit('message_chunk', {
+                        'content': part,
+                        'conversation_id': conversation_id
+                    }, room=conversation_id)
+                    yield f"data: {part}\n\n"
+
+            # Salvar apenas a resposta final
+            if accumulated_response:
+                add_message_to_conversation(conversation_id, accumulated_response, "assistant")    
+                # Notificar que a resposta estÃ¡ completa
+                socketio.emit('response_complete', {
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                # Notificar que a conversa foi atualizada
+                socketio.emit('conversation_updated', {
+                    'conversation_id': conversation_id
+                })
+        except Exception as e:
+            print(f"[ERRO] Erro durante streaming: {str(e)}")
+            # Em caso de erro, notificar o cliente
+            socketio.emit('stream_error', {
+                'conversation_id': conversation_id,
+                'error': str(e)
+            }, room=conversation_id)
+
+    response = Response(event_stream(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # Para Nginx
+    return response
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    if not conversation_id:
+        conversation_id = create_new_conversation()
+        print(f"[DEBUG] Nova conversa criada com ID: {conversation_id}")
+    else:
+        print(f"[DEBUG] Usando conversa existente: {conversation_id}")
+
+    # Salvar mensagem do usuÃ¡rio
+    add_message_to_conversation(conversation_id, message, "user")
+    print(f"[DEBUG] Mensagem do usuÃ¡rio salva na conversa: {conversation_id}")
+
+    # Processar resposta da IA
+    accumulated_response = []
+
+    def generate_streamed_response():
+        try:
+            for part in process_with_ai_stream(message, conversation_id):
+                if part:
+                    accumulated_response.append(part)
+                    # Emitir via WebSocket apenas para a conversa atual
+                    socketio.emit('message_chunk', {
+                        'content': part,
+                        'conversation_id': conversation_id
+                    }, room=conversation_id)
+                    yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id})}\n\n"
+
+            # Salvar apenas a resposta final
+            if accumulated_response:
+                complete_response = ''.join(accumulated_response)
+                print(f"[DEBUG] Salvando resposta final para {conversation_id}")
+                add_message_to_conversation(conversation_id, complete_response, "assistant")       
+                # Notificar que a resposta estÃ¡ completa
+                socketio.emit('response_complete', {
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                # Notificar que a conversa foi atualizada
+                socketio.emit('conversation_updated', {
+                    'conversation_id': conversation_id
+                })
+                print(f"[DEBUG] Resposta final da IA salva na conversa: {conversation_id}")        
+        except Exception as e:
+            print(f"[ERRO] Erro durante streaming: {str(e)}")
+            # Em caso de erro, notificar o cliente
+            socketio.emit('stream_error', {
+                'conversation_id': conversation_id,
+                'error': str(e)
+            }, room=conversation_id)
+
+    response = Response(generate_streamed_response(), content_type="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+@app.route('/save_message', methods=['POST'])
+def save_message():
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        content = data.get('content')
+        role = data.get('role')
+
+        if not all([conversation_id, content, role]):
+            return jsonify({'error': 'Dados incompletos'}), 400
+
+        print(f"[DEBUG] Salvando mensagem para conversa: {conversation_id}, role: {role}")
+        add_message_to_conversation(conversation_id, content, role)
+
+        # Notificar clientes via WebSocket
+        socketio.emit('conversation_updated', {
+            'conversation_id': conversation_id
+        })
+
+        return jsonify({'status': 'success', 'conversation_id': conversation_id})
+    except Exception as e:
+        print(f"Erro ao salvar mensagem: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process_youtube', methods=['POST'])
+def process_youtube():
+    try:
+        data = request.json
+        video_url = data.get('video_url')
+        conversation_id = data.get('conversation_id')
+        comando = data.get('comando')  # Novo: pegar o comando original
+
+        if not video_url:
+            return jsonify({'error': 'URL nÃ£o fornecida'}), 400
+
+        # Baixar legendas e obter tÃ­tulo
+        subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
+        if not subtitle_file:
+            return jsonify({'error': 'NÃ£o foi possÃ­vel baixar as legendas deste vÃ­deo'}), 404   
+
+        # Limpar legendas
+        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
+        if not cleaned_text:
+            return jsonify({'error': 'Erro ao processar legendas'}), 500
+
+        # Salvar comando do usuÃ¡rio na conversa
+        if conversation_id and comando:
+            add_message_to_conversation(
+                conversation_id,
+                comando,
+                "user"
+            )
+            print(f"[DEBUG] Comando do usuÃ¡rio salvo na conversa: {conversation_id}")
+
+        # Salvar transcriÃ§Ã£o com tÃ­tulo na conversa
+        formatted_response = f"ðŸ“¹ {video_title}\n\n{cleaned_text}"
+        if conversation_id:
+            add_message_to_conversation(
+                conversation_id,
+                formatted_response,
+                "assistant"
+            )
+            print(f"[DEBUG] Resposta do YouTube salva na conversa: {conversation_id}")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_updated', {
+                'conversation_id': conversation_id
+            })
+
+        return jsonify({
+            'text': formatted_response,
+            'title': video_title,
+            'conversation_id': conversation_id
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rename_conversation/<conversation_id>', methods=['POST'])
+def handle_rename_conversation(conversation_id):
+    try:
+        print(f"[BACKEND] Recebendo solicitaÃ§Ã£o para renomear conversa: {conversation_id}")      
+
+        # ForÃ§ar decodificaÃ§Ã£o do corpo JSON
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            data = {}
+            print("[BACKEND] Request body vazio ou invÃ¡lido")
+
+        new_title = data.get('title', '').strip()
+        print(f"[BACKEND] Novo tÃ­tulo: '{new_title}'")
+
+        if not new_title:
+            print("[BACKEND] TÃ­tulo invÃ¡lido")
+            return jsonify({'error': 'TÃ­tulo invÃ¡lido'}), 400
+
+        success = rename_conversation(conversation_id, new_title)
+        if success:
+            print(f"[BACKEND] Conversa renomeada com sucesso para: {new_title}")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_renamed', {
+                'conversation_id': conversation_id,
+                'new_title': new_title
+            })
+
+            return jsonify({'success': True, 'new_title': new_title, 'conversation_id': conversation_id})
+        else:
+            print("[BACKEND] Falha ao renomear conversa")
+            return jsonify({'error': 'Falha ao renomear conversa'}), 500
+    except Exception as e:
+        print(f"[BACKEND] Erro ao renomear conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_conversation/<conversation_id>', methods=['DELETE'])
+def handle_delete_conversation(conversation_id):
+    try:
+        print(f"[BACKEND] Recebendo solicitaÃ§Ã£o para excluir conversa: {conversation_id}")       
+
+        success = delete_conversation(conversation_id)
+        if success:
+            print(f"[BACKEND] Conversa {conversation_id} excluÃ­da com sucesso")
+
+            # Notificar via WebSocket
+            socketio.emit('conversation_deleted', {
+                'conversation_id': conversation_id
+            })
+
+            return jsonify({'success': True, 'conversation_id': conversation_id})
+        else:
+            print(f"[BACKEND] Falha ao excluir conversa {conversation_id}")
+            return jsonify({'error': 'Falha ao excluir conversa'}), 500
+    except Exception as e:
+        print(f"[BACKEND] Erro ao excluir conversa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ---- WebSocket event handlers ----
+
+@socketio.on('connect')
+def handle_connect():
+    print(f"[SOCKET] Cliente conectado: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"[SOCKET] Cliente desconectado: {request.sid}")
+
+@socketio.on('join_conversation')
+def handle_join_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        join_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} entrou na sala: {conversation_id}")
+
+@socketio.on('leave_conversation')
+def handle_leave_conversation(data):
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        leave_room(conversation_id)
+        print(f"[SOCKET] Cliente {request.sid} saiu da sala: {conversation_id}")
+
+def process_with_ai(text, conversation_id=None):
+    try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Processando com IA: {text[:50]}...")
+
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": "VocÃª Ã© um assistente Ãºtil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de cÃ³digo, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de cÃ³digo."},
+                {"role": "user", "content": text}
+            ],
+            "stream": False
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+
+        response_data = response.json()
+        if 'choices' in response_data and len(response_data['choices']) > 0:
+            return response_data['choices'][0]['message']['content']
+        return "Erro: Nenhuma resposta vÃ¡lida recebida da IA."
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisiÃ§Ã£o HTTP: {str(e)}")
+        return "Ocorreu um erro ao se conectar com a IA."
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+        return "Ocorreu um erro inesperado ao processar sua mensagem."
+
+def process_with_ai_stream(text, conversation_id=None):
+    try:
+        # Incluir o ID da conversa no contexto para rastreamento
+        context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
+        print(f"{context_header}Iniciando streaming para: {text[:50]}...")
+
+        # ConfiguraÃ§Ã£o da requisiÃ§Ã£o para a API de IA
+        messages = [
+            {"role": "system", "content": "VocÃª Ã© um assistente Ãºtil. Formate suas respostas em Markdown."},
+            {"role": "user", "content": text}
+        ]
+
+        payload = {
+            "model": MODEL_NAME,
+            "messages": messages,
+            "stream": True
+        }
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(API_URL, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+
+        accumulated_response = ""
+        for line in response.iter_lines(decode_unicode=True):
+            if line.strip() and line.startswith("data: "):
+                line = line[6:].strip()
+                try:
+                    response_data = json.loads(line)
+                    if 'choices' in response_data and len(response_data['choices']) > 0:
+                        delta = response_data['choices'][0]['delta']
+                        if "content" in delta:
+                            content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            accumulated_response += content
+                            print(f"{context_header}Chunk: {len(content)} caracteres")
+                            # Emitir chunk via SocketIO
+                            socketio.emit('message_chunk', {
+                                'content': content,
+                                'conversation_id': conversation_id
+                            }, room=conversation_id)
+                            yield content
+                except json.JSONDecodeError:
+                    print(f"[Debug] Erro ao decodificar JSON: {line}")
+
+        # ApÃ³s o loop, emitir evento de conclusÃ£o com a resposta completa
+        socketio.emit('response_complete', {
+            'conversation_id': conversation_id,
+            'complete_response': accumulated_response
+        }, room=conversation_id)
+        print(f"{context_header}Streaming concluÃ­do.")
+    except requests.exceptions.RequestException as e:
+        print(f"[Debug] Erro na requisiÃ§Ã£o HTTP: {str(e)}")
+    except Exception as e:
+        print(f"[Debug] Erro inesperado: {str(e)}")
+
+if __name__ == '__main__':
+    print("Iniciando servidor com Eventlet em modo de desenvolvimento...")
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+PS C:\Users\Usuario\Desktop\persistencia-memoria-html>
+
+
+
+
+
+
+
+
+Pensamento para
+38s
+Expandir para detalhes
+Entendo que o problema persiste, mesmo após as tentativas anteriores de correção. Vou explicar o que está acontecendo e fornecer uma solução definitiva para evitar as mensagens duplicadas que aparecem no chat.
+
+Descrição do Problema
+Ao enviar a mensagem "escreva uma msg bonita", o comportamento observado é o seguinte:
+
+Antes de alternar entre chats:
+A mensagem do usuário aparece corretamente com um data-message-id.
+Duas mensagens duplicadas da IA aparecem sem data-message-id, com texto bruto e repetido (ex.: "nunca nunca des desistaista...").
+Uma mensagem final da IA aparece com data-message-id, formatada corretamente em Markdown.
+Após alternar entre chats e voltar:
+Apenas as mensagens com data-message-id (usuário e IA final) são exibidas, o que é o comportamento esperado.
+Isso indica que os chunks de streaming estão sendo renderizados como mensagens completas no DOM durante a geração da resposta, em vez de serem apenas acumulados e exibidos como uma única mensagem final.
+
+Causa Raiz
+O problema ocorre devido a uma renderização prematura dos chunks no frontend:
+
+Listener message_chunk:
+O código em chatActions.js adiciona corretamente um placeholder "Gerando resposta..." com a classe streaming-message.
+No entanto, os chunks recebidos via WebSocket estão sendo renderizados como mensagens completas (<div class="message assistant">) em outro lugar no código, fora do controle do listener principal.
+Falta de Sincronização:
+Os chunks não deveriam ser renderizados diretamente no DOM. Eles devem ser acumulados (usando accumulateChunk) e exibidos apenas quando a resposta estiver completa (via response_complete).
+Solução Definitiva
+Para corrigir o problema, precisamos garantir que:
+
+Os chunks sejam apenas acumulados, sem renderização imediata.
+O placeholder "Gerando resposta..." seja a única coisa visível durante o streaming.
+A mensagem final substitua o placeholder ao concluir.
+Aqui está o plano de ação:
+
+1. Revisar e Corrigir o Listener message_chunk
+O listener atual está correto ao adicionar o placeholder, mas não deve renderizar os chunks. Vamos garantir isso:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+socket.on('message_chunk', (data) => {
+    console.log('[DEBUG] Recebido chunk:', data);
+    const { content, conversation_id } = data;
+    if (!content || !conversation_id || window.conversaAtual?.id !== conversation_id) return;
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Adiciona o placeholder apenas uma vez
+    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (!streamingMessage) {
+        streamingMessage = document.createElement('div');
+        streamingMessage.className = 'message assistant streaming-message';
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+        chatContainer.appendChild(streamingMessage);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Apenas acumula o chunk, sem renderizar
+    accumulateChunk(content, conversation_id);
+});
+2. Verificar a Função accumulateChunk
+Certifique-se de que accumulateChunk (em messageRenderer.js) apenas armazena os chunks, sem renderizá-los. Um exemplo correto seria:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+export function accumulateChunk(chunk, conversationId) {
+    if (!window.conversations[conversationId]) {
+        window.conversations[conversationId] = { currentResponse: '' };
+    }
+    window.conversations[conversationId].currentResponse += chunk;
+}
+Se houver lógica de renderização aqui, remova-a.
+
+3. Ajustar o Listener response_complete
+O listener atual já remove o placeholder e adiciona a mensagem final. Vamos confirmar que ele está funcionando como esperado:
+
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+socket.on('response_complete', (data) => {
+    console.log('[DEBUG] Resposta completa recebida:', data);
+    const { conversation_id } = data;
+    if (!conversation_id || window.conversaAtual?.id !== conversation_id) return;
+
+    streamingStates.delete(conversation_id);
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+
+    // Remove o placeholder
+    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
+    if (streamingMessage) streamingMessage.remove();
+
+    // Renderiza a resposta final
+    const renderedHtml = renderCompleteResponse(conversation_id);
+    if (!renderedHtml) {
+        console.error('[ERRO] Resposta vazia');
+        return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message assistant';
+    messageDiv.dataset.messageId = `${Date.now()}_assistant`;
+    messageDiv.dataset.conversationId = conversation_id;
+    messageDiv.innerHTML = `
+        <div class="message-content">${renderedHtml}</div>
+        <div class="message-actions">
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                <i class="fas fa-copy"></i>
+            </button>
+            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+    `;
+
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+});
+4. Identificar e Remover Renderização Adicional
+As mensagens duplicadas sugerem que há outra lógica no frontend renderizando os chunks. Para encontrar o culpado:
+
+Adicione logs detalhados no listener message_chunk:
+javascript
+
+Recolher
+
+Encapsular
+
+Copiar
+socket.on('message_chunk', (data) => {
+    console.log('[DEBUG] Recebido chunk:', data);
+    accumulateChunk(data.content, data.conversation_id);
+    console.log('[DEBUG] Após accumulateChunk, verificando DOM...');
+    const assistants = document.querySelectorAll('.message.assistant:not(.streaming-message)');
+    assistants.forEach((msg, idx) => {
+        console.log(`[DEBUG] Mensagem ${idx}:`, msg.outerHTML);
+    });
+});
+Inspecione o DOM: Use as ferramentas de desenvolvedor do navegador para ver quando as mensagens duplicadas aparecem e rastreie a pilha de chamadas.
+Revise outros arquivos: Verifique se há outros listeners WebSocket ou funções em chatActions.js, messageRenderer.js, ou outros arquivos que possam estar renderizando os chunks.
+5. Testar a Solução
+Atualize chatActions.js com as mudanças acima.
+Reinicie o servidor (app.py) e o frontend.
+Envie "escreva uma msg bonita" e observe:
+O console para verificar os logs.
+O DOM para garantir que apenas o placeholder aparece durante o streaming.
+O resultado final após response_complete.
+Resultado Esperado
+Com essas alterações:
+
+Durante o streaming, apenas "Gerando resposta..." será exibido.
+Os chunks não aparecerão como mensagens separadas.
+Ao concluir, o placeholder será substituído pela mensagem final formatada.
+Ao alternar chats, apenas as mensagens persistentes (com data-message-id) permanecerão.
+Se o problema persistir após essas mudanças, por favor, compartilhe os logs do console e o estado do DOM para que possamos investigar mais a fundo!
+
+
+
+
+
+
+Como o Grok pode ajudar?
+
+
+DeepSearch
+
+
+Think
+
+Grok 3
+
