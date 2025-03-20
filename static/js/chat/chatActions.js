@@ -34,31 +34,20 @@ socket.on('message_chunk', (data) => {
         return;
     }
     
-    const chatContainer = document.querySelector('.chat-container');
-    if (!chatContainer) return;
-
-    // Verifica se já existe um placeholder de streaming
-    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
-    if (!streamingMessage) {
-        streamingMessage = document.createElement('div');
-        streamingMessage.className = 'message assistant streaming-message';
-        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-        chatContainer.appendChild(streamingMessage);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-    
-    console.log('[DEBUG] Processando chunk para conversa:', conversation_id);
-    // Marca conversa como em streaming
+    // Marca conversa como em streaming e acumula o chunk
     streamingStates.set(conversation_id, true);
-    
-    // Apenas acumula o chunk, sem renderizar
     accumulateChunk(content, conversation_id);
-    console.log('[DEBUG] Chunk acumulado com sucesso');
+    console.log('[DEBUG] Chunk acumulado com sucesso. Estado de streaming:', streamingStates.has(conversation_id));
 });
 
 // Listener para resposta completa
 socket.on('response_complete', (data) => {
-    console.log('[DEBUG] Resposta completa recebida:', data);
+    console.log('[DEBUG] Evento response_complete recebido:', {
+        data,
+        conversaAtual: window.conversaAtual?.id,
+        streamingStates: Array.from(streamingStates.entries())
+    });
+
     const { conversation_id } = data;
     if (!conversation_id) {
         console.warn('[DEBUG] ID da conversa não fornecido na resposta completa');
@@ -77,17 +66,37 @@ socket.on('response_complete', (data) => {
     }
 
     // Remove estado de streaming
-    streamingStates.delete(conversation_id);
+    const wasStreaming = streamingStates.delete(conversation_id);
+    console.log('[DEBUG] Estado de streaming removido:', {
+        conversationId: conversation_id,
+        wasStreaming,
+        remainingStates: Array.from(streamingStates.entries())
+    });
 
-    // Encontra o container do chat
     const chatContainer = document.querySelector('.chat-container');
-    if (!chatContainer) return;
+    if (!chatContainer) {
+        console.warn('[DEBUG] Container do chat não encontrado');
+        return;
+    }
 
-    // Remove qualquer placeholder de streaming ou carregamento
-    const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
-    const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
-    if (loadingMessage) loadingMessage.remove();
-    if (streamingMessage) streamingMessage.remove();
+    // Remove todos os placeholders de carregamento
+    const placeholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+    console.log('[DEBUG] Buscando placeholders para remover:', {
+        total: placeholders.length,
+        seletores: '.message.assistant:not([data-message-id]), .message.assistant.streaming-message'
+    });
+
+    placeholders.forEach(placeholder => {
+        const placeholderId = placeholder.dataset.conversationId;
+        const classes = placeholder.className.split(' ');
+        console.log('[DEBUG] Removendo placeholder:', {
+            id: placeholderId,
+            classes,
+            content: placeholder.textContent,
+            html: placeholder.innerHTML
+        });
+        placeholder.remove();
+    });
 
     try {
         // Renderiza resposta completa
@@ -96,11 +105,13 @@ socket.on('response_complete', (data) => {
             throw new Error('Resposta vazia ou inválida');
         }
 
-        // Cria elemento da mensagem
+        // Cria elemento da mensagem final com animação suave
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message assistant';
         messageDiv.dataset.messageId = `${Date.now()}_assistant`;
         messageDiv.dataset.conversationId = conversation_id;
+        messageDiv.style.opacity = '0';
+        messageDiv.style.transform = 'translateY(10px)';
         messageDiv.innerHTML = `
             <div class="message-content">${renderedHtml}</div>
             <div class="message-actions">
@@ -113,25 +124,57 @@ socket.on('response_complete', (data) => {
             </div>
         `;
 
-        // Adiciona ao chat e rola para baixo
+        // Adiciona ao chat e anima
         chatContainer.appendChild(messageDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        console.log('[DEBUG] Mensagem final adicionada ao chat:', {
+            id: messageDiv.dataset.messageId,
+            conversationId: messageDiv.dataset.conversationId
+        });
 
-        // Melhora blocos de código
+        requestAnimationFrame(() => {
+            messageDiv.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            messageDiv.style.opacity = '1';
+            messageDiv.style.transform = 'translateY(0)';
+        });
+
+        // Rola para o final suavemente
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+
+        // Melhora blocos de código após a animação terminar
         setTimeout(() => {
             melhorarBlocosCodigo(messageDiv);
-        }, 0);
+        }, 300);
 
         // Salva no histórico
         const completeResponse = messageDiv.querySelector('.message-content').textContent;
         adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
         atualizarListaConversas();
+
+        // Verifica se ainda há placeholders após adicionar a resposta
+        const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+        if (remainingPlaceholders.length > 0) {
+            console.warn('[DEBUG] Ainda existem placeholders após adicionar resposta:', {
+                quantidade: remainingPlaceholders.length,
+                elementos: Array.from(remainingPlaceholders).map(p => ({
+                    id: p.dataset.conversationId,
+                    classes: p.className,
+                    content: p.textContent
+                }))
+            });
+        }
     } catch (error) {
         console.error('[ERRO] Falha ao processar resposta:', error);
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';
         chatContainer.appendChild(errorDiv);
+
+        // Garante que os placeholders sejam removidos mesmo em caso de erro
+        const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+        remainingPlaceholders.forEach(p => p.remove());
     }
 });
 
@@ -248,18 +291,21 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     }
 
     const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        console.warn('[DEBUG] ID da conversa não definido ao enviar mensagem');
+        return;
+    }
+
     const userTimestamp = new Date().toISOString();
     const userMessageId = userTimestamp;
     console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
 
     try {
         if (sendBtn) {
-            console.log('[DEBUG] Desabilitando botão de envio');
             sendBtn.disabled = true;
             sendBtn.style.display = 'none';
         }
         if (stopBtn) {
-            console.log('[DEBUG] Mostrando botão de parar');
             stopBtn.style.display = 'flex';
         }
 
@@ -267,7 +313,6 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         input.style.height = 'auto';
 
         // Adicionar mensagem do usuário ao DOM
-        console.log('[DEBUG] Adicionando mensagem do usuário ao DOM');
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user';
         userMessageDiv.dataset.messageId = userMessageId;
@@ -284,10 +329,41 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         chatContainer.appendChild(userMessageDiv);
         forcarRenderizacao(userMessageDiv);
 
+        // Remover qualquer placeholder existente antes de criar um novo
+        console.log('[DEBUG] Removendo placeholders existentes antes de criar novo');
+        const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+        existingPlaceholders.forEach(placeholder => {
+            console.log('[DEBUG] Removendo placeholder antigo:', {
+                id: placeholder.dataset.conversationId,
+                classes: placeholder.className
+            });
+            placeholder.remove();
+        });
+
+        // Criar placeholder "Gerando resposta..." imediatamente
+        const streamingMessage = document.createElement('div');
+        streamingMessage.className = 'message assistant streaming-message';
+        streamingMessage.dataset.conversationId = conversationId;
+        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+        chatContainer.appendChild(streamingMessage);
+        console.log('[DEBUG] Placeholder de carregamento criado para conversa:', conversationId);
+
+        // Marcar conversa como em streaming
+        streamingStates.set(conversationId, true);
+        console.log('[DEBUG] Estado de streaming definido:', {
+            conversationId,
+            isStreaming: streamingStates.has(conversationId)
+        });
+
+        // Rolar para o final suavemente
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+
         adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
 
-        // Enviar mensagem com timestamp para o backend
-        console.log('[DEBUG] Iniciando requisição para o backend');
+        // Enviar mensagem para o backend
         const response = await fetch('/send_message', {
             method: 'POST',
             headers: {
@@ -310,11 +386,17 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
-        errorDiv.style.opacity = '0';
         chatContainer.appendChild(errorDiv);
         forcarRenderizacao(errorDiv);
+
+        // Remover o placeholder e estado de streaming em caso de erro
+        const streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${conversationId}"]`);
+        if (streamingMessage) {
+            console.log('[DEBUG] Removendo placeholder devido a erro');
+            streamingMessage.remove();
+        }
+        streamingStates.delete(conversationId);
     } finally {
-        console.log('[DEBUG] Finalizando processo de envio');
         if (sendBtn) {
             sendBtn.disabled = false;
             sendBtn.style.display = 'flex';
@@ -346,9 +428,13 @@ if (chatContainer) {
 
 // Adicionar listener para atualização de conversa
 socket.on('conversation_updated', (data) => {
-    console.log('[DEBUG] Evento conversation_updated recebido:', data);
-    const { conversation_id } = data;
+    console.log('[DEBUG] Evento conversation_updated recebido:', {
+        data,
+        conversaAtual: window.conversaAtual?.id,
+        streamingStates: Array.from(streamingStates.entries())
+    });
 
+    const { conversation_id } = data;
     if (window.conversaAtual?.id === conversation_id) {
         console.log('[DEBUG] Atualizando conversa atual:', conversation_id);
         const chatContainer = document.querySelector('.chat-container');
@@ -357,17 +443,28 @@ socket.on('conversation_updated', (data) => {
             return;
         }
 
-        const loadingMsg = chatContainer.querySelector('.message.assistant.loading');
-        if (loadingMsg) {
-            loadingMsg.remove();
-        }
+        // Remove mensagens de carregamento antigas
+        const loadingMessages = chatContainer.querySelectorAll('.message.assistant.loading');
+        loadingMessages.forEach(msg => {
+            console.log('[DEBUG] Removendo mensagem de carregamento antiga:', {
+                id: msg.dataset.conversationId,
+                classes: msg.className
+            });
+            msg.remove();
+        });
 
+        // Mapeia mensagens existentes
         const existingMessages = new Map(
             Array.from(chatContainer.querySelectorAll('.message')).map(msg => [
                 msg.dataset.messageId,
                 msg
             ])
         );
+
+        console.log('[DEBUG] Mensagens existentes:', {
+            total: existingMessages.size,
+            ids: Array.from(existingMessages.keys())
+        });
 
         fetch(`/get_conversation/${conversation_id}/0/20`)
             .then(response => response.json())
@@ -377,31 +474,41 @@ socket.on('conversation_updated', (data) => {
                         const messageId = msg.timestamp;
                         let existingMsg = existingMessages.get(messageId);
 
+                        // Se for uma nova mensagem do assistente, remover o placeholder de carregamento
+                        if (msg.role === 'assistant' && !existingMsg) {
+                            console.log('[DEBUG] Nova mensagem do assistente detectada, removendo placeholder');
+                            const streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${conversation_id}"]`);
+                            if (streamingMessage) {
+                                console.log('[DEBUG] Removendo placeholder de carregamento para conversa:', conversation_id);
+                                streamingMessage.remove();
+                                // Remover estado de streaming
+                                streamingStates.delete(conversation_id);
+                            }
+                        }
+
                         if (!existingMsg) {
-                            // Procurar por uma mensagem com conteúdo idêntico (caso o timestamp tenha mudado)
+                            // Procurar por uma mensagem com conteúdo idêntico
                             for (const [id, elem] of existingMessages) {
                                 const content = elem.querySelector('.message-content').innerHTML;
                                 if (content === renderMessage(msg.content) && elem.classList.contains(msg.role)) {
                                     existingMsg = elem;
-                                    console.log('[DEBUG] Encontrada mensagem correspondente por conteúdo, atualizando ID:', { 
-                                        oldId: id, 
+                                    console.log('[DEBUG] Encontrada mensagem correspondente por conteúdo:', {
+                                        oldId: id,
                                         newId: messageId,
-                                        role: msg.role,
-                                        content: content
+                                        role: msg.role
                                     });
-                                    elem.dataset.messageId = messageId; // Atualizar o ID
-                                    existingMessages.delete(id); // Remover o ID antigo
-                                    existingMessages.set(messageId, elem); // Adicionar com o novo ID
+                                    elem.dataset.messageId = messageId;
+                                    existingMessages.delete(id);
+                                    existingMessages.set(messageId, elem);
                                     break;
                                 }
                             }
                         }
 
                         if (existingMsg) {
-                            console.log('[DEBUG] Mensagem já existe, verificando atualização:', {
+                            console.log('[DEBUG] Atualizando mensagem existente:', {
                                 messageId,
-                                role: msg.role,
-                                contentPreview: msg.content.substring(0, 50)
+                                role: msg.role
                             });
                             const currentContent = existingMsg.querySelector('.message-content').innerHTML;
                             const newContent = renderMessage(msg.content);
@@ -411,8 +518,7 @@ socket.on('conversation_updated', (data) => {
                         } else {
                             console.log('[DEBUG] Adicionando nova mensagem:', {
                                 messageId,
-                                role: msg.role,
-                                contentPreview: msg.content.substring(0, 50)
+                                role: msg.role
                             });
                             const messageDiv = document.createElement('div');
                             messageDiv.className = `message ${msg.role}`;
@@ -436,6 +542,25 @@ socket.on('conversation_updated', (data) => {
                         }
                         existingMessages.delete(messageId);
                     });
+
+                    // Verifica se ainda há placeholders após atualizar
+                    const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+                    if (remainingPlaceholders.length > 0) {
+                        console.warn('[DEBUG] Placeholders encontrados após atualização:', {
+                            quantidade: remainingPlaceholders.length,
+                            elementos: Array.from(remainingPlaceholders).map(p => ({
+                                id: p.dataset.conversationId,
+                                classes: p.className,
+                                content: p.textContent
+                            }))
+                        });
+
+                        // Remove placeholders se a conversa não estiver mais em streaming
+                        if (!streamingStates.has(conversation_id)) {
+                            console.log('[DEBUG] Removendo placeholders pois conversa não está mais em streaming');
+                            remainingPlaceholders.forEach(p => p.remove());
+                        }
+                    }
                 }
 
                 requestAnimationFrame(() => {
@@ -469,4 +594,73 @@ export function interromperResposta() {
     if (sendBtn && stopBtn) {
         atualizarBotoes(sendBtn, stopBtn);
     }
+}
+
+export function carregarConversa(conversationId) {
+    console.log('[DEBUG] Carregando conversa:', conversationId);
+    window.conversaAtual = { id: conversationId };
+    
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) {
+        console.warn('[DEBUG] Container do chat não encontrado ao carregar conversa');
+        return;
+    }
+
+    // Limpa o container
+    chatContainer.innerHTML = '';
+
+    // Carrega mensagens existentes
+    fetch(`/get_conversation/${conversationId}/0/20`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.messages) {
+                data.messages.forEach(msg => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${msg.role}`;
+                    messageDiv.dataset.messageId = msg.timestamp;
+                    messageDiv.dataset.conversationId = conversationId;
+                    messageDiv.innerHTML = `
+                        <div class="message-content">${renderMessage(msg.content)}</div>
+                        <div class="message-actions">
+                            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            ${msg.role === 'assistant' ? `
+                                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    `;
+                    chatContainer.appendChild(messageDiv);
+                });
+            }
+
+            // Verifica se a conversa está em streaming
+            const isStreaming = streamingStates.has(conversationId);
+            console.log('[DEBUG] Verificando estado de streaming:', {
+                conversationId,
+                isStreaming,
+                allStates: Array.from(streamingStates.entries())
+            });
+
+            if (isStreaming) {
+                console.log('[DEBUG] Conversa em streaming detectada, recriando placeholder');
+                const streamingMessage = document.createElement('div');
+                streamingMessage.className = 'message assistant streaming-message';
+                streamingMessage.dataset.conversationId = conversationId;
+                streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+                chatContainer.appendChild(streamingMessage);
+                
+                // Rolar para o final suavemente
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('[ERRO] Falha ao carregar conversa:', error);
+            chatContainer.innerHTML = '<div class="error-message">Erro ao carregar a conversa. Por favor, tente novamente.</div>';
+        });
 }

@@ -82,9 +82,36 @@ function setupEventListeners() {
             return;
         }
         
-        // Se for a conversa atual e estiver visível, atualizar a UI
+        // Se for a conversa atual e estiver visível, atualizar o buffer
         if (document.visibilityState === 'visible') {
-            atualizarMensagemEmStream(data.content);
+            const conversation = window.conversations[data.conversation_id];
+            if (!conversation) return;
+            
+            if (!conversation.currentResponse) conversation.currentResponse = '';
+            conversation.currentResponse += data.content;
+            
+            // Garantir que o placeholder existe
+            const chatContainer = document.querySelector('.chat-container');
+            if (!chatContainer) return;
+            
+            let streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${data.conversation_id}"]`);
+            if (!streamingMessage) {
+                console.log('[DEBUG] Recriando placeholder para conversa em streaming:', data.conversation_id);
+                streamingMessage = document.createElement('div');
+                streamingMessage.className = 'message assistant streaming-message';
+                streamingMessage.dataset.conversationId = data.conversation_id;
+                streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
+                chatContainer.appendChild(streamingMessage);
+            }
+            
+            // Rolar para o final se o usuário estiver próximo
+            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 100;
+            if (isNearBottom) {
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
         }
     });
     
@@ -98,12 +125,6 @@ function setupEventListeners() {
             // Se a aba estiver inativa, recarregar a conversa quando se tornar ativa
             if (document.visibilityState !== 'visible') {
                 marcarParaRecarregar(data.conversation_id);
-            } else {
-                // Finalizar o streaming removendo a classe streaming-message
-                const streamingMessage = document.querySelector('.streaming-message');
-                if (streamingMessage) {
-                    streamingMessage.classList.remove('streaming-message');
-                }
             }
         }
     });
@@ -180,37 +201,10 @@ function atualizarBufferDaConversa(conversationId, fragmento) {
             pendingUpdates: true
         };
     } else {
+        window.conversations[conversationId].streaming = true;
         window.conversations[conversationId].currentResponse += fragmento;
         window.conversations[conversationId].pendingUpdates = true;
     }
-}
-
-/**
- * Atualiza a mensagem que está sendo exibida em stream na conversa atual
- * Versão melhorada para garantir que o streaming seja exibido em tempo real
- */
-function atualizarMensagemEmStream(fragmento) {
-    const chatContainer = document.querySelector('.chat-container');
-    if (!chatContainer) return;
-    
-    // Encontrar a mensagem em streaming atual ou criar uma nova
-    let streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
-    
-    // Se não existir, criar uma nova mensagem para streaming
-    if (!streamingMessage) {
-        streamingMessage = document.createElement('div');
-        streamingMessage.className = 'message assistant streaming-message';
-        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-        chatContainer.appendChild(streamingMessage);
-    }
-    
-    // Apenas acumular o fragmento, sem renderizar
-    const conversation = window.conversations[window.conversaAtual.id];
-    if (!conversation.currentResponse) conversation.currentResponse = '';
-    conversation.currentResponse += fragmento;
-    
-    // Rolar para o final
-    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 /**
