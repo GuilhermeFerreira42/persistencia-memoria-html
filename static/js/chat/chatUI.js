@@ -1,6 +1,37 @@
 import { escapeHTML } from './chatUtils.js';
-import { renderMessage } from '../messageRenderer.js';
+import { renderMessage, renderStreamingMessage } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
+
+// Sistema de logging
+const logger = {
+    debug: (message, data = {}) => {
+        console.log(`[DEBUG] ${message}`, data);
+        // Enviar log para o backend
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'debug',
+                message,
+                data,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    },
+    error: (message, error = null) => {
+        console.error(`[ERRO] ${message}`, error);
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'error',
+                message,
+                error: error ? error.toString() : null,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    }
+};
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     welcomeScreen.style.display = 'none';
@@ -200,6 +231,123 @@ export function mostrarCarregamento(chatContainer) {
     return loadingDiv;
 }
 
+export function adicionarMensagemStreaming(chatContainer, messageId, conversationId) {
+    logger.debug('Iniciando mensagem de streaming', { messageId, conversationId });
+
+    if (!chatContainer) {
+        logger.error('Container de chat não encontrado');
+        return null;
+    }
+
+    // Verificar se já existe uma mensagem de streaming para esta conversa
+    const existingStreaming = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversationId}"]`);
+    if (existingStreaming) {
+        logger.debug('Mensagem de streaming já existe, reutilizando', {
+            existingId: existingStreaming.dataset.messageId,
+            newId: messageId
+        });
+        return existingStreaming;
+    }
+
+    const mensagemDiv = document.createElement('div');
+    mensagemDiv.className = 'message assistant streaming-message fade-in';
+    mensagemDiv.dataset.messageId = messageId;
+    mensagemDiv.dataset.conversationId = conversationId;
+    mensagemDiv.dataset.streamingStartTime = Date.now();
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.dataset.rawContent = '';
+    messageContent.dataset.lastUpdateTime = Date.now();
+    
+    const messageActions = document.createElement('div');
+    messageActions.className = 'message-actions';
+    messageActions.innerHTML = `
+        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+            <i class="fas fa-copy"></i>
+        </button>
+        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+            <i class="fas fa-redo"></i>
+        </button>
+    `;
+
+    mensagemDiv.appendChild(messageContent);
+    mensagemDiv.appendChild(messageActions);
+
+    chatContainer.appendChild(mensagemDiv);
+    
+    // Forçar reflow e aplicar transição
+    void mensagemDiv.offsetHeight;
+    mensagemDiv.classList.add('visible');
+
+    logger.debug('Mensagem de streaming criada com sucesso', {
+        messageId,
+        conversationId,
+        timestamp: Date.now()
+    });
+
+    return mensagemDiv;
+}
+
+export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = true) {
+    logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk.length });
+
+    const mensagemDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+    if (!mensagemDiv) {
+        logger.error('Mensagem não encontrada para atualizar', { messageId });
+        return;
+    }
+
+    const messageContent = mensagemDiv.querySelector('.message-content');
+    if (!messageContent) {
+        logger.error('Conteúdo da mensagem não encontrado', { messageId });
+        return;
+    }
+
+    // Verificar se o chunk é válido
+    if (!chunk || typeof chunk !== 'string') {
+        logger.error('Chunk inválido recebido', { messageId, chunk });
+        return;
+    }
+
+    // Atualizar conteúdo bruto
+    const currentContent = messageContent.dataset.rawContent || '';
+    const newContent = currentContent + chunk;
+    messageContent.dataset.rawContent = newContent;
+    messageContent.dataset.lastUpdateTime = Date.now();
+
+    // Calcular tempo desde a última atualização
+    const lastUpdate = parseInt(messageContent.dataset.lastUpdateTime);
+    const timeSinceLastUpdate = Date.now() - lastUpdate;
+    logger.debug('Tempo desde última atualização', {
+        messageId,
+        timeSinceLastUpdate,
+        chunkSize: chunk.length
+    });
+
+    // Renderizar markdown se necessário
+    try {
+        if (renderMarkdown) {
+            messageContent.innerHTML = renderStreamingMessage(newContent);
+        } else {
+            messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
+        }
+
+        // Forçar reflow e aplicar fade-in
+        void messageContent.offsetHeight;
+        messageContent.classList.add('visible');
+
+        logger.debug('Conteúdo atualizado com sucesso', {
+            messageId,
+            contentLength: newContent.length,
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        logger.error('Erro ao renderizar conteúdo', { messageId, error });
+        messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
+    }
+}
+
 // Adicionar CSS para os novos elementos
 const style = document.createElement('style');
 style.textContent = `
@@ -222,6 +370,56 @@ style.textContent = `
     text-align: center;
     color: var(--text-secondary);
     font-style: italic;
+}
+
+/* Estilos para streaming e fade-in */
+.streaming-message {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.streaming-message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.streaming-message .message-content {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.streaming-message .message-content.visible {
+    opacity: 1;
+}
+
+/* Animação de digitação */
+.typing-animation {
+    display: inline-block;
+    animation: typing 1s infinite;
+}
+
+@keyframes typing {
+    0% { opacity: 0.2; }
+    20% { opacity: 1; }
+    100% { opacity: 0.2; }
+}
+
+/* Indicador de streaming */
+.streaming-message::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1em;
+    background-color: var(--text-secondary);
+    margin-left: 4px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
 }
 `;
 document.head.appendChild(style);

@@ -31,7 +31,17 @@ export function renderMessage(text) {
             tables: true,
             headerIds: false,
             mangle: false,
-            sanitize: false
+            sanitize: false,
+            highlight: (code, lang) => {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (e) {
+                        console.warn('[DEBUG] Erro ao destacar código:', e);
+                    }
+                }
+                return code;
+            }
         });
 
         console.log('[DEBUG] Renderizando markdown com marked.js');
@@ -197,44 +207,131 @@ export function getAccumulatedState(conversationId) {
     };
 }
 
-// Exportar função otimizada para streaming
+// Sistema de logging
+const logger = {
+    debug: (message, data = {}) => {
+        console.log(`[DEBUG] ${message}`, data);
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'debug',
+                message,
+                data,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    },
+    error: (message, error = null) => {
+        console.error(`[ERRO] ${message}`, error);
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'error',
+                message,
+                error: error ? error.toString() : null,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    }
+};
+
+// Cache para chunks de código
+const codeChunkCache = new Map();
+
+/**
+ * Processa um chunk de código e retorna o HTML formatado
+ * @param {string} chunk - Chunk de texto que pode conter código
+ * @returns {string} HTML formatado
+ */
+function processCodeChunk(chunk) {
+    if (!chunk) return '';
+    
+    // Verificar se o chunk contém código
+    const codeMatch = chunk.match(/```(\w+)?\n([\s\S]*?)```/);
+    if (!codeMatch) return chunk;
+    
+    const [, lang, code] = codeMatch;
+    const cacheKey = `${lang || 'plaintext'}_${code}`;
+    
+    // Verificar cache
+    if (codeChunkCache.has(cacheKey)) {
+        return codeChunkCache.get(cacheKey);
+    }
+    
+    try {
+        let highlighted;
+        if (lang && hljs.getLanguage(lang)) {
+            highlighted = hljs.highlight(code, { language: lang }).value;
+        } else {
+            highlighted = hljs.highlight(code).value;
+        }
+        
+        const html = `<pre><code class="language-${lang || 'plaintext'}">${highlighted}</code></pre>`;
+        
+        // Armazenar no cache
+        codeChunkCache.set(cacheKey, html);
+        
+        return html;
+    } catch (e) {
+        logger.error('Erro ao processar chunk de código', e);
+        return `<pre><code>${code}</code></pre>`;
+    }
+}
+
+/**
+ * Renderiza um chunk de mensagem em streaming
+ * @param {string} chunk - Chunk de texto para renderizar
+ * @returns {string} HTML formatado
+ */
 export function renderStreamingMessage(chunk) {
     if (!chunk) {
-        console.warn('[DEBUG] Chunk vazio recebido para streaming');
+        logger.error('Chunk vazio recebido para streaming');
         return '';
     }
     
-    console.log('[DEBUG] Renderizando chunk em streaming:', {
+    logger.debug('Renderizando chunk em streaming', {
         tamanho: chunk.length,
         preview: chunk.substring(0, 50) + '...'
     });
     
     try {
-        // Configuração simplificada para streaming
+        // Processar blocos de código primeiro
+        const processedChunk = chunk.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+            return processCodeChunk(match);
+        });
+        
+        // Configuração otimizada para streaming
         marked.setOptions({
             gfm: true,
             breaks: true,
-            highlight: null,
-            headerIds: false
+            headerIds: false,
+            mangle: false,
+            sanitize: false
         });
         
-        console.log('[DEBUG] Processando markdown para streaming');
-        const htmlContent = marked.parse(chunk);
+        logger.debug('Processando markdown para streaming');
+        const htmlContent = marked.parse(processedChunk);
         
-        console.log('[DEBUG] Sanitizando HTML do streaming');
+        logger.debug('Sanitizando HTML do streaming');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: ['p', 'code', 'pre', 'br', 'span'],
-            ALLOWED_ATTR: ['class']
+            ALLOWED_TAGS: [
+                'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'br',
+                'table', 'thead', 'tbody', 'tr', 'th', 'td'
+            ],
+            ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
         });
 
-        console.log('[DEBUG] HTML do streaming gerado:', {
+        logger.debug('HTML do streaming gerado', {
             tamanho: sanitizedHtml.length,
             preview: sanitizedHtml.substring(0, 50) + '...'
         });
 
         return sanitizedHtml;
     } catch (error) {
-        console.error('[ERRO] Falha ao renderizar chunk em streaming:', error);
+        logger.error('Falha ao renderizar chunk em streaming', error);
         return `<p>${chunk.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }

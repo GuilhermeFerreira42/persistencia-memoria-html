@@ -1,8 +1,38 @@
-import { mostrarCarregamento } from './chatUI.js';
+import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
 import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
+
+// Sistema de logging
+const logger = {
+    debug: (message, data = {}) => {
+        console.log(`[DEBUG] ${message}`, data);
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'debug',
+                message,
+                data,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    },
+    error: (message, error = null) => {
+        console.error(`[ERRO] ${message}`, error);
+        fetch('/log-frontend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                level: 'error',
+                message,
+                error: error ? error.toString() : null,
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+    }
+};
 
 // Mapa para controlar o estado de streaming por conversa
 const streamingStates = new Map();
@@ -12,37 +42,72 @@ const socket = io();
 
 // Adicionar log de conexão
 socket.on('connect', () => {
-    console.log('[DEBUG] WebSocket conectado com sucesso');
+    logger.debug('WebSocket conectado com sucesso');
 });
 
 socket.on('connect_error', (error) => {
-    console.error('[ERRO] Falha na conexão WebSocket:', error);
+    logger.error('Falha na conexão WebSocket', error);
 });
 
 // Listener para chunks da mensagem
 socket.on('message_chunk', (data) => {
-    console.log('[DEBUG] Recebido chunk:', { data });
+    logger.debug('Recebido chunk', { 
+        conversationId: data.conversation_id,
+        chunkSize: data.content?.length,
+        timestamp: Date.now()
+    });
+
     const { content, conversation_id } = data;
     if (!content || !conversation_id) {
-        console.warn('[DEBUG] Chunk inválido recebido:', data);
+        logger.error('Chunk inválido recebido', { data });
         return;
     }
     
     // Verificar se é a conversa atual
     if (window.conversaAtual?.id !== conversation_id) {
-        console.log('[DEBUG] Ignorando chunk de outra conversa');
+        logger.debug('Ignorando chunk de outra conversa', {
+            atual: window.conversaAtual?.id,
+            recebido: conversation_id
+        });
         return;
     }
     
     // Marca conversa como em streaming e acumula o chunk
     streamingStates.set(conversation_id, true);
     accumulateChunk(content, conversation_id);
-    console.log('[DEBUG] Chunk acumulado com sucesso. Estado de streaming:', streamingStates.has(conversation_id));
+    
+    // Atualizar UI com o novo chunk
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) {
+        logger.error('Container de chat não encontrado');
+        return;
+    }
+
+    // Buscar ou criar mensagem de streaming
+    let streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversation_id}"]`);
+    if (!streamingMessage) {
+        const messageId = `streaming_${Date.now()}_${conversation_id}`;
+        logger.debug('Criando nova mensagem de streaming', { messageId, conversation_id });
+        streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversation_id);
+    }
+
+    if (streamingMessage) {
+        logger.debug('Atualizando mensagem de streaming', {
+            messageId: streamingMessage.dataset.messageId,
+            chunkSize: content.length
+        });
+        atualizarMensagemStreaming(streamingMessage.dataset.messageId, content);
+    } else {
+        logger.error('Falha ao criar/atualizar mensagem de streaming', {
+            conversationId,
+            messageId: streamingMessage?.dataset.messageId
+        });
+    }
 });
 
 // Listener para resposta completa
 socket.on('response_complete', (data) => {
-    console.log('[DEBUG] Evento response_complete recebido:', {
+    logger.debug('Evento response_complete recebido', {
         data,
         conversaAtual: window.conversaAtual?.id,
         streamingStates: Array.from(streamingStates.entries())
@@ -50,13 +115,13 @@ socket.on('response_complete', (data) => {
 
     const { conversation_id } = data;
     if (!conversation_id) {
-        console.warn('[DEBUG] ID da conversa não fornecido na resposta completa');
+        logger.error('ID da conversa não fornecido na resposta completa');
         return;
     }
 
     // Verifica se é a conversa atual
     if (window.conversaAtual?.id !== conversation_id) {
-        console.log('[DEBUG] Ignorando resposta de outra conversa:', {
+        logger.debug('Ignorando resposta de outra conversa', {
             atual: window.conversaAtual?.id,
             recebido: conversation_id
         });
@@ -67,7 +132,7 @@ socket.on('response_complete', (data) => {
 
     // Remove estado de streaming
     const wasStreaming = streamingStates.delete(conversation_id);
-    console.log('[DEBUG] Estado de streaming removido:', {
+    logger.debug('Estado de streaming removido', {
         conversationId: conversation_id,
         wasStreaming,
         remainingStates: Array.from(streamingStates.entries())
@@ -75,34 +140,25 @@ socket.on('response_complete', (data) => {
 
     const chatContainer = document.querySelector('.chat-container');
     if (!chatContainer) {
-        console.warn('[DEBUG] Container do chat não encontrado');
+        logger.error('Container do chat não encontrado');
         return;
     }
-
-    // Remove todos os placeholders de carregamento
-    const placeholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
-    console.log('[DEBUG] Buscando placeholders para remover:', {
-        total: placeholders.length,
-        seletores: '.message.assistant:not([data-message-id]), .message.assistant.streaming-message'
-    });
-
-    placeholders.forEach(placeholder => {
-        const placeholderId = placeholder.dataset.conversationId;
-        const classes = placeholder.className.split(' ');
-        console.log('[DEBUG] Removendo placeholder:', {
-            id: placeholderId,
-            classes,
-            content: placeholder.textContent,
-            html: placeholder.innerHTML
-        });
-        placeholder.remove();
-    });
 
     try {
         // Renderiza resposta completa
         const renderedHtml = renderCompleteResponse(conversation_id);
         if (!renderedHtml) {
             throw new Error('Resposta vazia ou inválida');
+        }
+
+        // Remover mensagem de streaming se existir
+        const streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversation_id}"]`);
+        if (streamingMessage) {
+            logger.debug('Removendo mensagem de streaming', {
+                messageId: streamingMessage.dataset.messageId,
+                conversationId
+            });
+            streamingMessage.remove();
         }
 
         // Cria elemento da mensagem final com animação suave
@@ -126,7 +182,7 @@ socket.on('response_complete', (data) => {
 
         // Adiciona ao chat e anima
         chatContainer.appendChild(messageDiv);
-        console.log('[DEBUG] Mensagem final adicionada ao chat:', {
+        logger.debug('Mensagem final adicionada ao chat', {
             id: messageDiv.dataset.messageId,
             conversationId: messageDiv.dataset.conversationId
         });
@@ -153,28 +209,12 @@ socket.on('response_complete', (data) => {
         adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
         atualizarListaConversas();
 
-        // Verifica se ainda há placeholders após adicionar a resposta
-        const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
-        if (remainingPlaceholders.length > 0) {
-            console.warn('[DEBUG] Ainda existem placeholders após adicionar resposta:', {
-                quantidade: remainingPlaceholders.length,
-                elementos: Array.from(remainingPlaceholders).map(p => ({
-                    id: p.dataset.conversationId,
-                    classes: p.className,
-                    content: p.textContent
-                }))
-            });
-        }
     } catch (error) {
-        console.error('[ERRO] Falha ao processar resposta:', error);
+        logger.error('Falha ao processar resposta', error);
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a resposta</div>';
         chatContainer.appendChild(errorDiv);
-
-        // Garante que os placeholders sejam removidos mesmo em caso de erro
-        const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
-        remainingPlaceholders.forEach(p => p.remove());
     }
 });
 
