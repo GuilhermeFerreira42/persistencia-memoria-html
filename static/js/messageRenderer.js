@@ -288,48 +288,46 @@ function processCodeChunk(chunk) {
     }
 }
 
+// Configuração do marked para streaming
+const markedConfig = {
+    breaks: true,
+    gfm: true,
+    tables: true,
+    headerIds: false,
+    mangle: false,
+    sanitize: false,
+    highlight: (code, lang) => {
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return hljs.highlight(code, { language: lang }).value;
+            } catch (e) {
+                logger.debug('Erro ao destacar código:', e);
+            }
+        }
+        return code;
+    }
+};
+
 /**
  * Renderiza um chunk de mensagem em streaming
  * @param {string} chunk - Chunk de texto para renderizar
  * @returns {string} HTML formatado
  */
-export function renderStreamingMessage(chunk) {
+export function renderStreamingChunk(chunk) {
     if (!chunk) {
         logger.debug('Chunk vazio recebido para renderização');
         return '';
     }
 
-    logger.debug('Renderizando chunk de streaming', {
-        tamanho: chunk.length,
-        preview: chunk.substring(0, 50) + '...'
-    });
-
     try {
         // Configurar marked para streaming
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            tables: true,
-            headerIds: false,
-            mangle: false,
-            sanitize: false,
-            highlight: (code, lang) => {
-                if (lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, { language: lang }).value;
-                    } catch (e) {
-                        logger.debug('Erro ao destacar código:', e);
-                    }
-                }
-                return code;
-            }
-        });
-
-        // Renderizar o chunk com marked
-        const htmlContent = marked.parse(chunk);
-
-        // Sanitizar o HTML mantendo apenas tags necessárias
-        const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
+        marked.setOptions(markedConfig);
+        
+        // Renderizar o chunk
+        const html = marked.parse(chunk);
+        
+        // Sanitizar o HTML
+        const sanitizedHtml = DOMPurify.sanitize(html, {
             ALLOWED_TAGS: [
                 'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                 'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'br',
@@ -337,11 +335,18 @@ export function renderStreamingMessage(chunk) {
             ],
             ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
         });
-
+        
         // Adicionar classes para animação
         return `<div class="streaming-content">${sanitizedHtml}</div>`;
     } catch (error) {
-        logger.error('Erro ao renderizar chunk:', error);
-        return `<p>${escapeHTML(chunk)}</p>`;
+        logger.error('Falha ao renderizar chunk:', error);
+        return `<div class="streaming-content">${escapeHtml(chunk)}</div>`;
     }
+}
+
+// Função para escapar HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
