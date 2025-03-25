@@ -316,6 +316,28 @@ def handle_delete_conversation(conversation_id):
         print(f"[BACKEND] Erro ao excluir conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/log-frontend', methods=['POST'])
+def log_frontend():
+    try:
+        data = request.get_json()
+        level = data.get('level', 'info')
+        message = data.get('message', '')
+        error = data.get('error')
+        timestamp = data.get('timestamp', datetime.now().isoformat())
+        
+        # Formatar a mensagem de log
+        log_message = f"[FRONTEND {level.upper()}] {message}"
+        if error:
+            log_message += f"\nErro: {error}"
+        
+        # Imprimir no console do servidor
+        print(log_message)
+        
+        return jsonify({'status': 'success'}), 200
+    except Exception as e:
+        print(f"[ERRO] Falha ao processar log do frontend: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ---- WebSocket event handlers ----
 
 @socketio.on('connect')

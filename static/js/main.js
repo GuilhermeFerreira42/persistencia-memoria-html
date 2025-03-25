@@ -1,4 +1,3 @@
-
 import './init.js';
 import { 
     iniciarChat,
@@ -7,7 +6,7 @@ import {
     melhorarBlocosCodigo,
     inicializarSync
 } from './chat.js';
-import { enviarMensagem, interromperResposta } from './chat/chatActions.js';
+import { enviarMensagem, interromperResposta, entrarNaSala, sairDaSala } from './chat/chatActions.js';
 import { 
     carregarConversa,
     atualizarListaConversas,
@@ -79,6 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 criarNovaConversa();
             }
 
+            // Entrar na sala da conversa
+            entrarNaSala(window.conversaAtual.id);
+
             // Limpar barra de boas-vindas antes de trocar de tela
             welcomeBar?.destroy();
 
@@ -116,6 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 criarNovaConversa();
             }
             
+            // Entrar na sala da conversa
+            entrarNaSala(window.conversaAtual.id);
+            
             // Armazenar o ID da conversa atual para garantir que estamos na mesma conversa após o streaming
             const currentConversationId = window.conversaAtual.id;
             
@@ -137,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar botão de nova conversa
     newChatBtn?.addEventListener('click', () => {
         if (window.conversaAtual) {
+            // Sair da sala da conversa atual
+            sairDaSala(window.conversaAtual.id);
             atualizarListaConversas(); // Atualizar histórico antes de criar nova conversa
         }
         
@@ -173,20 +180,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Eventos para gerenciamento de estado isolado
     window.addEventListener('conversaCarregada', (e) => {
         if (e.detail && e.detail.id) {
-            // Conversa carregada
+            // Entrar na sala da conversa carregada
+            entrarNaSala(e.detail.id);
         }
     });
     
     window.addEventListener('conversaAtualizada', (e) => {
         if (e.detail && e.detail.id) {
-            // Conversa atualizada
+            // Entrar na sala da conversa atualizada
+            entrarNaSala(e.detail.id);
         }
         atualizarListaConversas();
     });
     
     window.addEventListener('mensagemEnviada', (e) => {
         if (window.conversaAtual) {
-            // Mensagem enviada 
+            // Entrar na sala da conversa atual
+            entrarNaSala(window.conversaAtual.id);
         }
     });
     

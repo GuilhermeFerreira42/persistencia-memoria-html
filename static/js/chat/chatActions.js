@@ -37,6 +37,9 @@ const logger = {
 // Mapa para controlar o estado de streaming por conversa
 const streamingStates = new Map();
 
+// Mapa para acumular chunks por conversa
+const streamingChunks = new Map();
+
 // Inicializa o socket
 const socket = io();
 
@@ -48,6 +51,28 @@ socket.on('connect', () => {
 socket.on('connect_error', (error) => {
     logger.error('Falha na conexão WebSocket', error);
 });
+
+// Função para entrar em uma sala de conversa
+export function entrarNaSala(conversationId) {
+    if (!conversationId) {
+        logger.error('ID da conversa não fornecido para entrar na sala');
+        return;
+    }
+    
+    logger.debug('Entrando na sala da conversa', { conversationId });
+    socket.emit('join_conversation', { conversation_id: conversationId });
+}
+
+// Função para sair de uma sala de conversa
+export function sairDaSala(conversationId) {
+    if (!conversationId) {
+        logger.error('ID da conversa não fornecido para sair da sala');
+        return;
+    }
+    
+    logger.debug('Saindo da sala da conversa', { conversationId });
+    socket.emit('leave_conversation', { conversation_id: conversationId });
+}
 
 // Listener para chunks da mensagem
 socket.on('message_chunk', (data) => {
@@ -74,7 +99,12 @@ socket.on('message_chunk', (data) => {
     
     // Marca conversa como em streaming e acumula o chunk
     streamingStates.set(conversation_id, true);
-    accumulateChunk(content, conversation_id);
+    
+    // Acumular chunk
+    if (!streamingChunks.has(conversation_id)) {
+        streamingChunks.set(conversation_id, '');
+    }
+    streamingChunks.set(conversation_id, streamingChunks.get(conversation_id) + content);
     
     // Atualizar UI com o novo chunk
     const chatContainer = document.querySelector('.chat-container');
@@ -94,7 +124,8 @@ socket.on('message_chunk', (data) => {
     if (streamingMessage) {
         logger.debug('Atualizando mensagem de streaming', {
             messageId: streamingMessage.dataset.messageId,
-            chunkSize: content.length
+            chunkSize: content.length,
+            totalSize: streamingChunks.get(conversation_id).length
         });
         atualizarMensagemStreaming(streamingMessage.dataset.messageId, content);
     } else {
@@ -127,6 +158,7 @@ socket.on('response_complete', (data) => {
         });
         clearAccumulatedResponse(conversation_id);
         streamingStates.delete(conversation_id);
+        streamingChunks.delete(conversation_id);
         return;
     }
 
@@ -146,7 +178,9 @@ socket.on('response_complete', (data) => {
 
     try {
         // Renderiza resposta completa
-        const renderedHtml = renderCompleteResponse(conversation_id);
+        const completeResponse = streamingChunks.get(conversation_id) || '';
+        const renderedHtml = renderCompleteResponse(completeResponse);
+        
         if (!renderedHtml) {
             throw new Error('Resposta vazia ou inválida');
         }
@@ -205,9 +239,11 @@ socket.on('response_complete', (data) => {
         }, 300);
 
         // Salva no histórico
-        const completeResponse = messageDiv.querySelector('.message-content').textContent;
         adicionarMensagemAoHistorico(completeResponse, 'assistant', conversation_id);
         atualizarListaConversas();
+
+        // Limpa o buffer de chunks
+        streamingChunks.delete(conversation_id);
 
     } catch (error) {
         logger.error('Falha ao processar resposta', error);

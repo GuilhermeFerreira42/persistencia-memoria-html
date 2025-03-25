@@ -290,11 +290,11 @@ export function adicionarMensagemStreaming(chatContainer, messageId, conversatio
 }
 
 export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = true) {
-    logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk.length });
+    logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk?.length });
 
     const mensagemDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
     if (!mensagemDiv) {
-        logger.error('Mensagem não encontrada para atualizar', { messageId });
+        logger.error('Elemento de mensagem não encontrado', { messageId });
         return;
     }
 
@@ -304,48 +304,44 @@ export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = tr
         return;
     }
 
-    // Verificar se o chunk é válido
-    if (!chunk || typeof chunk !== 'string') {
-        logger.error('Chunk inválido recebido', { messageId, chunk });
-        return;
-    }
-
-    // Atualizar conteúdo bruto
+    // Acumular o chunk no dataset
     const currentContent = messageContent.dataset.rawContent || '';
     const newContent = currentContent + chunk;
     messageContent.dataset.rawContent = newContent;
     messageContent.dataset.lastUpdateTime = Date.now();
 
-    // Calcular tempo desde a última atualização
-    const lastUpdate = parseInt(messageContent.dataset.lastUpdateTime);
-    const timeSinceLastUpdate = Date.now() - lastUpdate;
-    logger.debug('Tempo desde última atualização', {
-        messageId,
-        timeSinceLastUpdate,
-        chunkSize: chunk.length
-    });
-
-    // Renderizar markdown se necessário
-    try {
-        if (renderMarkdown) {
-            messageContent.innerHTML = renderStreamingMessage(newContent);
-        } else {
-            messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
-        }
-
-        // Forçar reflow e aplicar fade-in
+    // Renderizar o novo conteúdo
+    if (renderMarkdown) {
+        // Remover classe visible temporariamente para forçar reflow
+        messageContent.classList.remove('visible');
+        
+        // Renderizar o novo conteúdo
+        messageContent.innerHTML = renderStreamingMessage(newContent);
+        
+        // Forçar reflow
         void messageContent.offsetHeight;
-        messageContent.classList.add('visible');
-
-        logger.debug('Conteúdo atualizado com sucesso', {
-            messageId,
-            contentLength: newContent.length,
-            timestamp: Date.now()
+        
+        // Adicionar classe visible com requestAnimationFrame para garantir animação
+        requestAnimationFrame(() => {
+            messageContent.classList.add('visible');
         });
-    } catch (error) {
-        logger.error('Erro ao renderizar conteúdo', { messageId, error });
+    } else {
         messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
     }
+
+    // Rolar para o final se necessário
+    const chatContainer = mensagemDiv.closest('.chat-container');
+    if (chatContainer && isNearBottom(chatContainer)) {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    // Melhorar blocos de código após a atualização
+    requestAnimationFrame(() => {
+        melhorarBlocosCodigo(mensagemDiv);
+    });
 }
 
 // Adicionar CSS para os novos elementos

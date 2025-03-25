@@ -128,4 +128,62 @@
     backface-visibility: hidden;
     perspective: 1000px;
     transform: translate3d(0,0,0);
+}
+
+.streaming-message {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.streaming-message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.streaming-message .message-content {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.streaming-message .message-content.visible {
+    opacity: 1;
+}
+
+.streaming-content {
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.streaming-content.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Melhorar legibilidade durante streaming */
+.streaming-message pre {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    padding: 1em;
+    margin: 0.5em 0;
+    overflow-x: auto;
+}
+
+.streaming-message code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+}
+
+/* Animação de cursor durante streaming */
+.streaming-message::after {
+    content: '▋';
+    display: inline-block;
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+    color: #666;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
 } 

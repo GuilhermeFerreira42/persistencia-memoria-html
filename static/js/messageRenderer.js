@@ -211,6 +211,7 @@ export function getAccumulatedState(conversationId) {
 const logger = {
     debug: (message, data = {}) => {
         console.log(`[DEBUG] ${message}`, data);
+        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -220,10 +221,14 @@ const logger = {
                 data,
                 timestamp: new Date().toISOString()
             })
-        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+        }).catch(() => {
+            // Silenciosamente ignora erros de logging
+            // console.error('[ERRO] Falha ao salvar log:', err);
+        });
     },
     error: (message, error = null) => {
         console.error(`[ERRO] ${message}`, error);
+        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -233,7 +238,10 @@ const logger = {
                 error: error ? error.toString() : null,
                 timestamp: new Date().toISOString()
             })
-        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
+        }).catch(() => {
+            // Silenciosamente ignora erros de logging
+            // console.error('[ERRO] Falha ao salvar log:', err);
+        });
     }
 };
 
@@ -287,34 +295,40 @@ function processCodeChunk(chunk) {
  */
 export function renderStreamingMessage(chunk) {
     if (!chunk) {
-        logger.error('Chunk vazio recebido para streaming');
+        logger.debug('Chunk vazio recebido para renderização');
         return '';
     }
-    
-    logger.debug('Renderizando chunk em streaming', {
+
+    logger.debug('Renderizando chunk de streaming', {
         tamanho: chunk.length,
         preview: chunk.substring(0, 50) + '...'
     });
-    
+
     try {
-        // Processar blocos de código primeiro
-        const processedChunk = chunk.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-            return processCodeChunk(match);
-        });
-        
-        // Configuração otimizada para streaming
+        // Configurar marked para streaming
         marked.setOptions({
-            gfm: true,
             breaks: true,
+            gfm: true,
+            tables: true,
             headerIds: false,
             mangle: false,
-            sanitize: false
+            sanitize: false,
+            highlight: (code, lang) => {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (e) {
+                        logger.debug('Erro ao destacar código:', e);
+                    }
+                }
+                return code;
+            }
         });
-        
-        logger.debug('Processando markdown para streaming');
-        const htmlContent = marked.parse(processedChunk);
-        
-        logger.debug('Sanitizando HTML do streaming');
+
+        // Renderizar o chunk com marked
+        const htmlContent = marked.parse(chunk);
+
+        // Sanitizar o HTML mantendo apenas tags necessárias
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: [
                 'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -324,14 +338,10 @@ export function renderStreamingMessage(chunk) {
             ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
         });
 
-        logger.debug('HTML do streaming gerado', {
-            tamanho: sanitizedHtml.length,
-            preview: sanitizedHtml.substring(0, 50) + '...'
-        });
-
-        return sanitizedHtml;
+        // Adicionar classes para animação
+        return `<div class="streaming-content">${sanitizedHtml}</div>`;
     } catch (error) {
-        logger.error('Falha ao renderizar chunk em streaming', error);
-        return `<p>${chunk.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+        logger.error('Erro ao renderizar chunk:', error);
+        return `<p>${escapeHTML(chunk)}</p>`;
     }
 }
