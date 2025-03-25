@@ -1,5 +1,5 @@
 import { escapeHTML } from './chatUtils.js';
-import { renderMessage, renderStreamingChunk } from '../messageRenderer.js';
+import { renderMessage, renderStreamingMessage } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
 
 // Sistema de logging
@@ -232,96 +232,116 @@ export function mostrarCarregamento(chatContainer) {
 }
 
 export function adicionarMensagemStreaming(chatContainer, messageId, conversationId) {
-    try {
-        logger.debug('Adicionando mensagem de streaming', { messageId, conversationId });
-        
-        const streamingMessage = document.createElement('div');
-        streamingMessage.className = 'message assistant streaming-message';
-        streamingMessage.dataset.messageId = messageId;
-        streamingMessage.dataset.conversationId = conversationId;
-        streamingMessage.innerHTML = `
-            <div class="message-content">
-                <div class="streaming-content">Gerando resposta...</div>
-            </div>
-        `;
-        
-        chatContainer.appendChild(streamingMessage);
-        
-        // Forçar reflow para garantir que a animação funcione
-        void streamingMessage.offsetHeight;
-        
-        // Adicionar animação suave
-        requestAnimationFrame(() => {
-            streamingMessage.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            streamingMessage.style.opacity = '1';
-            streamingMessage.style.transform = 'translateY(0)';
-        });
-        
-        return streamingMessage;
-    } catch (error) {
-        logger.error('Falha ao adicionar mensagem de streaming', error);
+    logger.debug('Iniciando mensagem de streaming', { messageId, conversationId });
+
+    if (!chatContainer) {
+        logger.error('Container de chat não encontrado');
         return null;
     }
-}
 
-export function atualizarMensagemStreaming(messageId, chunk) {
-    try {
-        logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk?.length });
-        
-        const mensagemDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
-        if (!mensagemDiv) {
-            logger.error('Elemento de mensagem não encontrado', { messageId });
-            return;
-        }
-        
-        const contentDiv = mensagemDiv.querySelector('.message-content');
-        if (!contentDiv) {
-            logger.error('Div de conteúdo não encontrada', { messageId });
-            return;
-        }
-        
-        // Renderizar o chunk
-        const renderedChunk = renderStreamingChunk(chunk);
-        if (!renderedChunk) {
-            logger.debug('Chunk vazio ou inválido', { messageId });
-            return;
-        }
-        
-        // Atualizar o conteúdo
-        contentDiv.innerHTML = renderedChunk;
-        
-        // Forçar reflow para garantir que a animação funcione
-        void contentDiv.offsetHeight;
-        
-        // Adicionar animação suave
-        requestAnimationFrame(() => {
-            contentDiv.style.transition = 'opacity 0.2s ease';
-            contentDiv.style.opacity = '1';
+    // Verificar se já existe uma mensagem de streaming para esta conversa
+    const existingStreaming = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversationId}"]`);
+    if (existingStreaming) {
+        logger.debug('Mensagem de streaming já existe, reutilizando', {
+            existingId: existingStreaming.dataset.messageId,
+            newId: messageId
         });
-        
-        // Rolar para o final se necessário
-        const chatContainer = mensagemDiv.closest('.chat-container');
-        if (chatContainer && isUserAtBottom(chatContainer)) {
-            chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
-                behavior: 'smooth'
-            });
-        }
-        
-        // Melhorar blocos de código após a atualização
-        setTimeout(() => {
-            melhorarBlocosCodigo(mensagemDiv);
-        }, 100);
-        
-    } catch (error) {
-        logger.error('Falha ao atualizar mensagem de streaming', error);
+        return existingStreaming;
     }
+
+    const mensagemDiv = document.createElement('div');
+    mensagemDiv.className = 'message assistant streaming-message fade-in';
+    mensagemDiv.dataset.messageId = messageId;
+    mensagemDiv.dataset.conversationId = conversationId;
+    mensagemDiv.dataset.streamingStartTime = Date.now();
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.dataset.rawContent = '';
+    messageContent.dataset.lastUpdateTime = Date.now();
+    
+    const messageActions = document.createElement('div');
+    messageActions.className = 'message-actions';
+    messageActions.innerHTML = `
+        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+            <i class="fas fa-copy"></i>
+        </button>
+        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+            <i class="fas fa-redo"></i>
+        </button>
+    `;
+
+    mensagemDiv.appendChild(messageContent);
+    mensagemDiv.appendChild(messageActions);
+
+    chatContainer.appendChild(mensagemDiv);
+    
+    // Forçar reflow e aplicar transição
+    void mensagemDiv.offsetHeight;
+    mensagemDiv.classList.add('visible');
+
+    logger.debug('Mensagem de streaming criada com sucesso', {
+        messageId,
+        conversationId,
+        timestamp: Date.now()
+    });
+
+    return mensagemDiv;
 }
 
-// Função para verificar se o usuário está no final do chat
-function isUserAtBottom(container) {
-    const threshold = 50; // pixels de tolerância
-    return container.scrollHeight - container.scrollTop <= container.clientHeight + threshold;
+export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = true) {
+    logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk?.length });
+
+    const mensagemDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+    if (!mensagemDiv) {
+        logger.error('Elemento de mensagem não encontrado', { messageId });
+        return;
+    }
+
+    const messageContent = mensagemDiv.querySelector('.message-content');
+    if (!messageContent) {
+        logger.error('Conteúdo da mensagem não encontrado', { messageId });
+        return;
+    }
+
+    // Acumular o chunk no dataset
+    const currentContent = messageContent.dataset.rawContent || '';
+    const newContent = currentContent + chunk;
+    messageContent.dataset.rawContent = newContent;
+    messageContent.dataset.lastUpdateTime = Date.now();
+
+    // Renderizar o novo conteúdo
+    if (renderMarkdown) {
+        // Remover classe visible temporariamente para forçar reflow
+        messageContent.classList.remove('visible');
+        
+        // Renderizar o novo conteúdo
+        messageContent.innerHTML = renderStreamingMessage(newContent);
+        
+        // Forçar reflow
+        void messageContent.offsetHeight;
+        
+        // Adicionar classe visible com requestAnimationFrame para garantir animação
+        requestAnimationFrame(() => {
+            messageContent.classList.add('visible');
+        });
+    } else {
+        messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
+    }
+
+    // Rolar para o final se necessário
+    const chatContainer = mensagemDiv.closest('.chat-container');
+    if (chatContainer && isNearBottom(chatContainer)) {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    // Melhorar blocos de código após a atualização
+    requestAnimationFrame(() => {
+        melhorarBlocosCodigo(mensagemDiv);
+    });
 }
 
 // Adicionar CSS para os novos elementos

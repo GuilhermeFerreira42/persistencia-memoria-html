@@ -35,7 +35,10 @@ const logger = {
 };
 
 // Mapa para controlar o estado de streaming por conversa
-const streamingStates = new Map(); // Map<conversationId, { messageId: string, chunks: string }>
+const streamingStates = new Map();
+
+// Mapa para rastrear messageIds de streaming
+const streamingMessageIds = new Map();
 
 // Mapa para acumular chunks por conversa
 const streamingChunks = new Map();
@@ -97,33 +100,48 @@ socket.on('message_chunk', (data) => {
         return;
     }
     
-    // Obter ou criar estado de streaming
-    let state = streamingStates.get(conversation_id);
-    if (!state) {
-        const messageId = `streaming_${Date.now()}_${conversation_id}`;
-        state = { messageId, chunks: '' };
-        streamingStates.set(conversation_id, state);
-        
-        // Criar mensagem de streaming no DOM
-        const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) {
-            logger.error('Container de chat não encontrado');
-            return;
-        }
-        
-        logger.debug('Criando nova mensagem de streaming', { messageId, conversation_id });
-        adicionarMensagemStreaming(chatContainer, messageId, conversation_id);
+    // Marca conversa como em streaming e acumula o chunk
+    streamingStates.set(conversation_id, true);
+    
+    // Acumular chunk
+    if (!streamingChunks.has(conversation_id)) {
+        streamingChunks.set(conversation_id, '');
     }
+    streamingChunks.set(conversation_id, streamingChunks.get(conversation_id) + content);
     
-    // Acumular chunk e atualizar UI
-    state.chunks += content;
-    logger.debug('Atualizando mensagem de streaming', {
-        messageId: state.messageId,
-        chunkSize: content.length,
-        totalSize: state.chunks.length
-    });
+    // Atualizar UI com o novo chunk
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) {
+        logger.error('Container de chat não encontrado');
+        return;
+    }
+
+    // Buscar ou criar mensagem de streaming
+    let messageId = streamingMessageIds.get(conversation_id);
+    let streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-message-id="${messageId}"]`);
     
-    atualizarMensagemStreaming(state.messageId, state.chunks);
+    if (!streamingMessage) {
+        messageId = `streaming_${conversation_id}`;
+        streamingMessageIds.set(conversation_id, messageId);
+        logger.debug('Criando nova mensagem de streaming', { messageId, conversation_id });
+        streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversation_id);
+    }
+
+    if (streamingMessage) {
+        logger.debug('Atualizando mensagem de streaming', {
+            messageId,
+            chunkSize: content.length,
+            totalSize: streamingChunks.get(conversation_id).length
+        });
+        atualizarMensagemStreaming(messageId, content);
+        // Também acumular no messageRenderer para consistência
+        accumulateChunk(content, conversation_id);
+    } else {
+        logger.error('Falha ao criar/atualizar mensagem de streaming', {
+            conversationId,
+            messageId
+        });
+    }
 });
 
 // Listener para resposta completa
@@ -146,15 +164,21 @@ socket.on('response_complete', (data) => {
             atual: window.conversaAtual?.id,
             recebido: conversation_id
         });
+        clearAccumulatedResponse(conversation_id);
         streamingStates.delete(conversation_id);
+        streamingChunks.delete(conversation_id);
+        streamingMessageIds.delete(conversation_id);
         return;
     }
 
-    const state = streamingStates.get(conversation_id);
-    if (!state) {
-        logger.error('Estado de streaming não encontrado para a conversa', { conversationId: conversation_id });
-        return;
-    }
+    // Remove estado de streaming
+    const wasStreaming = streamingStates.delete(conversation_id);
+    streamingMessageIds.delete(conversation_id); // Limpar o messageId
+    logger.debug('Estado de streaming removido', {
+        conversationId: conversation_id,
+        wasStreaming,
+        remainingStates: Array.from(streamingStates.entries())
+    });
 
     const chatContainer = document.querySelector('.chat-container');
     if (!chatContainer) {
@@ -163,27 +187,29 @@ socket.on('response_complete', (data) => {
     }
 
     try {
-        // Renderizar resposta completa
-        const renderedHtml = renderMessage(state.chunks);
+        // Renderiza resposta completa
+        const renderedHtml = renderCompleteResponse(conversation_id);
         if (!renderedHtml) {
             throw new Error('Resposta vazia ou inválida');
         }
 
-        // Remover mensagem de streaming
-        const streamingMessage = chatContainer.querySelector(`.message[data-message-id="${state.messageId}"]`);
+        // Remover mensagem de streaming se existir
+        const streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversation_id}"]`);
         if (streamingMessage) {
             logger.debug('Removendo mensagem de streaming', {
-                messageId: state.messageId,
+                messageId: streamingMessage.dataset.messageId,
                 conversationId
             });
             streamingMessage.remove();
         }
 
-        // Adicionar mensagem final
+        // Cria elemento da mensagem final com animação suave
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message assistant';
         messageDiv.dataset.messageId = `${Date.now()}_assistant`;
         messageDiv.dataset.conversationId = conversation_id;
+        messageDiv.style.opacity = '0';
+        messageDiv.style.transform = 'translateY(10px)';
         messageDiv.innerHTML = `
             <div class="message-content">${renderedHtml}</div>
             <div class="message-actions">
@@ -196,31 +222,36 @@ socket.on('response_complete', (data) => {
             </div>
         `;
 
-        // Adicionar ao chat e animar
+        // Adiciona ao chat e anima
         chatContainer.appendChild(messageDiv);
+        logger.debug('Mensagem final adicionada ao chat', {
+            id: messageDiv.dataset.messageId,
+            conversationId: messageDiv.dataset.conversationId
+        });
+
         requestAnimationFrame(() => {
             messageDiv.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
             messageDiv.style.opacity = '1';
             messageDiv.style.transform = 'translateY(0)';
         });
 
-        // Rolar para o final suavemente
+        // Rola para o final suavemente
         chatContainer.scrollTo({
             top: chatContainer.scrollHeight,
             behavior: 'smooth'
         });
 
-        // Melhorar blocos de código após a animação
+        // Melhora blocos de código após a animação terminar
         setTimeout(() => {
             melhorarBlocosCodigo(messageDiv);
         }, 300);
 
-        // Salvar no histórico
-        adicionarMensagemAoHistorico(state.chunks, 'assistant', conversation_id);
+        // Salva no histórico
+        adicionarMensagemAoHistorico(renderedHtml, 'assistant', conversation_id);
         atualizarListaConversas();
 
-        // Limpar estado de streaming
-        streamingStates.delete(conversation_id);
+        // Limpa o buffer de chunks
+        streamingChunks.delete(conversation_id);
 
     } catch (error) {
         logger.error('Falha ao processar resposta', error);
@@ -393,15 +424,12 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             placeholder.remove();
         });
 
-        // Criar placeholder "Gerando resposta..." imediatamente
-        const streamingMessage = document.createElement('div');
-        streamingMessage.className = 'message assistant streaming-message';
-        streamingMessage.dataset.conversationId = conversationId;
-        streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-        chatContainer.appendChild(streamingMessage);
-        console.log('[DEBUG] Placeholder de carregamento criado para conversa:', conversationId);
+        // Criar mensagem de streaming inicial
+        const messageId = `streaming_${conversationId}`;
+        streamingMessageIds.set(conversationId, messageId);
+        const streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversationId);
+        console.log('[DEBUG] Placeholder de streaming criado para conversa:', conversationId);
 
-        // Marcar conversa como em streaming
         streamingStates.set(conversationId, true);
         console.log('[DEBUG] Estado de streaming definido:', {
             conversationId,
