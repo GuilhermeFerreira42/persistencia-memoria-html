@@ -5,7 +5,7 @@ import { melhorarBlocosCodigo } from './chatUtils.js';
 // Sistema de logging
 const logger = {
     debug: (message, data = {}) => {
-        console.log(`[DEBUG] ${message}`, data);
+        //console.log(`[DEBUG] ${message}`, data);
         // Enviar log para o backend
         fetch('/log-frontend', {
             method: 'POST',

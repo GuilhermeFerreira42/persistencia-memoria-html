@@ -9,10 +9,10 @@ export function renderMessage(text) {
         return '';
     }
 
-    console.log('[DEBUG] Iniciando renderização de mensagem:', {
-        tamanho: text.length,
-        preview: text.substring(0, 50) + '...'
-    });
+    // console.log('[DEBUG] Iniciando renderização de mensagem:', {
+    //     tamanho: text.length,
+    //     preview: text.substring(0, 50) + '...'
+    // });
 
     // Verificar dependências e logar se não estiverem disponíveis
     if (typeof marked === 'undefined' || typeof hljs === 'undefined') {
@@ -44,14 +44,14 @@ export function renderMessage(text) {
             }
         });
 
-        console.log('[DEBUG] Renderizando markdown com marked.js');
+        // console.log('[DEBUG] Renderizando markdown com marked.js');
         const htmlContent = marked.parse(text);
-        console.log('[DEBUG] HTML gerado:', {
-            tamanho: htmlContent.length,
-            preview: htmlContent.substring(0, 50) + '...'
-        });
+        // console.log('[DEBUG] HTML gerado:', {
+        //     tamanho: htmlContent.length,
+        //     preview: htmlContent.substring(0, 50) + '...'
+        // });
 
-        console.log('[DEBUG] Sanitizando HTML com DOMPurify');
+        // console.log('[DEBUG] Sanitizando HTML com DOMPurify');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: [
                 'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -61,10 +61,10 @@ export function renderMessage(text) {
             ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
         });
 
-        console.log('[DEBUG] HTML sanitizado:', {
-            tamanho: sanitizedHtml.length,
-            preview: sanitizedHtml.substring(0, 50) + '...'
-        });
+        // console.log('[DEBUG] HTML sanitizado:', {
+        //     tamanho: sanitizedHtml.length,
+        //     preview: sanitizedHtml.substring(0, 50) + '...'
+        // });
 
         return sanitizedHtml;
     } catch (error) {
@@ -87,11 +87,11 @@ export function accumulateChunk(chunk, conversationId) {
         return;
     }
     
-    console.log('[DEBUG] Acumulando chunk:', {
-        conversationId,
-        chunkSize: chunk.length,
-        chunkPreview: chunk.substring(0, 50) + '...'
-    });
+    // console.log('[DEBUG] Acumulando chunk:', {
+    //     conversationId,
+    //     chunkSize: chunk.length,
+    //     chunkPreview: chunk.substring(0, 50) + '...'
+    // });
     
     let accumulated = accumulatedResponses.get(conversationId) || '';
     
@@ -104,11 +104,11 @@ export function accumulateChunk(chunk, conversationId) {
     accumulated += chunk;
     accumulatedResponses.set(conversationId, accumulated);
     
-    console.log('[DEBUG] Estado atual da acumulação:', {
-        conversationId,
-        totalSize: accumulated.length,
-        preview: accumulated.substring(accumulated.length - Math.min(50, accumulated.length))
-    });
+    // console.log('[DEBUG] Estado atual da acumulação:', {
+    //     conversationId,
+    //     totalSize: accumulated.length,
+    //     preview: accumulated.substring(accumulated.length - Math.min(50, accumulated.length))
+    // });
 
     // Emitir evento de atualização
     const event = new CustomEvent('chunk_accumulated', {
@@ -132,7 +132,7 @@ export function renderCompleteResponse(conversationId) {
         return '';
     }
 
-    console.log('[DEBUG] Iniciando renderização completa para conversa:', conversationId);
+    // console.log('[DEBUG] Iniciando renderização completa para conversa:', conversationId);
 
     const completeResponse = accumulatedResponses.get(conversationId);
     if (!completeResponse) {
@@ -140,11 +140,11 @@ export function renderCompleteResponse(conversationId) {
         return '';
     }
 
-    console.log('[DEBUG] Resposta completa encontrada:', {
-        conversationId,
-        tamanho: completeResponse.length,
-        preview: completeResponse.substring(0, 50) + '...'
-    });
+    // console.log('[DEBUG] Resposta completa encontrada:', {
+    //     conversationId,
+    //     tamanho: completeResponse.length,
+    //     preview: completeResponse.substring(0, 50) + '...'
+    // });
 
     try {
         // Renderizar com todas as otimizações
@@ -152,7 +152,7 @@ export function renderCompleteResponse(conversationId) {
         
         // Limpar a resposta acumulada após renderização bem-sucedida
         accumulatedResponses.delete(conversationId);
-        console.log('[DEBUG] Resposta acumulada limpa após renderização:', conversationId);
+        // console.log('[DEBUG] Resposta acumulada limpa após renderização:', conversationId);
         
         // Emitir evento de renderização completa
         const event = new CustomEvent('response_rendered', {
@@ -177,7 +177,7 @@ export function renderCompleteResponse(conversationId) {
  */
 export function clearAccumulatedResponse(conversationId) {
     if (conversationId) {
-        console.log('[DEBUG] Limpando resposta acumulada para:', conversationId);
+        // console.log('[DEBUG] Limpando resposta acumulada para:', conversationId);
         const hadResponse = accumulatedResponses.has(conversationId);
         accumulatedResponses.delete(conversationId);
         
@@ -210,7 +210,7 @@ export function getAccumulatedState(conversationId) {
 // Sistema de logging
 const logger = {
     debug: (message, data = {}) => {
-        console.log(`[DEBUG] ${message}`, data);
+        // console.log(`[DEBUG] ${message}`, data);
         // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',

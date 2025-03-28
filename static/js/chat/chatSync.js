@@ -96,7 +96,7 @@ function setupEventListeners() {
             
             let streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${data.conversation_id}"]`);
             if (!streamingMessage) {
-                console.log('[DEBUG] Recriando placeholder para conversa em streaming:', data.conversation_id);
+                // console.log('[DEBUG] Recriando placeholder para conversa em streaming:', data.conversation_id);
                 streamingMessage = document.createElement('div');
                 streamingMessage.className = 'message assistant streaming-message';
                 streamingMessage.dataset.conversationId = data.conversation_id;

@@ -53,7 +53,7 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     
     // Verificar se a mensagem já existe
     if (document.querySelector(`.message[data-message-id="${messageId}"]`)) {
-        console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando duplicata`);
+        // console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando duplicata`);
         return;
     }
     

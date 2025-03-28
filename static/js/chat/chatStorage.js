@@ -13,7 +13,7 @@ const loadingConversations = new Set();
 export function carregarConversa(id) {
     // Evita carregar a mesma conversa múltiplas vezes
     if (loadingConversations.has(id)) {
-        console.log(`[INFO] Conversa ${id} já está sendo carregada`);
+        // console.log(`[INFO] Conversa ${id} já está sendo carregada`);
         return;
     }
     
@@ -96,7 +96,7 @@ export function carregarConversa(id) {
             // Limpar o container e preparar para lazy loading
             chatContainer.innerHTML = '';
             
-            console.log(`[DEBUG] Iniciando carregamento da conversa ${id}`);
+            // console.log(`[DEBUG] Iniciando carregamento da conversa ${id}`);
             
             // Iniciar o carregamento assíncrono das mensagens em lotes
             carregarMensagensEmLotes(id, 0, 20);  // Carrega as primeiras 20 mensagens
@@ -135,7 +135,7 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
     
     const conversation = window.conversations[conversationId];
     if (conversation.isLoading) {
-        console.log('[INFO] Carregamento já em andamento, ignorando');
+        // console.log('[INFO] Carregamento já em andamento, ignorando');
         return;
     }
     
@@ -153,7 +153,7 @@ function carregarMensagensEmLotes(conversationId, offset, limit) {
         }
     }
     
-    console.log(`[DEBUG] Carregando lote: offset=${offset}, limit=${limit}`);
+    // console.log(`[DEBUG] Carregando lote: offset=${offset}, limit=${limit}`);
     
     fetch(`/get_conversation/${conversationId}/${offset}/${limit}`)
         .then(response => response.json())
@@ -280,13 +280,13 @@ function configureScrollListener(conversationId, nextOffset, limit) {
         }
         
         if (conversation.isLoading) {
-            console.log('[DEBUG] Carregamento em andamento, ignorando scroll');
+            // console.log('[DEBUG] Carregamento em andamento, ignorando scroll');
             return;
         }
         
         // Verificar se estamos próximos do topo e não estamos carregando
         if (chatContainer.scrollTop < 100) {
-            console.log(`[DEBUG] Scroll no topo, carregando mais mensagens de offset ${nextOffset}`);
+            // console.log(`[DEBUG] Scroll no topo, carregando mais mensagens de offset ${nextOffset}`);
             
             // Remover listener antes de carregar para evitar chamadas múltiplas
             chatContainer.removeEventListener('scroll', scrollListener);
@@ -301,11 +301,11 @@ function configureScrollListener(conversationId, nextOffset, limit) {
     chatContainer.addEventListener('scroll', scrollListener);
     chatContainer._scrollListener = scrollListener;
     
-    console.log(`[DEBUG] Scroll listener configurado para offset ${nextOffset}`);
+    // console.log(`[DEBUG] Scroll listener configurado para offset ${nextOffset}`);
 }
 
 export function atualizarListaConversas() {
-    // console.log('[DEBUG] Atualizando lista de conversas');
+    // // console.log('[DEBUG] Atualizando lista de conversas');
     
     const chatList = document.querySelector('.chat-list');
     if (!chatList) {
@@ -355,7 +355,7 @@ export function atualizarListaConversas() {
                 renameBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // console.log('[DEBUG] Rename clicked diretamente para ID:', conversa.id);
+                    // // console.log('[DEBUG] Rename clicked diretamente para ID:', conversa.id);
                     renomearConversa(conversa.id);
                 });
                 
@@ -371,7 +371,7 @@ export function atualizarListaConversas() {
                 deleteBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // console.log('[DEBUG] Delete clicked diretamente para ID:', conversa.id);
+                    // // console.log('[DEBUG] Delete clicked diretamente para ID:', conversa.id);
                     excluirConversa(conversa.id);
                 });
                 
@@ -382,7 +382,7 @@ export function atualizarListaConversas() {
                 // Evitar que cliques nos botões disparem o carregamento da conversa
                 actionButtons.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    // console.log('[DEBUG] Clique capturado em action-buttons');
+                    // // console.log('[DEBUG] Clique capturado em action-buttons');
                 });
                 
                 chatList.appendChild(conversaElement);
@@ -390,11 +390,11 @@ export function atualizarListaConversas() {
             
             // Adicionar listener de delegação também como fallback
             const clickListener = function(e) {
-                // console.log('[DEBUG] Clique detectado em:', e.target);
+                // // console.log('[DEBUG] Clique detectado em:', e.target);
                 
                 // Se clicar nos botões, não carrega a conversa
                 if (e.target.closest('.action-buttons')) {
-                    // console.log('[DEBUG] Clique em botões, interrompendo propagação');
+                    // // console.log('[DEBUG] Clique em botões, interrompendo propagação');
                     e.stopPropagation();
                     return;
                 }
@@ -405,7 +405,7 @@ export function atualizarListaConversas() {
                     e.preventDefault();
                     e.stopPropagation();
                     const id = renameBtn.dataset.id;
-                    // console.log('[DEBUG] Botão renomear clicado para ID:', id);
+                    // // console.log('[DEBUG] Botão renomear clicado para ID:', id);
                     renomearConversa(id);
                     return;
                 }
@@ -416,7 +416,7 @@ export function atualizarListaConversas() {
                     e.preventDefault();
                     e.stopPropagation();
                     const id = deleteBtn.dataset.id;
-                    // console.log('[DEBUG] Botão excluir clicado para ID:', id);
+                    // // console.log('[DEBUG] Botão excluir clicado para ID:', id);
                     excluirConversa(id);
                     return;
                 }
@@ -425,7 +425,7 @@ export function atualizarListaConversas() {
                 const chatItem = e.target.closest('.chat-item');
                 if (chatItem) {
                     const id = chatItem.dataset.id;
-                    // console.log('[DEBUG] Carregando conversa pelo clique:', id);
+                    // // console.log('[DEBUG] Carregando conversa pelo clique:', id);
                     carregarConversa(id);
                 }
             };
@@ -468,10 +468,10 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
     // Se não especificado, usa a conversa atual
     conversationId = conversationId || (window.conversaAtual ? window.conversaAtual.id : null);
     
-    // console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
+    // // console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
     
     if (!conversationId) {
-        // console.log('[CORREÇÃO] Não há conversa atual, criando uma nova');
+        // // console.log('[CORREÇÃO] Não há conversa atual, criando uma nova');
         const novaConversa = criarNovaConversa();
         conversationId = novaConversa.id;
     }
@@ -480,13 +480,13 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
     let conversation = window.conversations[conversationId];
     
     if (!conversation) {
-        console.log(`[ERRO] Conversa ${conversationId} não encontrada na estrutura global`);
+        // console.log(`[ERRO] Conversa ${conversationId} não encontrada na estrutura global`);
         return;
     }
     
     // Verificar se a estrutura da conversa no estado global está correta
     if (!window.conversaAtual || !Array.isArray(window.conversaAtual.messages)) {
-        // console.log('[CORREÇÃO] Estado da conversa atual inválido, corrigindo');
+        // // console.log('[CORREÇÃO] Estado da conversa atual inválido, corrigindo');
         window.conversaAtual = {
             id: conversationId,
             title: window.conversations[conversationId].data.title || "Nova conversa",
@@ -516,7 +516,7 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
         
         window.conversations[conversationId].data.messages.push(message);
         
-        // console.log(`[DEBUG] Mensagem adicionada com sucesso à conversa ${conversationId}`);
+        // // console.log(`[DEBUG] Mensagem adicionada com sucesso à conversa ${conversationId}`);
         
         window.dispatchEvent(new CustomEvent('historicoAtualizado'));
         window.dispatchEvent(new CustomEvent('mensagemAdicionada'));
@@ -530,11 +530,11 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
 }
 
 export function renomearConversa(id) {
-    // console.log('[DEBUG] Tentando renomear conversa:', id);
+    // // console.log('[DEBUG] Tentando renomear conversa:', id);
     
     const novoTitulo = prompt('Digite o novo título da conversa:');
     if (!novoTitulo || !novoTitulo.trim()) {
-        // console.log('[DEBUG] Operação cancelada pelo usuário');
+        // // console.log('[DEBUG] Operação cancelada pelo usuário');
         return;
     }
 
@@ -544,17 +544,17 @@ export function renomearConversa(id) {
         body: JSON.stringify({ title: novoTitulo.trim() })
     })
     .then(response => {
-        // console.log('[DEBUG] Status da resposta:', response.status);
+        // // console.log('[DEBUG] Status da resposta:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        // console.log('[DEBUG] Resposta do servidor:', data);
+        // // console.log('[DEBUG] Resposta do servidor:', data);
         
         if (data.success) {
-            // console.log('[DEBUG] Conversa renomeada com sucesso');
+            // // console.log('[DEBUG] Conversa renomeada com sucesso');
             
             // Atualizar na conversa atual se for a mesma
             if (window.conversaAtual && window.conversaAtual.id === id) {
@@ -591,10 +591,10 @@ export function renomearConversa(id) {
 }
 
 export function excluirConversa(id) {
-    // console.log('[DEBUG] Tentando excluir conversa:', id);
+    // // console.log('[DEBUG] Tentando excluir conversa:', id);
     
     if (!confirm('Tem certeza que deseja excluir esta conversa?')) {
-        // console.log('[DEBUG] Operação cancelada pelo usuário');
+        // // console.log('[DEBUG] Operação cancelada pelo usuário');
         return;
     }
 
@@ -603,17 +603,17 @@ export function excluirConversa(id) {
         headers: { 'Content-Type': 'application/json' }
     })
     .then(response => {
-        // console.log('[DEBUG] Status da resposta:', response.status);
+        // // console.log('[DEBUG] Status da resposta:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        // console.log('[DEBUG] Resposta do servidor:', data);
+        // // console.log('[DEBUG] Resposta do servidor:', data);
         
         if (data.success) {
-            // console.log('[DEBUG] Conversa excluída com sucesso');
+            // // console.log('[DEBUG] Conversa excluída com sucesso');
             
             // Remover da memória
             if (window.conversas) {

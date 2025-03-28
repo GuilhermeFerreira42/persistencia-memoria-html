@@ -5,7 +5,7 @@ export function escapeHTML(text) {
 }
 
 export function copiarMensagem(button) {
-    console.log('[DEBUG] Copiando mensagem...');
+    // console.log('[DEBUG] Copiando mensagem...');
     const mensagem = button.closest('.message').querySelector('.message-content').innerText; // Usando innerText para preservar formatação
     navigator.clipboard.writeText(mensagem)
         .then(() => {
@@ -24,7 +24,7 @@ export function copiarMensagem(button) {
 }
 
 export function regenerarResposta(button) {
-    console.log('[DEBUG] Regenerando resposta...');
+    // console.log('[DEBUG] Regenerando resposta...');
     const mensagemOriginal = button.closest('.message').previousElementSibling;
     if (!mensagemOriginal) {
         console.error('Mensagem original não encontrada');
@@ -44,7 +44,7 @@ export function regenerarResposta(button) {
 }
 
 export function copiarCodigo(button) {
-    console.log('[DEBUG] Copiando código...');
+    // console.log('[DEBUG] Copiando código...');
     const codeContainer = button.closest('.code-container');
     if (!codeContainer) {
         console.error('[ERRO] Container de código não encontrado');
