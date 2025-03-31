@@ -17,6 +17,30 @@ from utils.chat_storage import (
     rename_conversation
 )
 
+# Configuração do diretório de logs
+LOG_DIR = "logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+    print(f"[DEBUG] Diretório de logs criado: {os.path.abspath(LOG_DIR)}")
+
+def save_backend_log(conversation_id, content, event_type="chunk"):
+    """Salva logs do backend em arquivo"""
+    try:
+        log_file = os.path.join(LOG_DIR, f"backend_{conversation_id}.txt")
+        timestamp = datetime.now().isoformat()
+        
+        with open(log_file, "a", encoding='utf-8') as f:
+            if event_type == "chunk":
+                f.write(f"[{timestamp}] CHUNK: {content}\n")
+            elif event_type == "complete":
+                f.write(f"[{timestamp}] COMPLETE: {content}\n")
+            elif event_type == "error":
+                f.write(f"[{timestamp}] ERROR: {content}\n")
+        
+        print(f"[DEBUG] Log salvo em: {log_file}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao salvar log: {str(e)}")
+
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
@@ -413,6 +437,8 @@ def process_with_ai_stream(text, conversation_id=None):
         response.raise_for_status()
 
         accumulated_response = ""
+        chunk_count = 0
+        
         for line in response.iter_lines(decode_unicode=True):
             if line.strip() and line.startswith("data: "):
                 line = line[6:].strip()
@@ -422,27 +448,50 @@ def process_with_ai_stream(text, conversation_id=None):
                         delta = response_data['choices'][0]['delta']
                         if "content" in delta:
                             content = delta["content"].encode('latin1').decode('utf-8', errors='ignore')
+                            chunk_count += 1
                             accumulated_response += content
-                            print(f"{context_header}Chunk: {len(content)} caracteres")
+                            
+                            # Log detalhado do chunk
+                            print(f"{context_header}Chunk #{chunk_count}: {len(content)} caracteres")
+                            print(f"{context_header}Preview: {content[:50]}...")
+                            
+                            # Salvar log do chunk
+                            save_backend_log(conversation_id, content, "chunk")
+                            
                             # Emitir chunk via SocketIO
                             socketio.emit('message_chunk', {
                                 'content': content,
-                                'conversation_id': conversation_id
+                                'conversation_id': conversation_id,
+                                'chunk_number': chunk_count
                             }, room=conversation_id)
                             yield content
                 except json.JSONDecodeError:
-                    print(f"[Debug] Erro ao decodificar JSON: {line}")
+                    error_msg = f"Falha ao decodificar JSON: {line}"
+                    print(f"{context_header}[ERRO] {error_msg}")
+                    save_backend_log(conversation_id, error_msg, "error")
+        
+        # Log final do streaming
+        print(f"{context_header}Streaming concluído. Total de chunks: {chunk_count}")
+        print(f"{context_header}Tamanho total da resposta: {len(accumulated_response)} caracteres")
+        
+        # Salvar log da resposta completa
+        save_backend_log(conversation_id, accumulated_response, "complete")
         
         # Após o loop, emitir evento de conclusão com a resposta completa
         socketio.emit('response_complete', {
             'conversation_id': conversation_id,
-            'complete_response': accumulated_response
+            'complete_response': accumulated_response,
+            'total_chunks': chunk_count
         }, room=conversation_id)
-        print(f"{context_header}Streaming concluído.")
+        
     except requests.exceptions.RequestException as e:
-        print(f"[Debug] Erro na requisição HTTP: {str(e)}")
+        error_msg = f"Erro na requisição HTTP: {str(e)}"
+        print(f"{context_header}[ERRO] {error_msg}")
+        save_backend_log(conversation_id, error_msg, "error")
     except Exception as e:
-        print(f"[Debug] Erro inesperado: {str(e)}")
+        error_msg = f"Erro inesperado: {str(e)}"
+        print(f"{context_header}[ERRO] {error_msg}")
+        save_backend_log(conversation_id, error_msg, "error")
 
 if __name__ == '__main__':
     print("Iniciando servidor com Eventlet em modo de desenvolvimento...")
