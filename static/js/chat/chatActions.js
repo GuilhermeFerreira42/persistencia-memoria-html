@@ -357,13 +357,68 @@ function forcarRenderizacao(elemento) {
 }
 
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
-    if (!mensagem.trim()) {
-        // console.warn('[DEBUG] Tentativa de enviar mensagem vazia');
-        return;
+    if (!mensagem.trim()) return;
+
+    // Se for comando do YouTube, trate de forma diferenciada
+    if (mensagem.startsWith('/youtube ')) {
+        // Extrai a URL (ou parâmetros) após o comando
+        const partes = mensagem.split(' ');
+        const videoUrl = partes[1]; // Ajuste se houver mais parâmetros
+        if (!videoUrl) {
+            adicionarMensagem(chatContainer, "Por favor, forneça uma URL do YouTube válida.", 'assistant');
+            return;
+        }
+
+        // Se a conversa ainda não foi iniciada, cria uma nova
+        if (!window.conversaAtual) {
+            criarNovaConversa();
+        }
+
+        // Adiciona o comando do usuário ao chat e ao histórico
+        adicionarMensagem(chatContainer, mensagem, 'user');
+        adicionarMensagemAoHistorico(mensagem, 'user');
+
+        // Mostra o indicador de carregamento
+        const loadingDiv = mostrarCarregamento(chatContainer);
+
+        try {
+            const response = await fetch('/process_youtube', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    video_url: videoUrl,
+                    conversation_id: window.conversaAtual.id,
+                    comando: mensagem
+                })
+            });
+
+            const data = await response.json();
+            loadingDiv.remove();
+
+            if (data.error) {
+                adicionarMensagem(chatContainer, `Erro: ${data.error}`, 'assistant');
+                adicionarMensagemAoHistorico(`Erro: ${data.error}`, 'assistant');
+            } else {
+                adicionarMensagem(chatContainer, data.text, 'assistant');
+                adicionarMensagemAoHistorico(data.text, 'assistant');
+            }
+            
+            // Notifica que o histórico foi atualizado
+            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+        } catch (error) {
+            loadingDiv.remove();
+            const errorMsg = "Erro ao processar o vídeo";
+            adicionarMensagem(chatContainer, errorMsg, 'assistant');
+            adicionarMensagemAoHistorico(errorMsg, 'assistant');
+        }
+        return; // Interrompe o fluxo para mensagens normais
     }
 
+    // Fluxo de mensagem normal (já existente)
     if (!window.conversaAtual) {
-        // console.log('[DEBUG] Criando nova conversa');
+        console.warn("Criando nova conversa...");
         criarNovaConversa();
     }
 
