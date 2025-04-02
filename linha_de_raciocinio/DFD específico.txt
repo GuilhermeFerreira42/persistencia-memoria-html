@@ -1,0 +1,148 @@
+Eu tenho um sistema de chat que já realiza várias funções, como baixar e exibir transcrições de vídeos do YouTube quando o usuário envia o comando /youtube <link>. Agora, quero adicionar uma nova funcionalidade chamada /youtube_resumo <link>, que vai resumir a transcrição do vídeo em tempo real, exibindo o resumo no chat como se a IA estivesse 'digitando' ao vivo, enquanto processa blocos de 300 palavras da transcrição.
+Aqui está o fluxo que quero implementar:
+O usuário envia /youtube_resumo <link> no chat.
+
+O backend baixa a transcrição completa do vídeo usando o arquivo youtube_handler.py (que já existe e funciona).
+
+A transcrição completa é enviada para o frontend e exibida como uma mensagem recolhida (minimizada, como um 'spoiler' que o usuário pode expandir se quiser).
+
+O backend divide a transcrição em blocos de 300 palavras.
+
+O primeiro bloco é enviado para a IA com um prompt específico (que eu já tenho), e a IA gera um resumo desse bloco.
+
+O resumo aparece no chat em tempo real, fluindo letra por letra, como se a IA estivesse respondendo ao vivo.
+
+Quando o resumo do primeiro bloco termina, o backend automaticamente envia o próximo bloco de 300 palavras para a IA, e o processo se repete até esgotar a transcrição.
+
+Para o usuário, o resumo parece um texto contínuo, sem pausas ou divisões explícitas – como uma única resposta fluida.
+
+Meu sistema já possui:
+Um frontend em JavaScript com SocketIO para comunicação em tempo real.
+
+Um backend em Python (Flask + SocketIO) que processa mensagens e faz streaming de respostas da IA.
+
+Arquivos como main.js, messageRenderer.js, app.py, youtube_handler.py e text_processor.py.
+
+Quero que você me ajude a implementar essa funcionalidade, focando nos ajustes necessários nos arquivos existentes e, se necessário, criando novos endpoints ou funções. Por favor, sugira as mudanças passo a passo, começando pelo backend e depois pelo frontend, para que eu possa integrar isso sem quebrar o que já funciona.
+
+
+
+youtube_handler.py  
+app.py  
+text_processor.py  
+messageRenderer.js 
+commandHandler.js (se existir)
+chatUI.js (se existir)    
+utils.js (se existir) 
+
+
+
+
+
+
+graph TD
+    %% ========== COMPONENTES EXISTENTES ==========
+    A[Usuário] -->|Comandos /youtube| B[chatUI.js]
+    B -->|SocketIO| C[app.py]
+    C -->|download_subtitles| D[youtube_handler.py]
+    D -->|clean_subtitles| C
+    C -->|split_text| E[text_processor.py]
+    E -->|chunks| C
+    C -->|renderMessage| F[messageRenderer.js]
+    F -->|Exibe| A
+    C -->|Persistência| G[(Conversas)]
+    B -->|CommandHandler| H[commandHandler.js]
+
+    %% ========== FLUXO /youtube_resumo ==========
+    subgraph Novo_Processo
+        A -->|/youtube_resumo <link>| B
+        B -->|POST /process_youtube_resumo| C
+        C -->|1. Baixar legenda| D
+        C -->|2. Dividir em chunks| E
+        C -->|3. Stream resumos| I[process_with_ai_stream]
+        I -->|chunk| C
+        C -->|WebSocket| B
+        B -->|renderStreamingMessage| F
+    end
+
+    %% ========== DECISÕES CHAVE ==========
+    C -->|if chunk > 300 palavras| E
+    E -->|split| C
+    C -->|if error| J[log_frontend]
+    J --> B
+
+    %% ========== ESTILOS ==========
+    style A fill:#9f9,stroke:#333
+    style B fill:#cff,stroke:#333
+    style C fill:#f9d,stroke:#333
+    style D fill:#fdc,stroke:#333
+    style E fill:#cfc,stroke:#333
+    style F fill:#ddf,stroke:#333
+    style G fill:#ff9,stroke:#333
+    style H fill:#fcd,stroke:#333
+    style I fill:#fdd,stroke:#333
+    style Novo_Processo fill:#fff,stroke:#09f,dashed
+
+
+Fluxo Detalhado do /youtube_resumo:
+
+
+graph LR
+    A[Usuário] --> B[Comando]
+    B --> C{commandHandler.js}
+    C -->|Identifica| D[chatUI.js]
+    D -->|POST| E[app.py]
+    E -->|download_subtitles| F[youtube_handler.py]
+    F -->|retorna| E
+    E -->|split_text| G[text_processor.py]
+    G -->|chunks| E
+    E -->|processa| H{AI Stream}
+    H -->|stream| I[SocketIO]
+    I -->|atualiza| J[messageRenderer.js]
+    J -->|exibe| K[Usuário]
+
+    classDef command fill:#f9f,stroke:#333;
+    classDef action fill:#cff,stroke:#333;
+    classDef io fill:#ff9,stroke:#333;
+    class B,H command;
+    class C,D,G action;
+    class E,F,I,J io;
+
+
+---
+
+graph TD
+    %% ========== COMPONENTES EXISTENTES ==========
+    A[Usuário] -->|Comandos| B[commandHandler.js]
+    B -->|Eventos| C[chatUI.js]
+    C -->|POST /process_youtube| D[app.py]
+    D -->|download_subtitles| E[youtube_handler.py]
+    E -->|texto_limpo| D
+    D -->|split_text| F[text_processor.py]
+    F -->|chunks| D
+    D -->|renderMessage| G[messageRenderer.js]
+    G -->|HTML Formatado| C
+    C -->|Exibe Mensagem| A
+    D -->|Armazena| H[(Conversas)]
+    
+    %% ========== FLUXOS COMPROVADOS ==========
+    subgraph Frontend
+        B --> C
+        C --> G
+        G --> C
+    end
+    
+    subgraph Backend
+        D --> E
+        D --> F
+    end
+    
+    %% ========== ESTILOS ==========
+    style A fill:#9f9,stroke:#333
+    style B fill:#fcd,stroke:#333
+    style C fill:#cff,stroke:#333
+    style D fill:#f9d,stroke:#333
+    style E fill:#fdc,stroke:#333
+    style F fill:#cfc,stroke:#333
+    style G fill:#ddf,stroke:#333
+    style H fill:#ff9,stroke:#333
