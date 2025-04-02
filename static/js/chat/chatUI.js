@@ -205,10 +205,15 @@ export function mostrarCarregamento(chatContainer) {
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message assistant loading';
     loadingDiv.dataset.messageId = loadingId;
+    loadingDiv.setAttribute('data-no-markdown', 'true');
     if (conversationId) {
         loadingDiv.dataset.conversationId = conversationId;
     }
-    loadingDiv.innerHTML = '<div class="message-content"><span class="typing-animation">...</span></div>';
+    loadingDiv.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
 
     // Adicionar com animação
     loadingDiv.style.opacity = '0';

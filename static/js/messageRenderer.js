@@ -9,6 +9,11 @@ export function renderMessage(text) {
         return '';
     }
 
+    // Se o texto for um elemento DOM com data-no-markdown, retorna o HTML bruto
+    if (typeof text === 'string' && text.includes('data-no-markdown')) {
+        return text;
+    }
+
     // console.log('[DEBUG] Iniciando renderização de mensagem:', {
     //     tamanho: text.length,
     //     preview: text.substring(0, 50) + '...'
@@ -53,12 +58,8 @@ export function renderMessage(text) {
 
         // console.log('[DEBUG] Sanitizando HTML com DOMPurify');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: [
-                'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'br',
-                'table', 'thead', 'tbody', 'tr', 'th', 'td'
-            ],
-            ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
+            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img'],
+            ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel']
         });
 
         // console.log('[DEBUG] HTML sanitizado:', {

@@ -7,6 +7,7 @@ export function escapeHTML(text) {
 export function mostrarCarregamento(chatContainer) {
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'loading message assistant';
+    loadingDiv.setAttribute('data-no-markdown', 'true');
     loadingDiv.innerHTML = `
         <span></span>
         <span></span>
