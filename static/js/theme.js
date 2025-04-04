@@ -15,17 +15,24 @@ function applyTheme(theme) {
     
     const themeToggle = document.querySelector('.theme-toggle');
     if (themeToggle) {
+        // Ícones minimalistas com linhas finas
         themeToggle.innerHTML = theme === 'light' 
-            ? '<i class="fas fa-moon"></i>' 
-            : '<i class="fas fa-sun"></i>';
+            ? '<i class="fas fa-moon" style="font-weight: 100;"></i>' 
+            : '<i class="fas fa-sun" style="font-weight: 100;"></i>';
     }
     
     // Atualizar meta tag para tema do navegador em dispositivos móveis
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
         metaThemeColor.setAttribute('content', 
-            theme === 'light' ? '#f9f9fb' : '#1e1e20');
+            theme === 'light' ? '#f9f9fb' : '#1A1A1A');
     }
+    
+    // Atualizar o ícone de enviar mensagem
+    const sendBtns = document.querySelectorAll('.send-btn');
+    sendBtns.forEach(btn => {
+        btn.innerHTML = '<i class="fas fa-arrow-up" style="font-size: 0.9rem;"></i>';
+    });
 }
 
 // Função para inicializar o tema

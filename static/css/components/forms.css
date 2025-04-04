@@ -15,37 +15,42 @@
 
 .input-box {
     display: flex;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.75rem;
     width: 100%;
     max-width: 800px;
     margin-bottom: 2rem;
     position: relative;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: var(--input-bg);
+    padding: 0.5rem;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.input-box:focus-within {
+    border-color: var(--border-color);
 }
 
 .input-box textarea {
     width: 100%;
-    padding: 1rem 3.5rem 1rem 1.2rem;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    border: none;
     background-color: var(--input-bg);
     color: var(--text-primary);
     font-size: 1rem;
     resize: none;
-    min-height: 56px;
+    min-height: 42px;
     max-height: 200px;
     line-height: 1.5;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.2s;
+    border-radius: 12px;
 }
 
 .input-box textarea:focus {
     outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
 }
 
 .input-box textarea::-webkit-scrollbar {
@@ -54,29 +59,31 @@
 
 .input-box .send-btn,
 .input-box .stop-btn {
-    position: absolute;
-    right: 0.75rem;
-    bottom: 0.75rem;
+    position: relative;
+    right: 0;
     background: transparent;
-    border: none;
-    color: var(--text-primary);
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 8px;
+    border-radius: 50%;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-right: 0.5rem;
 }
 
-.input-box .send-btn:hover,
-.input-box .stop-btn:hover {
-    background-color: var(--action-hover);
+.input-box .send-btn {
+    background-color: var(--accent-color);
+    color: var(--accent-text);
 }
 
 .input-box .stop-btn {
-    right: 3rem;
-    bottom: 0.75rem;
+    background: transparent;
+    color: var(--text-secondary);
+    margin-right: 0.5rem;
+}
+
+.input-box .stop-btn:hover {
+    color: var(--text-primary);
 }
 
 .quick-actions {
@@ -90,11 +97,11 @@
 .model-select {
     padding: 0.6rem 0.8rem;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background-color: var(--input-bg);
+    border: none;
+    background-color: transparent;
     color: var(--text-primary);
     font-size: 0.9rem;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
     cursor: pointer;
     appearance: none;
     -webkit-appearance: none;
@@ -104,7 +111,7 @@
     padding-right: 2rem;
 }
 
-.model-select:focus {
-    outline: none;
-    border-color: var(--accent-color);
+.model-select:hover {
+    background-color: var(--action-hover);
 }
+

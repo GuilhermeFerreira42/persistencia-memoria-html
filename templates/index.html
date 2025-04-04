@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
     <head>
@@ -21,17 +22,34 @@
         <!-- Barra Lateral -->
         <aside class="sidebar">
             <button class="new-chat-btn">
-                <i class="fas fa-plus"></i>
+                <i class="fas fa-plus" style="font-weight: 100;"></i>
                 Novo Chat
             </button>
             <div class="search-box">
                 <input type="text" id="search-input" placeholder="Pesquisar conversas...">
             </div>
             <div class="chat-list">
+                <!-- Template para o item de chat com menu de três pontos -->
+                <div class="chat-item d-none" id="chat-item-template" style="display: none;">
+                    <div class="chat-item-content">Nome da conversa</div>
+                    <button class="more-btn">
+                        <i class="fas fa-ellipsis-h" style="font-weight: 100;"></i>
+                    </button>
+                    <div class="chat-options-menu">
+                        <div class="chat-option-item" data-action="rename">
+                            <i class="fas fa-pen chat-option-icon" style="font-weight: 100;"></i>
+                            <span>Renomear</span>
+                        </div>
+                        <div class="chat-option-item" data-action="delete">
+                            <i class="fas fa-trash chat-option-icon" style="font-weight: 100;"></i>
+                            <span>Deletar</span>
+                        </div>
+                    </div>
+                </div>
                 <!-- Lista de conversas será preenchida via JavaScript -->
             </div>
             <button class="settings-btn">
-                <i class="fas fa-cog"></i>
+                <i class="fas fa-cog" style="font-weight: 100;"></i>
                 Configurações
             </button>
         </aside>
@@ -40,12 +58,12 @@
         <main class="main-content">
             <div class="top-bar">
                 <button class="header-sidebar-toggle">
-                    <i class="fas fa-bars"></i>
+                    <i class="fas fa-bars" style="font-weight: 100;"></i>
                 </button>
                 <h1 class="program-name">AI Chat</h1>
                 <div class="top-bar-actions">
                     <button class="theme-toggle">
-                        <i class="fas fa-moon"></i>
+                        <i class="fas fa-moon" style="font-weight: 100;"></i>
                     </button>
                     <select class="model-select">
                         <option value="gemma2:2b">gemma2:2b</option>
@@ -65,7 +83,7 @@
                     <!-- Área para o menu de comandos na tela de boas-vindas -->
                     <div id="command-menu" class="command-menu">
                         <div class="command-item" data-command="/youtube">
-                            <i class="fas fa-youtube command-icon"></i>
+                            <i class="fas fa-youtube command-icon" style="font-weight: 100;"></i>
                             <div>
                                 <div class="command-text">/youtube</div>
                                 <div class="command-description">Resumir vídeo do YouTube</div>
@@ -73,24 +91,24 @@
                         </div>
                     </div>
                     <button type="submit" class="send-btn">
-                        <i class="fas fa-paper-plane"></i>
+                        <i class="fas fa-arrow-up" style="font-size: 0.9rem;"></i>
                     </button>
                 </form>
                 <div class="quick-actions">
                     <button class="quick-action-btn">
-                        <i class="fas fa-lightbulb"></i>
+                        <i class="fas fa-lightbulb" style="font-weight: 100;"></i>
                         Sugerir ideias
                     </button>
                     <button class="quick-action-btn">
-                        <i class="fas fa-file-alt"></i>
+                        <i class="fas fa-file-alt" style="font-weight: 100;"></i>
                         Resumir texto
                     </button>
                     <button class="quick-action-btn">
-                        <i class="fas fa-code"></i>
+                        <i class="fas fa-code" style="font-weight: 100;"></i>
                         Ajuda com código
                     </button>
                     <button class="quick-action-btn">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" style="font-weight: 100;"></i>
                         Tirar dúvidas
                     </button>
                 </div>
@@ -116,7 +134,7 @@
                             <!-- Área para o menu de comandos no chat ativo -->
                             <div id="chat-command-menu" class="command-menu">
                                 <div class="command-item" data-command="/youtube">
-                                    <i class="fas fa-youtube command-icon"></i>
+                                    <i class="fas fa-youtube command-icon" style="font-weight: 100;"></i>
                                     <div>
                                         <div class="command-text">/youtube</div>
                                         <div class="command-description">Resumir vídeo do YouTube</div>
@@ -124,10 +142,10 @@
                                 </div>
                             </div>
                             <button type="submit" class="send-btn" id="send-btn">
-                                <i class="fas fa-paper-plane"></i>
+                                <i class="fas fa-arrow-up" style="font-size: 0.9rem;"></i>
                             </button>
                             <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
-                                <i class="fas fa-stop"></i>
+                                <i class="fas fa-stop" style="font-weight: 100;"></i>
                             </button>
                         </form>
                     </div>

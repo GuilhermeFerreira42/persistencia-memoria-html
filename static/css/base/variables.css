@@ -25,15 +25,15 @@
     --code-header-bg: #f1f1f1;
     
     /* Cor de acento e status */
-    --accent-color: #666666;
-    --accent-color-rgb: 102, 102, 102;
-    --accent-hover: #555555;
+    --accent-color: #6B7280;
+    --accent-color-rgb: 107, 114, 128;
+    --accent-hover: #374151;
     --accent-text: #ffffff;
     --color-success: #4CAF50;
     
-    /* Efeitos */
-    --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --box-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+    /* Efeitos - removidos */
+    --box-shadow: none;
+    --box-shadow-hover: none;
     --transition-speed: 0.2s;
     
     /* Arredondamento */
@@ -44,10 +44,10 @@
 
 [data-theme="dark"] {
     /* Cores primárias */
-    --bg-primary: #1e1e20;
-    --text-primary: #f1f1f3;
-    --text-secondary: rgba(241, 241, 243, 0.75);
-    --text-disabled: rgba(241, 241, 243, 0.5);
+    --bg-primary: #1A1A1A;
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-disabled: rgba(255, 255, 255, 0.5);
     
     /* Cores de ação */
     --action-active: #ffffff;
@@ -68,13 +68,13 @@
     --code-header-bg: #2c2c30;
     
     /* Cor de acento e status */
-    --accent-color: #999999;
-    --accent-color-rgb: 153, 153, 153;
-    --accent-hover: #aaaaaa;
-    --accent-text: #ffffff;
+    --accent-color: #00FF99;
+    --accent-color-rgb: 0, 255, 153;
+    --accent-hover: #00E589;
+    --accent-text: #000000;
     --color-success: #4CAF50;
     
-    /* Efeitos */
-    --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-    --box-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.24);
+    /* Efeitos - removidos */
+    --box-shadow: none;
+    --box-shadow-hover: none;
 }
