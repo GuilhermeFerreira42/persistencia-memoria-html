@@ -1,7 +1,7 @@
 
 // Importações necessárias
 import { toggleTheme } from './theme.js';
-import { toggleSidebar } from './sidebar.js';
+import { toggleSidebar, initSidebar } from './sidebar.js';
 import { configureTextarea } from './textarea.js';
 
 export function configureEventListeners() {
@@ -20,4 +20,7 @@ export function configureEventListeners() {
     // Configurar textareas
     configureTextarea(document.querySelector('#chat-input'));
     configureTextarea(document.querySelector('#welcome-input'));
+    
+    // Inicializar a barra lateral
+    initSidebar();
 }

@@ -7,7 +7,7 @@
     position: relative;
     overflow: hidden;
     margin-left: 260px; /* Largura da barra lateral */
-    transition: margin-left 0.3s ease;
+    transition: margin-left 0.3s ease, width 0.3s ease;
     width: calc(100% - 260px); /* Ajusta a largura para considerar a barra lateral */
 }
 
@@ -24,7 +24,7 @@
     overflow-x: hidden;
     position: relative;
     width: 100%;
-    height: calc(100vh - 60px); /* Altura total menos a altura da top-bar */
+    height: calc(100vh - 70px); /* Altura total menos a altura da top-bar */
     overflow-anchor: none; /* Previne ajuste automático de scroll */
     scroll-behavior: smooth; /* Rolagem suave */
     contain: paint; /* Melhora performance */
@@ -63,6 +63,7 @@
 
 .chat-container::-webkit-scrollbar-track {
     background: var(--bg-secondary, #f1f1f1);
+    border-radius: 4px;
 }
 
 .chat-container::-webkit-scrollbar-thumb {
@@ -84,19 +85,21 @@
 .input-container {
     position: sticky;
     bottom: 0;
-    background: var(--bg-color);
+    background: var(--bg-primary);
     padding: 20px;
     border-top: 1px solid var(--border-color);
     z-index: 10;
+    backdrop-filter: blur(8px);
 }
 
 .message {
     position: relative;
-    max-width: 80%;
+    max-width: 85%;
     margin-bottom: 1.5rem;
-    padding: 1rem;
-    border-radius: 0.5rem;
+    padding: 1rem 1.2rem;
+    border-radius: 12px;
     line-height: 1.5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .message.user {
@@ -123,30 +126,23 @@
     display: flex;
 }
 
-.message .action-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    padding: 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.message .action-btn:hover {
-    background-color: var(--action-hover);
-    color: var(--text-primary);
-}
-
 /* Top Bar */
 .top-bar {
-    padding: 1rem;
+    padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    height: 70px;
+}
+
+.program-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .top-bar-actions {
@@ -170,9 +166,10 @@
 }
 
 .welcome-screen h1 {
-    font-size: 2rem;
-    margin-bottom: 2rem;
+    font-size: 2.2rem;
+    margin-bottom: 2.5rem;
     color: var(--text-primary);
+    font-weight: 600;
 }
 
 /* Animação de digitação para mensagens em streaming */

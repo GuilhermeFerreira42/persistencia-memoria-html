@@ -5,6 +5,7 @@
     position: relative;
     width: 100%;
     overflow: hidden;
+    background-color: var(--bg-primary);
 }
 
 .input-container {
@@ -13,6 +14,7 @@
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
+    background-color: var(--bg-primary);
 }
 
 /* Loading Animation */
@@ -45,6 +47,60 @@
     }
 }
 
+/* Menu de Comandos */
+.command-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--box-shadow);
+    z-index: 1000;
+    display: none;
+    margin-bottom: 8px;
+}
+
+.command-menu.visible {
+    display: block;
+}
+
+.command-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+    transition: background-color var(--transition-speed);
+}
+
+.command-item:hover {
+    background-color: var(--action-hover);
+}
+
+.command-icon {
+    color: var(--accent-color);
+    width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.command-text {
+    font-weight: 500;
+}
+
+.command-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+
+/* Responsividade */
 @media (max-width: 768px) {
     .main-content {
         width: 100%;
@@ -57,5 +113,15 @@
 
     .sidebar.visible {
         transform: translateX(0);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .input-container,
+    .welcome-screen {
+        padding: 1rem;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
     }
 }

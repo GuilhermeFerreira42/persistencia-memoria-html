@@ -1,17 +1,20 @@
 
 .sidebar {
-    position: fixed;
     width: 260px;
     height: 100vh;
     background-color: var(--sidebar-bg);
     padding: 1rem;
-    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease, width 0.3s ease;
-    z-index: 1000;
+    border-right: 1px solid var(--border-color);
+    position: fixed;
     left: 0;
     top: 0;
+    transition: transform 0.3s ease;
+    z-index: 100;
+    box-shadow: 1px 0 5px rgba(0, 0, 0, 0.05);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .sidebar.collapsed {
@@ -21,94 +24,89 @@
 .chat-list {
     flex: 1;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--text-disabled) transparent;
-}
-
-.chat-list::-webkit-scrollbar {
-    width: 5px;
-}
-
-.chat-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.chat-list::-webkit-scrollbar-thumb {
-    background-color: var(--text-disabled);
-    border-radius: 20px;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .chat-item {
     padding: 0.75rem;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    margin-bottom: 0.5rem;
+    transition: background-color 0.2s;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    transition: background-color 0.2s;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 400;
     position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .chat-item:hover {
     background-color: var(--action-hover);
 }
 
-.chat-item .action-buttons {
-    display: none;
-    gap: 5px;
-    z-index: 100;
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    padding: 3px;
-    border-radius: 4px;
-    pointer-events: auto;
+.chat-item.active {
+    background-color: var(--action-selected);
+    font-weight: 500;
 }
 
-.chat-item:hover .action-buttons {
-    display: flex;
-}
-
-.chat-item .action-btn {
-    background: #333;
-    border: none;
-    color: white;
-    padding: 5px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.2s;
-    z-index: 200;
-    pointer-events: auto;
-    font-size: 12px;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.chat-item .action-btn i {
-    font-size: 14px;
-}
-
-.chat-item .action-btn:hover {
-    background-color: #444;
-}
-
-.chat-title {
+.chat-item-content {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-right: 0.5rem;
 }
 
-.chat-item.active {
-    background-color: var(--action-selected);
-    font-weight: 500;
-    border-left: 4px solid var(--color-success);
+/* Estilo para o botão de mais opções */
+.chat-item .more-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
 }
 
+.chat-item:hover .more-btn {
+    opacity: 1;
+}
+
+.chat-item .more-btn:hover {
+    background-color: var(--action-hover);
+    color: var(--text-primary);
+}
+
+/* Estilos para o scroll da barra lateral */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--text-disabled);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-260px);
+    }
+
+    .sidebar.visible {
+        transform: translateX(0);
+    }
+}

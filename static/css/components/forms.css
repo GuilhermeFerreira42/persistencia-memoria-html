@@ -1,3 +1,4 @@
+
 .search-box {
     position: relative;
     margin-bottom: 1rem;
@@ -7,7 +8,7 @@
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 5px;
+    border-radius: 8px;
     background-color: var(--input-bg);
     color: var(--text-primary);
 }
@@ -19,14 +20,16 @@
     max-width: 800px;
     margin-bottom: 2rem;
     position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background-color: var(--input-bg);
 }
 
 .input-box textarea {
     width: 100%;
-    padding: 1rem;
-    padding-right: 3.5rem;
+    padding: 1rem 3.5rem 1rem 1.2rem;
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: 12px;
     background-color: var(--input-bg);
     color: var(--text-primary);
     font-size: 1rem;
@@ -36,6 +39,13 @@
     line-height: 1.5;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-box textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.2);
 }
 
 .input-box textarea::-webkit-scrollbar {
@@ -52,7 +62,7 @@
     color: var(--text-primary);
     cursor: pointer;
     padding: 0.5rem;
-    border-radius: 4px;
+    border-radius: 8px;
     transition: all 0.2s;
     display: flex;
     align-items: center;
@@ -65,8 +75,8 @@
 }
 
 .input-box .stop-btn {
-    right: 5rem;
-    bottom: 0.5rem;
+    right: 3rem;
+    bottom: 0.75rem;
 }
 
 .quick-actions {
@@ -78,9 +88,23 @@
 }
 
 .model-select {
-    padding: 0.5rem;
-    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
     background-color: var(--input-bg);
     color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2rem;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: var(--accent-color);
 }
