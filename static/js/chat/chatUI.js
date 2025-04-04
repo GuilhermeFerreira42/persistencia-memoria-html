@@ -424,3 +424,27 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+function scrollToBottom() {
+    const scrollContainer = document.querySelector('.scroll-container');
+    if (scrollContainer) {
+        scrollContainer.scrollTo({
+            top: scrollContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function updateStreamingMessage(messageId, content) {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!messageElement) {
+        console.error(`Elemento de mensagem não encontrado para ID: ${messageId}`);
+        return;
+    }
+
+    const contentElement = messageElement.querySelector('.message-content');
+    if (contentElement) {
+        contentElement.innerHTML = content;
+        scrollToBottom();
+    }
+}

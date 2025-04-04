@@ -300,9 +300,11 @@ function isUserAtBottom(container) {
 
 // Função para rolar suavemente para o final
 function scrollToBottom(container) {
-    container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
+    requestAnimationFrame(() => {
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
     });
 }
 

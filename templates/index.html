@@ -96,36 +96,42 @@
                 </div>
             </div>
 
-            <!-- Container de Chat -->
-            <div class="chat-container" style="display: none;">
-                <!-- Mensagens serão inseridas aqui -->
-            </div>
-
-            <!-- Container de Input -->
-            <div class="input-container" style="display: none;">
-                <form class="input-box" id="chat-form">
-                    <textarea 
-                        id="chat-input" 
-                        placeholder="Digite / para ver os comandos..." 
-                        rows="1"
-                    ></textarea>
-                    <!-- Área para o menu de comandos no chat ativo -->
-                    <div id="chat-command-menu" class="command-menu">
-                        <div class="command-item" data-command="/youtube">
-                            <i class="fas fa-youtube command-icon"></i>
-                            <div>
-                                <div class="command-text">/youtube</div>
-                                <div class="command-description">Resumir vídeo do YouTube</div>
-                            </div>
-                        </div>
+            <!-- Novo contêiner de rolagem -->
+            <div class="scroll-container">
+                <!-- Novo contêiner centralizado -->
+                <div class="content-wrapper">
+                    <!-- Container de Chat -->
+                    <div class="chat-container" style="display: none;">
+                        <!-- Mensagens serão inseridas aqui -->
                     </div>
-                    <button type="submit" class="send-btn" id="send-btn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                    <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
-                        <i class="fas fa-stop"></i>
-                    </button>
-                </form>
+
+                    <!-- Container de Input -->
+                    <div class="input-container" style="display: none;">
+                        <form class="input-box" id="chat-form">
+                            <textarea 
+                                id="chat-input" 
+                                placeholder="Digite / para ver os comandos..." 
+                                rows="1"
+                            ></textarea>
+                            <!-- Área para o menu de comandos no chat ativo -->
+                            <div id="chat-command-menu" class="command-menu">
+                                <div class="command-item" data-command="/youtube">
+                                    <i class="fas fa-youtube command-icon"></i>
+                                    <div>
+                                        <div class="command-text">/youtube</div>
+                                        <div class="command-description">Resumir vídeo do YouTube</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="send-btn" id="send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                            <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

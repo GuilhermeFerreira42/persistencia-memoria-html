@@ -90,7 +90,11 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     
     mensagemDiv.innerHTML = conteudo;
     chatContainer.appendChild(mensagemDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Usar requestAnimationFrame para garantir que o scroll seja aplicado após a renderização
+    requestAnimationFrame(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
     
     // Melhorar os blocos de código imediatamente após adicionar a mensagem
     if (tipo === 'assistant') {
@@ -126,7 +130,12 @@ export function mostrarCarregamento(chatContainer) {
         <span></span>
     `;
     chatContainer.appendChild(loadingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Usar requestAnimationFrame para garantir que o scroll seja aplicado após a renderização
+    requestAnimationFrame(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+    
     return loadingDiv;
 }
 
