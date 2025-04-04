@@ -210,41 +210,32 @@ def process_youtube():
         data = request.json
         video_url = data.get('video_url')
         conversation_id = data.get('conversation_id')
-        comando = data.get('comando')  # Novo: pegar o comando original
-        
+        comando = data.get('comando')  # Comando original, ex.: "/youtube https://..."
+
         if not video_url:
             return jsonify({'error': 'URL não fornecida'}), 400
-            
+
         # Baixar legendas e obter título
         subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
         if not subtitle_file:
             return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
-            
+
         # Limpar legendas
         cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
         if not cleaned_text:
             return jsonify({'error': 'Erro ao processar legendas'}), 500
 
-        # Salvar comando do usuário na conversa
+        # Salvar comando do usuário na conversa (para manter o histórico do comando)
         if conversation_id and comando:
-            add_message_to_conversation(
-                conversation_id,
-                comando,
-                "user"
-            )
+            add_message_to_conversation(conversation_id, comando, "user")
             print(f"[DEBUG] Comando do usuário salvo na conversa: {conversation_id}")
 
-        # Salvar transcrição com título na conversa
+        # Gerar a resposta formatada, mas NÃO salvar imediatamente no histórico
         formatted_response = f"📹 {video_title}\n\n{cleaned_text}"
+        print(f"[DEBUG] Resposta do YouTube gerada para a conversa: {conversation_id}")
+
+        # Dispara a atualização para que o frontend atualize o DOM (a conversa no JSON ainda não contém essa mensagem)
         if conversation_id:
-            add_message_to_conversation(
-                conversation_id,
-                formatted_response,
-                "assistant"
-            )
-            print(f"[DEBUG] Resposta do YouTube salva na conversa: {conversation_id}")
-            
-            # Notificar via WebSocket
             socketio.emit('conversation_updated', {
                 'conversation_id': conversation_id
             })
@@ -256,6 +247,28 @@ def process_youtube():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/save_youtube_message', methods=['POST'])
+def save_youtube_message():
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        content = data.get('content')
+        if not conversation_id or not content:
+            return jsonify({'error': 'Dados incompletos'}), 400
+        
+        print(f"[DEBUG] Salvando mensagem do YouTube na conversa: {conversation_id}")
+        add_message_to_conversation(conversation_id, content, "assistant")
+        
+        # Opcional: Notifica novamente via WebSocket para que o frontend atualize o histórico (se necessário)
+        socketio.emit('conversation_updated', {
+            'conversation_id': conversation_id
+        })
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        print(f"[ERRO] Falha ao salvar mensagem do YouTube: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/rename_conversation/<conversation_id>', methods=['POST'])
@@ -371,7 +384,7 @@ def process_with_ai(text, conversation_id=None):
         payload = {
             "model": MODEL_NAME,
             "messages": [
-                {"role": "system", "content": "Você é um assistente útil. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código."},
+                {"role": "system", "content": "Você é um assistente útil, fale somente em português brasileiro. Formate suas respostas em Markdown. Use acentos graves triplos (```) APENAS para blocos de código, especificando a linguagem (ex.: ```python). NUNCA coloque texto explicativo dentro de blocos de código."},
                 {"role": "user", "content": text}
             ],
             "stream": False

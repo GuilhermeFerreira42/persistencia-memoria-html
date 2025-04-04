@@ -359,11 +359,11 @@ function forcarRenderizacao(elemento) {
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
     if (!mensagem.trim()) return;
 
-    // Se for comando do YouTube, trate de forma diferenciada
+    // Verificar se é um comando do YouTube
     if (mensagem.startsWith('/youtube ')) {
         // Extrai a URL (ou parâmetros) após o comando
         const partes = mensagem.split(' ');
-        const videoUrl = partes[1]; // Ajuste se houver mais parâmetros
+        const videoUrl = partes[1];
         if (!videoUrl) {
             adicionarMensagem(chatContainer, "Por favor, forneça uma URL do YouTube válida.", 'assistant');
             return;
@@ -384,9 +384,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         try {
             const response = await fetch('/process_youtube', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     video_url: videoUrl,
                     conversation_id: window.conversaAtual.id,
@@ -401,22 +399,45 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 adicionarMensagem(chatContainer, `Erro: ${data.error}`, 'assistant');
                 adicionarMensagemAoHistorico(`Erro: ${data.error}`, 'assistant');
             } else {
+                // Atualiza o DOM com a resposta recebida
                 adicionarMensagem(chatContainer, data.text, 'assistant');
+                // Opcionalmente, atualiza o histórico local imediatamente (se desejar diferenciar visualmente)
                 adicionarMensagemAoHistorico(data.text, 'assistant');
+
+                // Após a renderização, chama o endpoint para salvar a mensagem do YouTube na persistência
+                fetch('/save_youtube_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: window.conversaAtual.id,
+                        content: data.text
+                    })
+                })
+                .then(res => res.json())
+                .then(saveData => {
+                    if (saveData.error) {
+                        console.error("Erro ao salvar mensagem do YouTube:", saveData.error);
+                    } else {
+                        console.log("Mensagem do YouTube salva com sucesso.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Erro no fetch /save_youtube_message:", err);
+                });
             }
-            
             // Notifica que o histórico foi atualizado
             window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+            return; // Interrompe o fluxo para mensagens normais
         } catch (error) {
             loadingDiv.remove();
             const errorMsg = "Erro ao processar o vídeo";
             adicionarMensagem(chatContainer, errorMsg, 'assistant');
             adicionarMensagemAoHistorico(errorMsg, 'assistant');
+            return;
         }
-        return; // Interrompe o fluxo para mensagens normais
     }
 
-    // Fluxo de mensagem normal (já existente)
+    // Continua com o processamento normal de mensagens...
     if (!window.conversaAtual) {
         console.warn("Criando nova conversa...");
         criarNovaConversa();
