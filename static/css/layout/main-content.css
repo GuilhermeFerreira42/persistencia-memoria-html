@@ -9,6 +9,7 @@
     margin-left: 260px; /* Largura da barra lateral */
     transition: margin-left 0.3s ease, width 0.3s ease;
     width: calc(100% - 260px); /* Ajusta a largura para considerar a barra lateral */
+    background-color: var(--bg-primary);
 }
 
 /* Quando a barra lateral está recolhida */
@@ -62,23 +63,23 @@
 }
 
 .chat-container::-webkit-scrollbar-track {
-    background: var(--bg-secondary, #f1f1f1);
+    background: transparent;
     border-radius: 4px;
 }
 
 .chat-container::-webkit-scrollbar-thumb {
-    background: var(--text-secondary, #888);
+    background: var(--text-secondary);
     border-radius: 4px;
 }
 
 .chat-container::-webkit-scrollbar-thumb:hover {
-    background: var(--text-primary, #555);
+    background: var(--text-primary);
 }
 
 /* Para Firefox */
 .chat-container {
     scrollbar-width: thin;
-    scrollbar-color: var(--text-secondary, #888) var(--bg-secondary, #f1f1f1);
+    scrollbar-color: var(--text-secondary) transparent;
 }
 
 /* Ajuste do input-container */
@@ -89,6 +90,7 @@
     padding: 20px;
     z-index: 10;
     backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border-color);
 }
 
 .message {
@@ -99,6 +101,7 @@
     border-radius: 12px;
     line-height: 1.5;
     box-shadow: none;
+    border: none;
 }
 
 .message.user {
@@ -139,7 +142,7 @@
 }
 
 .program-name {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -161,7 +164,7 @@
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
-    height: 100%;
+    height: calc(100vh - 70px);
 }
 
 .welcome-screen h1 {

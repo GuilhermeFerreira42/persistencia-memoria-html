@@ -8,13 +8,45 @@
     background-color: var(--bg-primary);
 }
 
-.input-container {
-    padding: 1.5rem;
-    border-top: 1px solid var(--border-color);
+/* Input Box Styling */
+.input-box {
+    display: flex;
+    align-items: center;
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background-color: var(--input-bg);
+    padding: 0.5rem;
+    width: 100%;
     max-width: 800px;
     margin: 0 auto;
+}
+
+.input-box textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    background: transparent;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.5;
+    outline: none;
+    min-height: 24px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.input-box textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
     width: 100%;
-    background-color: var(--bg-primary);
 }
 
 /* Loading Animation */
@@ -83,7 +115,7 @@
 }
 
 .command-icon {
-    color: var(--accent-color);
+    color: var(--text-secondary);
     width: 20px;
     display: flex;
     align-items: center;

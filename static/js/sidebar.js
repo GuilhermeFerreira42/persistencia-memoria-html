@@ -37,4 +37,33 @@ export function initSidebar() {
             mainContent?.classList.add('expanded');
         }
     });
+    
+    // Configurar menu de contexto para os itens da barra lateral
+    document.querySelectorAll('.chat-item').forEach(item => {
+        const moreBtn = item.querySelector('.more-btn');
+        const optionsMenu = item.querySelector('.chat-options-menu');
+        
+        if (moreBtn && optionsMenu) {
+            moreBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                optionsMenu.classList.toggle('visible');
+                
+                // Fechar outros menus abertos
+                document.querySelectorAll('.chat-options-menu.visible').forEach(menu => {
+                    if (menu !== optionsMenu) {
+                        menu.classList.remove('visible');
+                    }
+                });
+            });
+        }
+    });
+    
+    // Ocultar menus ao clicar em qualquer lugar fora deles
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.more-btn')) {
+            document.querySelectorAll('.chat-options-menu.visible').forEach(menu => {
+                menu.classList.remove('visible');
+            });
+        }
+    });
 }

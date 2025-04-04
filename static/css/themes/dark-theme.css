@@ -1,9 +1,11 @@
+
 [data-theme="dark"] {
-    --bg-primary: #343541;
-    --text-primary: #fff;
+    --bg-primary: #212121;
+    --text-primary: #FFFFFF;
     --text-secondary: rgba(255, 255, 255, 0.7);
     --msg-user: #444654;
     --msg-bot: #444654;
-    --sidebar-bg: #202123;
-    --input-bg: #40414f;
+    --sidebar-bg: #171717;
+    --input-bg: #2F2F2F;
+    --border-color: #4E4F60;
 }

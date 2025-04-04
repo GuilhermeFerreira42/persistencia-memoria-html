@@ -14,7 +14,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
         <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
-        <!-- Favicon.ico com tamanho sugerido -->
+        <meta name="theme-color" content="#212121">
         <link rel="icon" type="image/x-icon" sizes="96x96" href="{{ url_for('static', filename='favicon.ico') }}">
     </head>
 <body>
@@ -33,7 +33,7 @@
                 <div class="chat-item d-none" id="chat-item-template" style="display: none;">
                     <div class="chat-item-content">Nome da conversa</div>
                     <button class="more-btn">
-                        <i class="fas fa-ellipsis-h" style="font-weight: 100;"></i>
+                        <i class="fas fa-ellipsis" style="font-weight: 100;"></i>
                     </button>
                     <div class="chat-options-menu">
                         <div class="chat-option-item" data-action="rename">

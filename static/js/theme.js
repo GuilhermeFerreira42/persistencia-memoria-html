@@ -1,6 +1,6 @@
 
 // Estado do tema
-let currentTheme = 'light';
+let currentTheme = 'dark'; // Mudando o padrão para modo escuro
 
 // Função para alternar o tema
 export function toggleTheme() {
@@ -25,7 +25,7 @@ function applyTheme(theme) {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
         metaThemeColor.setAttribute('content', 
-            theme === 'light' ? '#f9f9fb' : '#1A1A1A');
+            theme === 'light' ? '#f9f9fb' : '#212121');
     }
     
     // Atualizar o ícone de enviar mensagem

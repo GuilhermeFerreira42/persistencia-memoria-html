@@ -1,8 +1,8 @@
 
 .new-chat-btn {
-    background-color: var(--accent-color);
-    color: var(--accent-text);
-    border: none;
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     padding: 12px 16px;
     border-radius: 8px;
     cursor: pointer;
@@ -12,17 +12,16 @@
     justify-content: center;
     gap: 0.5rem;
     font-weight: 500;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: background-color 0.2s;
     box-shadow: none;
 }
 
 .new-chat-btn:hover {
-    background-color: var(--accent-hover);
-    transform: none;
+    background-color: var(--action-hover);
 }
 
-.new-chat-btn:active {
-    transform: none;
+.new-chat-btn i {
+    font-weight: 300 !important;
 }
 
 .settings-btn {
@@ -60,18 +59,13 @@
 
 .theme-toggle:hover, .header-sidebar-toggle:hover {
     background: var(--action-hover);
-    transform: none;
-}
-
-.theme-toggle:active, .header-sidebar-toggle:active {
-    transform: none;
 }
 
 .quick-action-btn {
-    padding: 1rem 1.25rem;
-    border: none;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
     border-radius: 10px;
-    background-color: var(--input-bg);
+    background-color: transparent;
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
@@ -84,17 +78,11 @@
 
 .quick-action-btn:hover {
     background-color: var(--action-hover);
-    transform: none;
-    box-shadow: none;
-}
-
-.quick-action-btn:active {
-    transform: none;
 }
 
 .quick-action-btn i {
-    color: var(--accent-color);
-    font-size: 1.1rem;
+    color: var(--text-secondary);
+    font-weight: 300 !important;
 }
 
 /* Estilo para botões de ação nas mensagens */
@@ -115,10 +103,10 @@
     opacity: 1;
 }
 
-/* Estilo para botão de envio - modificado para circular com seta para cima */
+/* Estilo para botão de envio - modificado para seta para cima em círculo */
 .send-btn {
     background-color: var(--accent-color);
-    color: var(--accent-text);
+    color: var(--text-primary);
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -133,13 +121,8 @@
     background-color: var(--accent-hover);
 }
 
-[data-theme="dark"] .send-btn {
-    background-color: var(--accent-color);
-    color: #000000;
-}
-
-[data-theme="dark"] .send-btn:hover {
-    background-color: var(--accent-hover);
+.send-btn i {
+    font-weight: 300 !important;
 }
 
 /* Estilo para botão de parar */
@@ -153,13 +136,17 @@
     color: var(--text-primary);
 }
 
+.stop-btn i {
+    font-weight: 300 !important;
+}
+
 /* Estilo para botões de ação específicos */
 .copy-btn:hover {
-    color: var(--accent-color);
+    color: var(--text-primary);
 }
 
 .regenerate-btn:hover {
-    color: var(--accent-color);
+    color: var(--text-primary);
 }
 
 /* Estilo para menu de três pontos nos chats */
@@ -175,6 +162,10 @@
 
 .chat-item:hover .more-btn {
     opacity: 1;
+}
+
+.chat-item .more-btn i {
+    font-weight: 300 !important;
 }
 
 /* Menu dropdown para os três pontos */
@@ -210,4 +201,5 @@
 .chat-option-icon {
     color: var(--text-secondary);
     width: 16px;
+    font-weight: 300 !important;
 }
