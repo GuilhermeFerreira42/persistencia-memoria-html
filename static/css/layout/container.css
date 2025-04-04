@@ -1,7 +1,10 @@
+
 .container {
     display: flex;
     height: 100vh;
     position: relative;
+    width: 100%;
+    overflow: hidden;
 }
 
 .input-container {
@@ -39,5 +42,20 @@
 @keyframes bounce {
     to {
         transform: translateY(-4px);
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar {
+        transform: translateX(-260px);
+    }
+
+    .sidebar.visible {
+        transform: translateX(0);
     }
 }

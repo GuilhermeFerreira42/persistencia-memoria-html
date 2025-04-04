@@ -1,3 +1,4 @@
+
 .main-content {
     flex: 1;
     display: flex;
@@ -5,6 +6,15 @@
     height: 100vh;
     position: relative;
     overflow: hidden;
+    margin-left: 260px; /* Largura da barra lateral */
+    transition: margin-left 0.3s ease;
+    width: calc(100% - 260px); /* Ajusta a largura para considerar a barra lateral */
+}
+
+/* Quando a barra lateral está recolhida */
+.main-content.expanded {
+    margin-left: 0;
+    width: 100%; /* Quando expandido, ocupa toda a largura */
 }
 
 /* Novo contêiner de rolagem */
@@ -15,6 +25,9 @@
     position: relative;
     width: 100%;
     height: calc(100vh - 60px); /* Altura total menos a altura da top-bar */
+    overflow-anchor: none; /* Previne ajuste automático de scroll */
+    scroll-behavior: smooth; /* Rolagem suave */
+    contain: paint; /* Melhora performance */
 }
 
 /* Novo contêiner centralizado */
@@ -35,6 +48,36 @@
     gap: 20px;
     padding: 20px;
     margin-bottom: 20px;
+    overflow-y: auto; /* Habilita scroll apenas no container de mensagens */
+    scrollbar-width: thin;
+    -ms-overflow-style: none;
+    overflow-anchor: none;
+    scroll-behavior: smooth;
+    contain: paint;
+}
+
+/* Esconde a barra de rolagem no Chrome/Safari */
+.chat-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+    background: var(--bg-secondary, #f1f1f1);
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+    background: var(--text-secondary, #888);
+    border-radius: 4px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-primary, #555);
+}
+
+/* Para Firefox */
+.chat-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-secondary, #888) var(--bg-secondary, #f1f1f1);
 }
 
 /* Ajuste do input-container */
@@ -44,53 +87,7 @@
     background: var(--bg-color);
     padding: 20px;
     border-top: 1px solid var(--border-color);
-}
-
-.main-content.expanded {
-    margin-left: 0;
-    width: 100%; /* Quando expandido, ocupa toda a largura */
-}
-
-.chat-container {
-    flex: 1;
-    overflow-y: auto; /* Habilita scroll apenas no container de mensagens */
-    padding: 2rem;
-    width: 100%; /* Ocupa toda a largura disponível */
-    max-width: none; /* Remove a largura máxima */
-    margin: 0; /* Remove as margens automáticas */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    overflow-anchor: none; /* Previne ajuste automático de scroll */
-    scroll-behavior: smooth; /* Rolagem suave */
-    contain: paint; /* Melhora performance */
-}
-
-.chat-container::-webkit-scrollbar {
-    display: none;
-}
-
-/* Personalizando a aparência da barra de rolagem */
-.chat-container::-webkit-scrollbar {
-    width: 8px; /* Largura da barra */
-}
-
-.chat-container::-webkit-scrollbar-track {
-    background: var(--bg-secondary, #f1f1f1); /* Cor do fundo da barra */
-}
-
-.chat-container::-webkit-scrollbar-thumb {
-    background: var(--text-secondary, #888); /* Cor do "polegar" */
-    border-radius: 4px; /* Bordas arredondadas */
-}
-
-.chat-container::-webkit-scrollbar-thumb:hover {
-    background: var(--text-primary, #555); /* Cor ao passar o mouse */
-}
-
-/* Para Firefox */
-.chat-container {
-    scrollbar-width: thin;
-    scrollbar-color: var(--text-secondary, #888) var(--bg-secondary, #f1f1f1);
+    z-index: 10;
 }
 
 .message {
@@ -169,6 +166,7 @@
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
+    height: 100%;
 }
 
 .welcome-screen h1 {
