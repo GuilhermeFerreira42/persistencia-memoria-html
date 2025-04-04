@@ -1,34 +1,34 @@
 
 :root {
-    /* Cores primárias baseadas na paleta do ChatGPT */
-    --bg-primary: #212121;
-    --text-primary: #FFFFFF;
-    --text-secondary: rgba(255, 255, 255, 0.75);
-    --text-disabled: rgba(255, 255, 255, 0.5);
+    /* Cores primárias */
+    --bg-primary: #f9f9fb;
+    --text-primary: #202123;
+    --text-secondary: rgba(32, 33, 35, 0.75);
+    --text-disabled: rgba(32, 33, 35, 0.5);
     
     /* Cores de ação */
-    --action-active: #FFFFFF;
-    --action-hover: #2A2B32;
-    --action-selected: rgba(255, 255, 255, 0.12);
-    --action-disabled: rgba(255, 255, 255, 0.3);
-    --action-disabled-background: rgba(255, 255, 255, 0.12);
+    --action-active: #202123;
+    --action-hover: rgba(0, 0, 0, 0.05);
+    --action-selected: rgba(0, 0, 0, 0.08);
+    --action-disabled: rgba(0, 0, 0, 0.3);
+    --action-disabled-background: rgba(0, 0, 0, 0.12);
     
     /* Cores de mensagem */
-    --msg-user: #444654;
-    --msg-bot: #444654;
+    --msg-user: #f0f0f0;
+    --msg-bot: #e6e6e6;
     
     /* Cores de UI */
-    --sidebar-bg: #171717;
-    --input-bg: #2F2F2F;
-    --border-color: #4E4F60;
-    --code-bg: #2A2B32;
-    --code-header-bg: #2A2B32;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border-color: #ebebeb;
+    --code-bg: #f8f8f8;
+    --code-header-bg: #f1f1f1;
     
     /* Cor de acento e status */
     --accent-color: #6B7280;
     --accent-color-rgb: 107, 114, 128;
     --accent-hover: #374151;
-    --accent-text: #FFFFFF;
+    --accent-text: #ffffff;
     --color-success: #4CAF50;
     
     /* Efeitos - removidos */
@@ -43,24 +43,38 @@
 }
 
 [data-theme="dark"] {
-    /* Como já estamos em modo escuro por padrão, mantemos as mesmas cores */
-    --bg-primary: #212121;
+    /* Cores primárias */
+    --bg-primary: #1A1A1A;
     --text-primary: #FFFFFF;
     --text-secondary: rgba(255, 255, 255, 0.75);
     --text-disabled: rgba(255, 255, 255, 0.5);
-    --action-active: #FFFFFF;
-    --action-hover: #2A2B32;
+    
+    /* Cores de ação */
+    --action-active: #ffffff;
+    --action-hover: rgba(255, 255, 255, 0.08);
     --action-selected: rgba(255, 255, 255, 0.12);
     --action-disabled: rgba(255, 255, 255, 0.3);
     --action-disabled-background: rgba(255, 255, 255, 0.12);
-    --msg-user: #444654;
-    --msg-bot: #444654;
-    --sidebar-bg: #171717;
-    --input-bg: #2F2F2F;
-    --border-color: #4E4F60;
-    --code-bg: #2A2B32;
-    --code-header-bg: #2A2B32;
-    --accent-color: #6B7280;
-    --accent-color-rgb: 107, 114, 128;
-    --accent-hover: #374151;
+    
+    /* Cores de mensagem */
+    --msg-user: #2c2c30;
+    --msg-bot: #27272b;
+    
+    /* Cores de UI */
+    --sidebar-bg: #151517;
+    --input-bg: #2c2c30;
+    --border-color: #2c2c30;
+    --code-bg: #27272b;
+    --code-header-bg: #2c2c30;
+    
+    /* Cor de acento e status */
+    --accent-color: #00FF99;
+    --accent-color-rgb: 0, 255, 153;
+    --accent-hover: #00E589;
+    --accent-text: #000000;
+    --color-success: #4CAF50;
+    
+    /* Efeitos - removidos */
+    --box-shadow: none;
+    --box-shadow-hover: none;
 }

@@ -1,11 +1,9 @@
-
 :root {
     --bg-primary: #f7f7f8;
     --text-primary: #000000;
     --text-secondary: rgba(0, 0, 0, 0.7);
-    --msg-user: #f0f0f0;
-    --msg-bot: #f9f9fa;
-    --sidebar-bg: #f0f0f0;
-    --input-bg: #f5f5f5;
-    --border-color: #e5e5e5;
+    --msg-user: #e6e6e6;
+    --msg-bot: #d9d9d9;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
 }
