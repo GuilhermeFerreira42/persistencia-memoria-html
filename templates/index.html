@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
     <head>
@@ -122,34 +121,34 @@
                     <div class="chat-container" style="display: none;">
                         <!-- Mensagens serão inseridas aqui -->
                     </div>
-                </div>
-            </div>
-            
-            <!-- Container de Input -->
-            <div class="input-container" style="display: none;">
-                <form class="input-box" id="chat-form">
-                    <textarea 
-                        id="chat-input" 
-                        placeholder="Digite / para ver os comandos..." 
-                        rows="1"
-                    ></textarea>
-                    <!-- Área para o menu de comandos no chat ativo -->
-                    <div id="chat-command-menu" class="command-menu">
-                        <div class="command-item" data-command="/youtube">
-                            <i class="fas fa-youtube command-icon"></i>
-                            <div>
-                                <div class="command-text">/youtube</div>
-                                <div class="command-description">Resumir vídeo do YouTube</div>
+
+                    <!-- Container de Input -->
+                    <div class="input-container" style="display: none;">
+                        <form class="input-box" id="chat-form">
+                            <textarea 
+                                id="chat-input" 
+                                placeholder="Digite / para ver os comandos..." 
+                                rows="1"
+                            ></textarea>
+                            <!-- Área para o menu de comandos no chat ativo -->
+                            <div id="chat-command-menu" class="command-menu">
+                                <div class="command-item" data-command="/youtube">
+                                    <i class="fas fa-youtube command-icon"></i>
+                                    <div>
+                                        <div class="command-text">/youtube</div>
+                                        <div class="command-description">Resumir vídeo do YouTube</div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                            <button type="submit" class="send-btn" id="send-btn">
+                                <i class="fas fa-arrow-up" style="font-size: 0.9rem;"></i>
+                            </button>
+                            <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
+                                <i class="fas fa-stop" style="font-weight: 100;"></i>
+                            </button>
+                        </form>
                     </div>
-                    <button type="submit" class="send-btn" id="send-btn">
-                        <i class="fas fa-arrow-up" style="font-size: 0.9rem;"></i>
-                    </button>
-                    <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
-                        <i class="fas fa-stop" style="font-weight: 100;"></i>
-                    </button>
-                </form>
+                </div>
             </div>
         </main>
     </div>

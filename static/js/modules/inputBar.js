@@ -51,11 +51,6 @@ export function initializeInputBar(inputElement, menuElement, commands) {
     inputElement.setAttribute('aria-label', 'Campo de mensagem');
     inputElement.setAttribute('aria-describedby', 'message-instructions');
 
-    // Focar no elemento para melhor experiência do usuário
-    setTimeout(() => {
-        inputElement.focus();
-    }, 100);
-
     return {
         focus: () => inputElement.focus(),
         clear: () => {

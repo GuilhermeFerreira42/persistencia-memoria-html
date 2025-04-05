@@ -1,8 +1,7 @@
-
 .new-chat-btn {
-    background-color: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    background-color: #333333;
+    color: #ffffff;
+    border: none;
     padding: 12px 16px;
     border-radius: 8px;
     cursor: pointer;
@@ -12,12 +11,12 @@
     justify-content: center;
     gap: 0.5rem;
     font-weight: 500;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s;
     box-shadow: none;
 }
 
 .new-chat-btn:hover {
-    background-color: var(--action-hover);
+    background-color: #444444;
 }
 
 .new-chat-btn:active {
@@ -68,10 +67,10 @@
 
 .quick-action-btn {
     padding: 1rem 1.25rem;
-    border: 1px solid var(--border-color);
+    border: none;
     border-radius: 10px;
-    background-color: transparent;
-    color: var(--text-primary);
+    background-color: #444444;
+    color: #ffffff;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -82,7 +81,7 @@
 }
 
 .quick-action-btn:hover {
-    background-color: var(--action-hover);
+    background-color: #555555;
 }
 
 .quick-action-btn:active {
@@ -90,7 +89,7 @@
 }
 
 .quick-action-btn i {
-    color: var(--text-primary);
+    color: #ffffff;
     font-size: 1.1rem;
 }
 
@@ -114,8 +113,8 @@
 
 /* Estilo para botão de envio - modificado para circular com seta para cima */
 .send-btn {
-    background-color: var(--accent-color);
-    color: var(--accent-text);
+    background-color: #ffffff;
+    color: #000000;
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -128,16 +127,16 @@
 }
 
 .send-btn:hover {
-    background-color: var(--accent-hover);
+    background-color: #f0f0f0;
 }
 
 [data-theme="dark"] .send-btn {
-    background-color: var(--accent-color);
-    color: var(--accent-text);
+    background-color: #ffffff;
+    color: #000000;
 }
 
 [data-theme="dark"] .send-btn:hover {
-    background-color: var(--accent-hover);
+    background-color: #f0f0f0;
 }
 
 /* Estilo para botão de parar */
@@ -153,11 +152,11 @@
 
 /* Estilo para botões de ação específicos */
 .copy-btn:hover {
-    color: var(--text-primary);
+    color: var(--accent-color);
 }
 
 .regenerate-btn:hover {
-    color: var(--text-primary);
+    color: var(--accent-color);
 }
 
 /* Estilo para menu de três pontos nos chats */
