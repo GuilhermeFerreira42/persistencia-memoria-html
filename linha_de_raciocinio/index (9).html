@@ -1,0 +1,440 @@
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>
+   ChatGPT
+  </title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <style>
+   body {
+     background-color: #282828;
+     color: white;
+     height: 100vh;
+     display: flex;
+     flex-direction: column;
+     margin: 0;
+     font-family: Arial, sans-serif;
+   }
+   .container {
+     display: flex;
+     flex-direction: row;
+     height: 100%;
+     width: 100%;
+   }
+   .sidebar {
+     background-color: #1E1E1E;
+     width: 256px;
+     padding: 16px;
+     display: flex;
+     flex-direction: column;
+   }
+   .sidebar .top-buttons {
+     display: flex;
+     align-items: center;
+     margin-bottom: 16px;
+   }
+   .sidebar .top-buttons button {
+     background: none;
+     border: none;
+     color: #787878;
+     font-size: 1.25rem;
+     cursor: pointer;
+   }
+   .sidebar .top-buttons button + button {
+     margin-left: 16px;
+   }
+   .sidebar h2 {
+     font-size: 1.25rem;
+     font-weight: 600;
+     margin-bottom: 16px;
+   }
+   .sidebar ul {
+     list-style: none;
+     padding: 0;
+     margin: 0;
+     overflow-y: auto;
+     flex-grow: 1;
+   }
+   .sidebar ul li {
+     margin-bottom: 8px;
+     position: relative;
+   }
+   .sidebar ul li a {
+     display: block;
+     padding: 8px;
+     color: white;
+     text-decoration: none;
+   }
+   .sidebar ul li a:hover {
+     background-color: #505050;
+     border-radius: 8px;
+   }
+   .sidebar ul li.selected a {
+     background-color: #3C3C3C;
+     border-radius: 8px;
+   }
+   .sidebar ul li .options {
+     display: none;
+     position: absolute;
+     right: 8px;
+     top: 50%;
+     transform: translateY(-50%);
+     color: #787878;
+   }
+   .sidebar ul li:hover .options {
+     display: block;
+   }
+   .sidebar .settings {
+     margin-top: auto;
+     padding-top: 16px;
+     border-top: 1px solid #3C3C3C;
+   }
+   .sidebar .settings button {
+     background: none;
+     border: none;
+     color: #787878;
+     font-size: 1.25rem;
+     cursor: pointer;
+     display: flex;
+     align-items: center;
+   }
+   .sidebar .settings button span {
+     margin-left: 8px;
+   }
+   .main-content {
+     flex-grow: 1;
+     display: flex;
+     flex-direction: column;
+     position: relative;
+     padding: 16px;
+   }
+   .main-content .top-bar {
+     position: absolute;
+     top: 16px;
+     left: 288px;
+     display: flex;
+     align-items: center;
+   }
+   .main-content .top-bar button {
+     background: none;
+     border: none;
+     color: #787878;
+     font-size: 1.25rem;
+     cursor: pointer;
+   }
+   .main-content .top-bar span {
+     margin-left: 8px;
+     color: #787878;
+     font-size: 1.25rem;
+   }
+   .main-content .profile-pic {
+     position: absolute;
+     top: 16px;
+     right: 16px;
+   }
+   .main-content .profile-pic img {
+     border-radius: 50%;
+   }
+   .chat-container {
+     flex-grow: 1;
+     padding: 16px;
+     overflow-y: auto;
+     display: flex;
+     flex-direction: column;
+     margin-top: 64px;
+     max-width: 800px;
+     width: 100%;
+     margin-left: auto;
+     margin-right: auto;
+   }
+   .chat-message {
+     margin-bottom: 16px;
+     max-width: 60%;
+     padding: 12px 16px;
+     border-radius: 8px;
+   }
+   .chat-message.user {
+     background-color: #3C3C3C;
+     align-self: flex-end;
+   }
+   .chat-message.bot {
+     background-color: #505050;
+     align-self: flex-start;
+   }
+   .input-container {
+     background-color: #3C3C3C;
+     border-radius: 16px;
+     padding: 8px;
+     width: 100%;
+     max-width: 800px;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     position: absolute;
+     bottom: 16px;
+     left: 50%;
+     transform: translateX(-50%);
+   }
+   .input-container input {
+     background-color: transparent;
+     color: #787878;
+     width: 100%;
+     outline: none;
+     height: 48px;
+     padding: 0 8px;
+     border: none;
+     font-size: 1.25rem;
+     margin-bottom: 8px;
+   }
+   .input-container .button-container {
+     display: flex;
+     align-items: center;
+     width: 100%;
+   }
+   .input-container .button-container button {
+     background-color: #505050;
+     color: #e0e0e0;
+     padding: 12px 24px;
+     border-radius: 9999px;
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     border: none;
+     cursor: pointer;
+     font-size: 1rem;
+   }
+   .input-container .button-container .ml-auto {
+     margin-left: auto;
+   }
+   .input-container .button-container .p-2 {
+     padding: 12px;
+   }
+   .input-container .button-container .rounded-full {
+     border-radius: 9999px;
+   }
+  </style>
+ </head>
+ <body>
+  <div class="container">
+   <!-- Sidebar -->
+   <div class="sidebar">
+    <div class="top-buttons">
+     <button style="width: 100%; background-color: #505050; color: #e0e0e0; padding: 12px 24px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 1rem;">
+      Novo Chat
+     </button>
+    </div>
+    <div class="search-bar">
+     <i class="fas fa-search">
+     </i>
+     <input placeholder="Pesquisar conversas" type="text"/>
+    </div>
+    <h2>
+     Histórico de Conversas
+    </h2>
+    <ul>
+     <li>
+      <a href="#">
+       Conversa 1
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 2
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 3
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 4
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 5
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 6
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 7
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 8
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 9
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 10
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 11
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 12
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+     <li>
+      <a href="#">
+       Conversa 13
+      </a>
+      <div class="options">
+       <i class="fas fa-ellipsis-v">
+       </i>
+      </div>
+     </li>
+    </ul>
+    <div class="settings">
+     <button>
+      <i class="fas fa-cog">
+      </i>
+      <span>
+       Configurações
+      </span>
+     </button>
+    </div>
+   </div>
+   <!-- Main Content -->
+   <div class="main-content">
+    <div class="top-bar" style="left: 272px;">
+     <button>
+      <i class="fas fa-plus">
+      </i>
+     </button>
+     <button style="margin-left: 8px;">
+      <i class="fas fa-bars">
+      </i>
+     </button>
+     <span style="margin-left: 8px;">
+      ChatGPT
+     </span>
+    </div>
+    <div class="profile-pic">
+     <img alt="User profile picture" height="40" src="https://storage.googleapis.com/a1aa/image/2J8lZbkCxfKyuSA-vjCgmnUOYchUcmZkiqRQj4Zj_XQ.jpg" width="40"/>
+    </div>
+    <div class="chat-container">
+     <div class="chat-message user">
+      Olá, como você está?
+     </div>
+     <div class="chat-message bot">
+      Estou bem, obrigado! Como posso ajudar você hoje?
+     </div>
+     <div class="chat-message user">
+      Pode me contar uma piada?
+     </div>
+     <div class="chat-message bot">
+      Claro! Por que o computador foi ao médico? Porque ele tinha um vírus!
+     </div>
+     <div class="chat-message user">
+      Haha, boa! O que mais você pode fazer?
+     </div>
+     <div class="chat-message bot">
+      Posso responder perguntas, ajudar com tarefas, contar histórias e muito mais. O que você gostaria de fazer?
+     </div>
+     <div class="chat-message user">
+      Estou tentando melhorar a interface do usuário. Alguma sugestão?
+     </div>
+     <div class="chat-message bot">
+      Claro! Manter a interface limpa e intuitiva é sempre uma boa prática. Certifique-se de que os elementos importantes estejam facilmente acessíveis e que a navegação seja simples. Alguma outra dúvida ou algo específico que você gostaria de melhorar?
+     </div>
+    </div>
+    <div class="input-container">
+     <input placeholder="Digite sua mensagem" type="text"/>
+     <div class="button-container">
+      <button>
+       <i class="fas fa-plus">
+       </i>
+       <span>
+        Buscar
+       </span>
+      </button>
+      <button>
+       <i class="fas fa-map-marker-alt">
+       </i>
+       <span>
+        Refletir
+       </span>
+      </button>
+      <div class="ml-auto">
+       <button class="p-2 rounded-full">
+        <i class="fas fa-microphone">
+        </i>
+       </button>
+       <button class="p-2 rounded-full">
+        <i class="fas fa-arrow-up">
+        </i>
+       </button>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </body>
+</html>
