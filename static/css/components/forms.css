@@ -1,4 +1,3 @@
-
 .search-box {
     position: relative;
     margin-bottom: 1rem;
@@ -13,13 +12,20 @@
     color: var(--text-primary);
 }
 
+.input-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 10px;
+}
+
 .input-box {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     width: 100%;
     max-width: 800px;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     position: relative;
     border-radius: 16px;
     background-color: var(--input-bg);
@@ -34,23 +40,25 @@
 
 .input-box textarea {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     border: none;
     background-color: var(--input-bg);
     color: var(--text-primary);
     font-size: 1rem;
     resize: none;
-    min-height: 42px;
-    max-height: 200px;
+    min-height: 24px;
+    max-height: 120px;
     line-height: 1.5;
     scrollbar-width: none;
     -ms-overflow-style: none;
     transition: border-color 0.2s;
     border-radius: 12px;
+    outline: none;
 }
 
 .input-box textarea:focus {
     outline: none;
+    border: none;
 }
 
 .input-box textarea::-webkit-scrollbar {
