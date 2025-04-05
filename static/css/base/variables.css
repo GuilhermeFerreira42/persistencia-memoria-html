@@ -1,14 +1,15 @@
 
 :root {
-    /* Cores primárias */
+    /* Cores primárias - baseadas no index8 e index9 */
     --bg-primary: #212121;
+    --bg-secondary: #171717;
     --text-primary: #FFFFFF;
-    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-secondary: rgba(255, 255, 255, 0.7);
     --text-disabled: rgba(255, 255, 255, 0.5);
     
     /* Cores de ação */
-    --action-active: #ffffff;
-    --action-hover: #2A2B32;
+    --action-active: rgba(255, 255, 255, 0.1);
+    --action-hover: rgba(255, 255, 255, 0.1);
     --action-selected: rgba(255, 255, 255, 0.12);
     --action-disabled: rgba(255, 255, 255, 0.3);
     --action-disabled-background: rgba(255, 255, 255, 0.12);
@@ -31,13 +32,13 @@
     --accent-text: #FFFFFF;
     --color-success: #4CAF50;
     
-    /* Efeitos - removidos */
-    --box-shadow: none;
-    --box-shadow-hover: none;
+    /* Efeitos */
+    --box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    --box-shadow-hover: 0px 4px 8px rgba(0, 0, 0, 0.15);
     --transition-speed: 0.2s;
     
     /* Arredondamento */
-    --border-radius-sm: 6px;
+    --border-radius-sm: 4px;
     --border-radius-md: 8px;
     --border-radius-lg: 12px;
 }
@@ -45,13 +46,14 @@
 [data-theme="dark"] {
     /* Cores primárias */
     --bg-primary: #212121;
+    --bg-secondary: #171717;
     --text-primary: #FFFFFF;
-    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-secondary: rgba(255, 255, 255, 0.7);
     --text-disabled: rgba(255, 255, 255, 0.5);
     
     /* Cores de ação */
-    --action-active: #ffffff;
-    --action-hover: #2A2B32;
+    --action-active: rgba(255, 255, 255, 0.1);
+    --action-hover: rgba(255, 255, 255, 0.1);
     --action-selected: rgba(255, 255, 255, 0.12);
     --action-disabled: rgba(255, 255, 255, 0.3);
     --action-disabled-background: rgba(255, 255, 255, 0.12);
@@ -73,8 +75,33 @@
     --accent-hover: #5e5f6e;
     --accent-text: #FFFFFF;
     --color-success: #4CAF50;
+}
+
+[data-theme="light"] {
+    --bg-primary: #f7f7f8;
+    --bg-secondary: #ffffff;
+    --text-primary: #343541;
+    --text-secondary: rgba(0, 0, 0, 0.7);
+    --text-disabled: rgba(0, 0, 0, 0.5);
     
-    /* Efeitos - removidos */
-    --box-shadow: none;
-    --box-shadow-hover: none;
+    /* Cores de ação */
+    --action-active: rgba(0, 0, 0, 0.1);
+    --action-hover: rgba(0, 0, 0, 0.05);
+    --action-selected: rgba(0, 0, 0, 0.08);
+    --action-disabled: rgba(0, 0, 0, 0.3);
+    --action-disabled-background: rgba(0, 0, 0, 0.05);
+    
+    /* Cores de mensagem */
+    --msg-user: #f7f7f8;
+    --msg-bot: #ffffff;
+    
+    /* Cores de UI */
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
+    --border-color: #e5e5e5;
+    
+    /* Cor de acento e status */
+    --accent-color: #10a37f;
+    --accent-color-rgb: 16, 163, 127;
+    --accent-hover: #0d8c6c;
 }

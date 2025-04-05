@@ -1,3 +1,4 @@
+
 .sidebar {
     width: 260px;
     height: 100vh;
@@ -11,13 +12,51 @@
     top: 0;
     transition: transform 0.3s ease;
     z-index: 100;
-    box-shadow: none;
     overflow-y: auto;
     overflow-x: hidden;
 }
 
 .sidebar.collapsed {
     transform: translateX(-260px);
+}
+
+.new-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    margin-bottom: 1rem;
+    width: 100%;
+}
+
+.new-chat-btn:hover {
+    background-color: var(--action-hover);
+}
+
+.settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-top: auto;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+}
+
+.settings-btn:hover {
+    background-color: var(--action-hover);
 }
 
 .chat-list {
@@ -33,10 +72,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px;
+    padding: 8px 10px;
     cursor: pointer;
     position: relative;
-    border-radius: 8px;
+    border-radius: 4px;
     transition: background-color 0.2s;
 }
 
@@ -55,19 +94,21 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-right: 10px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
 }
 
 .more-btn {
     background: none;
     border: none;
-    padding: 5px;
+    padding: 4px;
     cursor: pointer;
     color: var(--text-secondary);
-    opacity: 0.7;
+    opacity: 0;
     transition: opacity 0.2s;
 }
 
-.more-btn:hover {
+.chat-item:hover .more-btn {
     opacity: 1;
 }
 
@@ -76,10 +117,10 @@
     position: absolute;
     right: 10px;
     top: 100%;
-    background: var(--input-bg);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    box-shadow: var(--box-shadow);
     z-index: 10;
     min-width: 150px;
 }
@@ -96,6 +137,7 @@
     cursor: pointer;
     color: var(--text-primary);
     transition: background-color 0.2s;
+    font-size: 0.875rem;
 }
 
 .chat-option-item:hover {
@@ -105,11 +147,12 @@
 .chat-option-icon {
     color: var(--text-secondary);
     width: 16px;
+    height: 16px;
 }
 
 /* Estilos para o scroll da barra lateral */
 .sidebar::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
 }
 
 .sidebar::-webkit-scrollbar-track {
@@ -118,7 +161,7 @@
 
 .sidebar::-webkit-scrollbar-thumb {
     background: var(--text-disabled);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {

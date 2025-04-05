@@ -15,9 +15,11 @@
 
 .input-container {
     width: 100%;
-    max-width: 600px;
+    max-width: 768px;
     margin: 0 auto;
     padding: 10px;
+    position: relative;
+    border-top: 1px solid var(--border-color);
 }
 
 .input-box {
@@ -25,25 +27,25 @@
     align-items: center;
     gap: 0.75rem;
     width: 100%;
-    max-width: 800px;
-    margin-bottom: 1rem;
+    max-width: 768px;
+    margin: 0 auto;
     position: relative;
-    border-radius: 24px;
+    border-radius: 8px;
     background-color: var(--input-bg);
     padding: 0.5rem 0.75rem;
-    border: 1px solid transparent;
+    border: 1px solid var(--border-color);
     transition: border-color var(--transition-speed);
 }
 
 .input-box:focus-within {
-    border-color: var(--border-color);
+    border-color: var(--accent-color);
 }
 
 .input-box textarea {
     width: 100%;
-    padding: 0.75rem 0.75rem;
+    padding: 0.75rem;
     border: none;
-    background-color: var(--input-bg);
+    background-color: transparent;
     color: var(--text-primary);
     font-size: 1rem;
     resize: none;
@@ -53,7 +55,7 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
     transition: border-color var(--transition-speed);
-    border-radius: 12px;
+    border-radius: 0;
     outline: none;
 }
 
@@ -69,7 +71,7 @@
 .input-box .send-btn,
 .input-box .stop-btn {
     cursor: pointer;
-    border-radius: 50%;
+    border-radius: 4px;
     transition: all var(--transition-speed);
     display: flex;
     align-items: center;
@@ -78,10 +80,11 @@
 
 .input-box .send-btn {
     background-color: var(--accent-color);
-    color: var(--accent-text);
+    color: var(--text-primary);
     min-width: 32px;
     min-height: 32px;
     border: none;
+    padding: 6px;
 }
 
 .input-box .send-btn:hover {
@@ -92,6 +95,7 @@
     background: transparent;
     color: var(--text-secondary);
     border: none;
+    padding: 6px;
 }
 
 .input-box .stop-btn:hover {
@@ -100,16 +104,37 @@
 
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 1rem;
     width: 100%;
-    max-width: 600px;
+    max-width: 768px;
+    margin-top: 1.5rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.quick-action-btn:hover {
+    background-color: var(--action-hover);
+    border-color: var(--accent-color);
 }
 
 .model-select {
     padding: 0.6rem 0.8rem;
     border-radius: var(--border-radius-md);
-    border: none;
+    border: 1px solid var(--border-color);
     background-color: transparent;
     color: var(--text-primary);
     font-size: 0.9rem;
@@ -125,4 +150,23 @@
 
 .model-select:hover {
     background-color: var(--action-hover);
+}
+
+/* Estilo para welcome screen conforme index8 */
+.welcome-screen {
+    padding: 2rem 1rem;
+    max-width: 768px;
+    margin: 0 auto;
+}
+
+.welcome-screen h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.welcome-screen .input-box {
+    margin-bottom: 2rem;
 }
