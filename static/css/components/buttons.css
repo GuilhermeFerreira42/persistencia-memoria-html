@@ -4,7 +4,7 @@
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     padding: 12px 16px;
-    border-radius: var(--border-radius-md);
+    border-radius: 8px;
     cursor: pointer;
     margin-bottom: 1rem;
     display: flex;
@@ -12,7 +12,7 @@
     justify-content: center;
     gap: 0.5rem;
     font-weight: 500;
-    transition: background-color var(--transition-speed);
+    transition: background-color 0.2s;
     box-shadow: none;
 }
 
@@ -28,14 +28,14 @@
     margin-top: auto;
     padding: 12px;
     border: none;
-    border-radius: var(--border-radius-md);
+    border-radius: 8px;
     background-color: transparent;
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    transition: background-color var(--transition-speed);
+    transition: background-color 0.2s;
     font-weight: 500;
 }
 
@@ -51,10 +51,10 @@
     justify-content: center;
     background: transparent;
     border: none;
-    border-radius: var(--border-radius-md);
+    border-radius: 8px;
     color: var(--text-primary);
     cursor: pointer;
-    transition: background-color var(--transition-speed);
+    transition: background-color 0.2s;
 }
 
 .theme-toggle:hover, .header-sidebar-toggle:hover {
@@ -69,14 +69,14 @@
 .quick-action-btn {
     padding: 1rem 1.25rem;
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-md);
+    border-radius: 10px;
     background-color: transparent;
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    transition: all var(--transition-speed);
+    transition: all 0.2s;
     font-weight: 500;
     box-shadow: none;
 }
@@ -100,9 +100,9 @@
     border: none;
     color: var(--text-secondary);
     padding: 0.5rem;
-    border-radius: var(--border-radius-sm);
+    border-radius: 6px;
     cursor: pointer;
-    transition: all var(--transition-speed);
+    transition: all 0.2s;
     opacity: 0.7;
 }
 
@@ -124,7 +124,7 @@
     justify-content: center;
     border: none;
     padding: 0;
-    transition: background-color var(--transition-speed);
+    transition: background-color 0.2s;
 }
 
 .send-btn:hover {
@@ -166,7 +166,7 @@
     border: none;
     color: var(--text-secondary);
     opacity: 0;
-    transition: opacity var(--transition-speed);
+    transition: opacity 0.2s;
     padding: 4px;
     cursor: pointer;
 }

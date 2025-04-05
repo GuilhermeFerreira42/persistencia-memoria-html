@@ -8,7 +8,7 @@ export function configureTextarea(textarea) {
     // Evento de input para ajustar altura automaticamente
     textarea.addEventListener('input', function() {
         this.style.height = 'auto';
-        const newHeight = Math.min(this.scrollHeight, 150); // Altura máxima ajustada
+        const newHeight = Math.min(this.scrollHeight, 120); // Limitar altura máxima
         this.style.height = newHeight + 'px';
     });
 
