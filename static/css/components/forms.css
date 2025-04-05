@@ -1,3 +1,4 @@
+
 .search-box {
     position: relative;
     margin-bottom: 1rem;
@@ -27,7 +28,7 @@
     max-width: 800px;
     margin-bottom: 1rem;
     position: relative;
-    border-radius: 16px;
+    border-radius: 24px;
     background-color: var(--input-bg);
     padding: 0.5rem;
     border: 1px solid transparent;
@@ -40,7 +41,7 @@
 
 .input-box textarea {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 0.75rem;
     border: none;
     background-color: var(--input-bg);
     color: var(--text-primary);
@@ -69,7 +70,6 @@
 .input-box .stop-btn {
     position: relative;
     right: 0;
-    background: transparent;
     cursor: pointer;
     border-radius: 50%;
     transition: all 0.2s;
@@ -82,6 +82,8 @@
 .input-box .send-btn {
     background-color: var(--accent-color);
     color: var(--accent-text);
+    min-width: 32px;
+    min-height: 32px;
 }
 
 .input-box .stop-btn {
@@ -122,4 +124,3 @@
 .model-select:hover {
     background-color: var(--action-hover);
 }
-

@@ -2,11 +2,17 @@
 export function configureTextarea(textarea) {
     if (!textarea) return;
 
+    // Configurar altura inicial
+    textarea.style.height = 'auto';
+    
+    // Evento de input para ajustar altura automaticamente
     textarea.addEventListener('input', function() {
         this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
+        const newHeight = Math.min(this.scrollHeight, 120); // Limitar altura máxima
+        this.style.height = newHeight + 'px';
     });
 
+    // Atalho de teclado para enviar com Enter
     textarea.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -20,4 +26,7 @@ export function configureTextarea(textarea) {
             }
         }
     });
+    
+    // Foco automático
+    textarea.focus();
 }

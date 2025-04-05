@@ -83,7 +83,7 @@
 }
 
 .command-icon {
-    color: var(--accent-color);
+    color: var(--text-primary);
     width: 20px;
     display: flex;
     align-items: center;
@@ -98,6 +98,42 @@
     font-size: 0.875rem;
     color: var(--text-secondary);
     margin-left: auto;
+}
+
+/* Novo contêiner centralizado */
+.content-wrapper {
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ajustes para scroll container */
+.scroll-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Estilo para a tela de boas-vindas */
+.welcome-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 1rem;
+    text-align: center;
+}
+
+.welcome-screen h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
 }
 
 /* Responsividade */
