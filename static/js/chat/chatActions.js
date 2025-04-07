@@ -358,44 +358,6 @@ function forcarRenderizacao(elemento) {
     });
 }
 
-// Função para mostrar o carregamento personalizado do YouTube
-function mostrarCarregamentoYoutube(chatContainer) {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'message assistant youtube-loading';
-    loadingDiv.innerHTML = `
-        <div class="message-content">
-            <div class="youtube-processing">
-                Processando o vídeo
-                <span class="youtube-dots">...</span>
-            </div>
-        </div>
-    `;
-    chatContainer.appendChild(loadingDiv);
-
-    // Inicia a animação dos três pontinhos
-    const dotsElement = loadingDiv.querySelector('.youtube-dots');
-    let count = 0;
-    const interval = setInterval(() => {
-        count = (count + 1) % 4;
-        dotsElement.textContent = '.'.repeat(count || 3);
-    }, 500);
-
-    // Armazena o intervalo no elemento para poder limpar depois
-    loadingDiv.dataset.interval = interval;
-
-    return loadingDiv;
-}
-
-// Função para remover o carregamento do YouTube
-function removerCarregamentoYoutube(loadingDiv) {
-    if (loadingDiv && loadingDiv.dataset.interval) {
-        clearInterval(parseInt(loadingDiv.dataset.interval));
-    }
-    if (loadingDiv && loadingDiv.parentNode) {
-        loadingDiv.parentNode.removeChild(loadingDiv);
-    }
-}
-
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
     if (!mensagem.trim()) return;
 
@@ -418,8 +380,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         adicionarMensagem(chatContainer, mensagem, 'user');
         adicionarMensagemAoHistorico(mensagem, 'user');
 
-        // Mostra o indicador de carregamento personalizado do YouTube
-        const loadingDiv = mostrarCarregamentoYoutube(chatContainer);
+        // Mostra o indicador de carregamento
+        const loadingDiv = mostrarCarregamento(chatContainer);
 
         try {
             const response = await fetch('/process_youtube', {
@@ -433,7 +395,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             });
 
             const data = await response.json();
-            removerCarregamentoYoutube(loadingDiv);
+            loadingDiv.remove();
 
             if (data.error) {
                 adicionarMensagem(chatContainer, `Erro: ${data.error}`, 'assistant');
@@ -441,7 +403,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             } else {
                 // Atualiza o DOM com a resposta recebida
                 adicionarMensagem(chatContainer, data.text, 'assistant');
-                // Atualiza o histórico local
+                // Opcionalmente, atualiza o histórico local imediatamente (se desejar diferenciar visualmente)
                 adicionarMensagemAoHistorico(data.text, 'assistant');
 
                 // Após a renderização, chama o endpoint para salvar a mensagem do YouTube na persistência
@@ -469,7 +431,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             window.dispatchEvent(new CustomEvent('historicoAtualizado'));
             return; // Interrompe o fluxo para mensagens normais
         } catch (error) {
-            removerCarregamentoYoutube(loadingDiv);
+            loadingDiv.remove();
             const errorMsg = "Erro ao processar o vídeo";
             adicionarMensagem(chatContainer, errorMsg, 'assistant');
             adicionarMensagemAoHistorico(errorMsg, 'assistant');
