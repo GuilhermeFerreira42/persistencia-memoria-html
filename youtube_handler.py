@@ -1,4 +1,3 @@
-
 import os
 import json
 import yt_dlp
@@ -6,20 +5,21 @@ import re
 from typing import Optional, Dict, Any, Tuple
 
 class YoutubeHandler:
-    def __init__(self, download_path: str = "./temp"):
+    def __init__(self, download_path: str = "./temp", lang_preferido: str = "pt"):
         self.download_path = download_path
+        self.lang_preferido = lang_preferido
         if not os.path.exists(download_path):
             os.makedirs(download_path)
 
     def download_subtitles(self, video_url: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Baixa as legendas de um vídeo do YouTube, priorizando PT-BR
+        Baixa as legendas de um vídeo do YouTube no idioma especificado
         Retorna uma tupla (caminho_do_arquivo, título_do_vídeo)
         """
         ydl_opts = {
             'writesubtitles': True,
             'writeautomaticsub': True,  # Aceita legendas automáticas como fallback
-            'subtitleslangs': ['pt-BR', 'pt', 'en'],  # Prioridade: PT-BR > PT > EN
+            'subtitleslangs': [self.lang_preferido],  # Apenas o idioma preferido
             'skip_download': True,
             'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s'),
             'quiet': True
@@ -31,34 +31,26 @@ class YoutubeHandler:
                 video_id = info['id']
                 video_title = info.get('title', 'Vídeo sem título')
                 
-                # Procura primeiro por legendas em PT-BR
-                pt_br_files = ['.pt-BR.vtt', '.pt_BR.vtt', '.pt-br.vtt']
-                for suffix in pt_br_files:
-                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
-                    if os.path.exists(file):
-                        print(f"Encontradas legendas em PT-BR: {file}")
-                        return file, video_title
+                # Procura pelo arquivo de legenda no idioma preferido
+                subtitle_file = os.path.join(self.download_path, f"{video_id}.{self.lang_preferido}.vtt")
+                if os.path.exists(subtitle_file):
+                    print(f"Encontradas legendas em {self.lang_preferido}: {subtitle_file}")
+                    return subtitle_file, video_title
                 
-                # Procura por legendas em PT
-                pt_files = ['.pt.vtt', '.pt-PT.vtt']
-                for suffix in pt_files:
-                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
-                    if os.path.exists(file):
-                        print(f"Encontradas legendas em PT: {file}")
-                        return file, video_title
+                # Se não encontrar, tenta com variações do idioma
+                lang_variations = {
+                    'pt': ['.pt-BR.vtt', '.pt_BR.vtt', '.pt-br.vtt', '.pt-PT.vtt'],
+                    'en': ['.en-US.vtt', '.en_US.vtt', '.en-GB.vtt', '.en_GB.vtt']
+                }
                 
-                # Fallback para EN
-                en_file = os.path.join(self.download_path, f"{video_id}.en.vtt")
-                if os.path.exists(en_file):
-                    print("Usando legendas em inglês como fallback")
-                    return en_file, video_title
+                if self.lang_preferido in lang_variations:
+                    for suffix in lang_variations[self.lang_preferido]:
+                        file = os.path.join(self.download_path, f"{video_id}{suffix}")
+                        if os.path.exists(file):
+                            print(f"Encontradas legendas em variação de {self.lang_preferido}: {file}")
+                            return file, video_title
                 
-                # Último recurso: qualquer arquivo .vtt disponível
-                for file in os.listdir(self.download_path):
-                    if file.startswith(video_id) and file.endswith('.vtt'):
-                        print(f"Usando legendas disponíveis: {file}")
-                        return os.path.join(self.download_path, file), video_title
-                
+                print(f"[ERRO] Legendas em {self.lang_preferido} não disponíveis para este vídeo")
                 return None, None
                 
         except Exception as e:

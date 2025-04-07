@@ -211,14 +211,18 @@ def process_youtube():
         video_url = data.get('video_url')
         conversation_id = data.get('conversation_id')
         comando = data.get('comando')  # Comando original, ex.: "/youtube https://..."
+        lang = data.get('lang', 'pt')  # Idioma preferido, padrão é 'pt'
 
         if not video_url:
             return jsonify({'error': 'URL não fornecida'}), 400
 
+        # Atualiza o idioma preferido no handler
+        youtube_handler.lang_preferido = lang
+
         # Baixar legendas e obter título
         subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
         if not subtitle_file:
-            return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
+            return jsonify({'error': f'Legendas em {lang} não disponíveis para este vídeo'}), 404
 
         # Limpar legendas
         cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
@@ -234,7 +238,7 @@ def process_youtube():
         formatted_response = f"📹 {video_title}\n\n{cleaned_text}"
         print(f"[DEBUG] Resposta do YouTube gerada para a conversa: {conversation_id}")
 
-        # Dispara a atualização para que o frontend atualize o DOM (a conversa no JSON ainda não contém essa mensagem)
+        # Dispara a atualização para que o frontend atualize o DOM
         if conversation_id:
             socketio.emit('conversation_updated', {
                 'conversation_id': conversation_id
