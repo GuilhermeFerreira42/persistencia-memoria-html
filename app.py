@@ -206,48 +206,65 @@ def save_message():
 
 @app.route('/process_youtube', methods=['POST'])
 def process_youtube():
+    data = request.json
+    conversation_id = data.get('conversation_id')
+    video_url = data.get('video_url')
+    
+    if not conversation_id or not video_url:
+        return jsonify({'error': 'Dados incompletos'}), 400
+    
+    # Inicia o processamento em background
+    socketio.start_background_task(process_youtube_background, video_url, conversation_id)
+    
+    return jsonify({'status': 'Processamento iniciado'})
+
+def process_youtube_background(url, conversation_id):
     try:
-        data = request.json
-        video_url = data.get('video_url')
-        conversation_id = data.get('conversation_id')
-        comando = data.get('comando')  # Comando original, ex.: "/youtube https://..."
+        # Inicializar o handler do YouTube
+        youtube_handler = YoutubeHandler()
+        
+        # Tentar baixar as legendas
+        try:
+            subtitles = youtube_handler.download_subtitles(url)
+        except Exception as e:
+            error_msg = str(e)
+            if "Video unavailable" in error_msg:
+                socketio.emit('youtube_response', {
+                    'status': 'error',
+                    'message': 'O vídeo não está disponível. Verifique se o vídeo é público e se a URL está correta.',
+                    'conversation_id': conversation_id
+                })
+            elif "Private video" in error_msg:
+                socketio.emit('youtube_response', {
+                    'status': 'error',
+                    'message': 'Este é um vídeo privado. Apenas vídeos públicos podem ser processados.',
+                    'conversation_id': conversation_id
+                })
+            else:
+                socketio.emit('youtube_response', {
+                    'status': 'error',
+                    'message': f'Erro ao processar o vídeo: {error_msg}',
+                    'conversation_id': conversation_id
+                })
+            return
 
-        if not video_url:
-            return jsonify({'error': 'URL não fornecida'}), 400
-
-        # Baixar legendas e obter título
-        subtitle_file, video_title = youtube_handler.download_subtitles(video_url)
-        if not subtitle_file:
-            return jsonify({'error': 'Não foi possível baixar as legendas deste vídeo'}), 404
-
-        # Limpar legendas
-        cleaned_text = youtube_handler.clean_subtitles(subtitle_file)
-        if not cleaned_text:
-            return jsonify({'error': 'Erro ao processar legendas'}), 500
-
-        # Salvar comando do usuário na conversa (para manter o histórico do comando)
-        if conversation_id and comando:
-            add_message_to_conversation(conversation_id, comando, "user")
-            print(f"[DEBUG] Comando do usuário salvo na conversa: {conversation_id}")
-
-        # Gerar a resposta formatada, mas NÃO salvar imediatamente no histórico
-        formatted_response = f"📹 {video_title}\n\n{cleaned_text}"
-        print(f"[DEBUG] Resposta do YouTube gerada para a conversa: {conversation_id}")
-
-        # Dispara a atualização para que o frontend atualize o DOM (a conversa no JSON ainda não contém essa mensagem)
-        if conversation_id:
-            socketio.emit('conversation_updated', {
-                'conversation_id': conversation_id
-            })
-            
-        return jsonify({
-            'text': formatted_response,
-            'title': video_title,
+        # Limpar as legendas
+        cleaned_subtitles = youtube_handler.clean_subtitles(subtitles)
+        
+        # Emitir resposta de sucesso
+        socketio.emit('youtube_response', {
+            'status': 'success',
+            'subtitles': cleaned_subtitles,
             'conversation_id': conversation_id
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Erro ao processar vídeo do YouTube: {str(e)}")
+        socketio.emit('youtube_response', {
+            'status': 'error',
+            'message': 'Ocorreu um erro ao processar o vídeo. Por favor, tente novamente.',
+            'conversation_id': conversation_id
+        })
 
 @app.route('/save_youtube_message', methods=['POST'])
 def save_youtube_message():

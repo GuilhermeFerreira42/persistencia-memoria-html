@@ -1,5 +1,5 @@
 import './init.js';
-import { handleYoutubeCommand } from './youtube-system/youtubeHandler.js';
+import { handleYoutubeCommand, setupYoutubeSocketListeners } from './youtube-system/youtubeHandler.js';
 import { setupYoutubeEvents } from './youtube-system/youtubeEvents.js';
 import { 
     iniciarChat,
@@ -34,6 +34,11 @@ let chatBar = null;
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar WebSocket para sincronização entre abas
     inicializarSync();
+    
+    // Configurar listeners do Socket.IO para o YouTube
+    const socket = io();
+    setupYoutubeSocketListeners(socket);
+    setupYoutubeEvents(socket);
     
     const welcomeForm = document.getElementById('welcome-form');
     const chatForm = document.getElementById('chat-form');
@@ -241,4 +246,28 @@ window.interromperResposta = interromperResposta;
 window.renomearConversa = renomearConversa;
 window.excluirConversa = excluirConversa;
 window.melhorarBlocosCodigo = melhorarBlocosCodigo;
+
+function showLoading() {
+    document.getElementById('loading-indicator').style.display = 'block';
+    document.getElementById('error-message').style.display = 'none';
+    document.getElementById('success-message').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loading-indicator').style.display = 'none';
+}
+
+function showError(message) {
+    const errorElement = document.getElementById('error-message');
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+    hideLoading();
+}
+
+function showSuccess(message) {
+    const successElement = document.getElementById('success-message');
+    successElement.textContent = message;
+    successElement.style.display = 'block';
+    hideLoading();
+}
 

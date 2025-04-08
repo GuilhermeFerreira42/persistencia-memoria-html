@@ -203,5 +203,20 @@
     <!-- Scripts do projeto -->
     <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <div class="container mt-4">
+        <div id="loading-indicator" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+
+        <div id="error-message" class="alert alert-danger" style="display: none;" role="alert"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;" role="alert"></div>
+
+        <div id="subtitles-container">
+            <!-- ... existing code ... -->
+        </div>
+    </div>
 </body>
 </html>
