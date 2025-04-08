@@ -1,4 +1,6 @@
 import './init.js';
+import { handleYoutubeCommand } from './youtube-system/youtubeHandler.js';
+import { setupYoutubeEvents } from './youtube-system/youtubeEvents.js';
 import { 
     iniciarChat,
     mostrarTelaInicial,

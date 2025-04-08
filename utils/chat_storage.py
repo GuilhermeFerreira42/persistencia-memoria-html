@@ -1,6 +1,6 @@
-
 import json
 import os
+import uuid
 from datetime import datetime
 
 DATA_DIR = "data"
@@ -141,7 +141,9 @@ def add_message_to_conversation(conversation_id, content, role):
             "messages": []
         }
     
+    message_id = str(uuid.uuid4())  # Gera um ID único no formato de string
     message = {
+        "message_id": message_id,  # Novo campo adicionado
         "role": role,
         "content": content,
         "timestamp": datetime.now().isoformat()
@@ -158,7 +160,7 @@ def add_message_to_conversation(conversation_id, content, role):
     save_conversation(conversation)
     update_index(conversation)
     
-    return True
+    return message_id  # Retorna o ID da mensagem para uso posterior
 
 def delete_conversation(conversation_id):
     """Exclui uma conversa e sua entrada no índice"""
