@@ -1,4 +1,3 @@
-
 import os
 import json
 import yt_dlp
@@ -16,10 +15,11 @@ class YoutubeHandler:
         Baixa as legendas de um vídeo do YouTube, priorizando PT-BR
         Retorna uma tupla (caminho_do_arquivo, título_do_vídeo)
         """
+        print(f"[DEBUG] download_subtitles iniciado para URL: {video_url}")
         ydl_opts = {
             'writesubtitles': True,
-            'writeautomaticsub': True,  # Aceita legendas automáticas como fallback
-            'subtitleslangs': ['pt-BR', 'pt', 'en'],  # Prioridade: PT-BR > PT > EN
+            'writeautomaticsub': True,
+            'subtitleslangs': ['pt-BR'],  # Apenas PT-BR
             'skip_download': True,
             'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s'),
             'quiet': True
@@ -27,42 +27,37 @@ class YoutubeHandler:
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                print("[DEBUG] Extraindo informações do vídeo...")
                 info = ydl.extract_info(video_url, download=True)
                 video_id = info['id']
                 video_title = info.get('title', 'Vídeo sem título')
+                print(f"[DEBUG] Vídeo ID: {video_id}, Título: {video_title}")
                 
-                # Procura primeiro por legendas em PT-BR
+                # Procura apenas por legendas em PT-BR
                 pt_br_files = ['.pt-BR.vtt', '.pt_BR.vtt', '.pt-br.vtt']
                 for suffix in pt_br_files:
                     file = os.path.join(self.download_path, f"{video_id}{suffix}")
                     if os.path.exists(file):
-                        print(f"Encontradas legendas em PT-BR: {file}")
+                        print(f"[DEBUG] Encontradas legendas em PT-BR: {file}")
+                        print(f"[DEBUG] Retornando tupla: ({file}, {video_title})")
                         return file, video_title
                 
-                # Procura por legendas em PT
-                pt_files = ['.pt.vtt', '.pt-PT.vtt']
-                for suffix in pt_files:
+                # Se não encontrou legendas em PT-BR, tenta legendas automáticas
+                auto_pt_br_files = ['.pt-BR.auto.vtt', '.pt_BR.auto.vtt', '.pt-br.auto.vtt']
+                for suffix in auto_pt_br_files:
                     file = os.path.join(self.download_path, f"{video_id}{suffix}")
                     if os.path.exists(file):
-                        print(f"Encontradas legendas em PT: {file}")
+                        print(f"[DEBUG] Encontradas legendas automáticas em PT-BR: {file}")
+                        print(f"[DEBUG] Retornando tupla: ({file}, {video_title})")
                         return file, video_title
                 
-                # Fallback para EN
-                en_file = os.path.join(self.download_path, f"{video_id}.en.vtt")
-                if os.path.exists(en_file):
-                    print("Usando legendas em inglês como fallback")
-                    return en_file, video_title
-                
-                # Último recurso: qualquer arquivo .vtt disponível
-                for file in os.listdir(self.download_path):
-                    if file.startswith(video_id) and file.endswith('.vtt'):
-                        print(f"Usando legendas disponíveis: {file}")
-                        return os.path.join(self.download_path, file), video_title
-                
+                print("[DEBUG] Nenhuma legenda em PT-BR encontrada (manual ou automática)")
                 return None, None
                 
         except Exception as e:
-            print(f"Erro ao baixar legendas: {str(e)}")
+            print(f"[ERRO] Erro ao baixar legendas: {str(e)}")
+            import traceback
+            print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
             return None, None
 
     def clean_subtitles(self, subtitle_file: str) -> Optional[str]:
@@ -70,7 +65,14 @@ class YoutubeHandler:
         Limpa as legendas removendo timestamps, formatação e repetições
         Retorna o texto limpo
         """
+        print(f"[DEBUG] clean_subtitles recebeu: {subtitle_file} (tipo: {type(subtitle_file)})")
+        
+        if not isinstance(subtitle_file, str):
+            print(f"[ERRO] subtitle_file não é uma string, é {type(subtitle_file)}")
+            return None
+            
         if not os.path.exists(subtitle_file):
+            print(f"[ERRO] Arquivo não existe: {subtitle_file}")
             return None
 
         try:
@@ -80,13 +82,17 @@ class YoutubeHandler:
                 try:
                     with open(subtitle_file, 'r', encoding=encoding) as f:
                         content = f.read()
+                        print(f"[DEBUG] Arquivo lido com sucesso usando encoding: {encoding}")
                         break
                 except UnicodeDecodeError:
+                    print(f"[DEBUG] Falha ao ler com encoding: {encoding}")
                     continue
             
             if content is None:
                 raise Exception("Não foi possível ler o arquivo com nenhuma codificação suportada")
 
+            print("[DEBUG] Iniciando limpeza das legendas...")
+            
             # Remove cabeçalho WEBVTT e metadados
             content = re.sub(r'WEBVTT.*\n', '', content)
             content = re.sub(r'Kind:.*\n', '', content)
@@ -112,11 +118,20 @@ class YoutubeHandler:
                     seen_lines.add(line)
 
             # Remove arquivo temporário
-            os.remove(subtitle_file)
+            try:
+                os.remove(subtitle_file)
+                print(f"[DEBUG] Arquivo temporário removido: {subtitle_file}")
+            except Exception as e:
+                print(f"[AVISO] Não foi possível remover o arquivo temporário: {str(e)}")
             
             # Junta as linhas com espaço e remove espaços extras
-            return ' '.join(cleaned_lines).strip()
+            result = ' '.join(cleaned_lines).strip()
+            print(f"[DEBUG] Texto limpo gerado com sucesso, tamanho: {len(result)} caracteres")
+            print(f"[DEBUG] Primeiros 100 caracteres: {result[:100]}...")
+            return result
             
         except Exception as e:
-            print(f"Erro ao limpar legendas: {str(e)}")
+            print(f"[ERRO] Erro ao limpar legendas: {str(e)}")
+            import traceback
+            print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
             return None

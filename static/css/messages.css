@@ -186,4 +186,32 @@
 
 @keyframes blink {
     50% { opacity: 0; }
+}
+
+/* Animação para destacar novas mensagens */
+@keyframes highlightMessage {
+    0% {
+        background-color: rgba(var(--primary-color-rgb), 0.1);
+        transform: translateY(10px);
+        opacity: 0;
+    }
+    50% {
+        background-color: rgba(var(--primary-color-rgb), 0.05);
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        background-color: transparent;
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Estilo para mensagens do YouTube */
+.message.youtube {
+    border-left: 3px solid var(--accent-color);
+}
+
+.message.youtube .message-content {
+    padding-left: 1rem;
 } 

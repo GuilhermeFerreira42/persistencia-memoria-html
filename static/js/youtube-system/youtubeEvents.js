@@ -2,12 +2,63 @@
 // Este arquivo lidará com os eventos Socket.IO relacionados ao YouTube.
 
 export function setupYoutubeEvents(socket) {
-    socket.on('youtube_response', (data) => {
+    // Evento para quando a mensagem do usuário é salva
+    socket.on('message_saved', (data) => {
+        console.log("[DEBUG] Mensagem do usuário salva:", data);
+        const conversationId = window.conversaAtual?.id;
+        
+        if (!data.conversation_id || data.conversation_id !== conversationId) {
+            console.log("[DEBUG] Ignorando evento: conversa diferente");
+            return;
+        }
+        
         const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) return;
+        if (!chatContainer) {
+            console.log("[ERRO] Chat container não encontrado");
+            return;
+        }
 
-        if (data.error) {
-            // Adicionar mensagem de erro ao chat
+        console.log("[DEBUG] Adicionando mensagem do usuário ao chat");
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user';
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <span>${data.content}</span>
+            </div>
+        `;
+        
+        // Adiciona a mensagem com animação
+        messageDiv.style.opacity = '0';
+        chatContainer.appendChild(messageDiv);
+        
+        // Força o reflow para a animação funcionar
+        messageDiv.offsetHeight;
+        
+        // Inicia a animação
+        messageDiv.style.transition = 'opacity 0.3s ease-in-out';
+        messageDiv.style.opacity = '1';
+        
+        // Rola para a nova mensagem
+        requestAnimationFrame(() => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+        
+        console.log("[DEBUG] Mensagem do usuário adicionada com sucesso");
+    });
+
+    // Evento para resposta do processamento do YouTube
+    socket.on('youtube_response', (data) => {
+        console.log("[DEBUG] Recebido youtube_response:", data);
+        const chatContainer = document.querySelector('.chat-container');
+        const conversationId = window.conversaAtual?.id;
+
+        if (!chatContainer || !conversationId || data.conversation_id !== conversationId) {
+            console.log("[DEBUG] Ignorando evento: chat container não encontrado ou conversa diferente");
+            return;
+        }
+
+        if (data.status === 'error') {
+            console.log("[DEBUG] Exibindo mensagem de erro");
             const errorMessage = document.createElement('div');
             errorMessage.className = 'message error';
             errorMessage.innerHTML = `
@@ -16,54 +67,84 @@ export function setupYoutubeEvents(socket) {
                     <span>${data.error}</span>
                 </div>
             `;
+            
+            // Adiciona a mensagem de erro com animação
+            errorMessage.style.opacity = '0';
             chatContainer.appendChild(errorMessage);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            errorMessage.offsetHeight;
+            errorMessage.style.transition = 'opacity 0.3s ease-in-out';
+            errorMessage.style.opacity = '1';
+            
+            requestAnimationFrame(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+            
+            console.log("[DEBUG] Mensagem de erro exibida");
             return;
         }
 
-        if (data.content) {
-            // Adicionar mensagem com o conteúdo processado ao chat
+        if (data.status === 'success' && data.content) {
+            console.log("[DEBUG] Exibindo resposta do YouTube");
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'message assistant';
+            messageDiv.className = 'message assistant youtube';
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    ${data.content}
+                    ${marked.parse(data.content)}
+                </div>
+                <div class="message-actions">
+                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                        <i class="fas fa-redo"></i>
+                    </button>
                 </div>
             `;
+            
+            // Adiciona a mensagem com animação
+            messageDiv.style.opacity = '0';
             chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            // Melhorar a formatação do código, se houver
-            const codeBlocks = messageDiv.querySelectorAll('pre code');
-            codeBlocks.forEach(block => {
-                hljs.highlightElement(block);
+            
+            // Força o reflow e inicia a animação
+            messageDiv.offsetHeight;
+            messageDiv.style.transition = 'all 0.3s ease-in-out';
+            messageDiv.style.opacity = '1';
+            
+            // Força a atualização do DOM e rola para a nova mensagem
+            requestAnimationFrame(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Destaca a nova mensagem brevemente
+                messageDiv.style.animation = 'highlightMessage 1s ease-in-out';
+                setTimeout(() => {
+                    messageDiv.style.animation = '';
+                }, 1000);
             });
 
-            // Salvar a mensagem no backend
-            if (window.conversaAtual && window.conversaAtual.id) {
-                console.log(`[DEBUG] Salvando mensagem do YouTube para a conversa ${window.conversaAtual.id}`);
-                fetch('/save_youtube_message', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        conversation_id: window.conversaAtual.id,
-                        content: data.content,
-                    }),
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.error) {
-                        console.error('Erro ao salvar mensagem:', result.error);
-                    } else {
-                        console.log('Mensagem salva com sucesso:', result);
-                    }
-                })
-                .catch(error => console.error('Erro ao salvar mensagem:', error));
-            } else {
-                console.error('[ERRO] ID da conversa atual não disponível para salvar mensagem do YouTube');
-            }
+            // Notifica que uma nova mensagem foi adicionada
+            chatContainer.dispatchEvent(new Event('messageAdded'));
+            
+            console.log("[DEBUG] Resposta do YouTube renderizada com sucesso");
+        } else {
+            console.log("[DEBUG] Evento inválido ou sem conteúdo");
         }
+    });
+
+    // Listener para atualizar a barra lateral quando uma mensagem é adicionada
+    document.addEventListener('messageAdded', () => {
+        console.log("[DEBUG] Atualizando histórico na barra lateral");
+        fetch('/get_conversation_history')
+            .then(response => response.json())
+            .then(history => {
+                if (window.atualizarHistoricoConversas) {
+                    window.atualizarHistoricoConversas(history);
+                    console.log("[DEBUG] Histórico atualizado com sucesso");
+                } else {
+                    console.log("[AVISO] Função atualizarHistoricoConversas não encontrada");
+                }
+            })
+            .catch(error => {
+                console.error("[ERRO] Falha ao atualizar histórico:", error);
+            });
     });
 } 

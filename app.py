@@ -213,58 +213,84 @@ def process_youtube():
     if not conversation_id or not video_url:
         return jsonify({'error': 'Dados incompletos'}), 400
     
+    # Salvar o comando do usuário no histórico
+    command_message = f"/youtube {video_url}"
+    add_message_to_conversation(conversation_id, command_message, "user")
+    print(f"[DEBUG] Comando do usuário salvo: {command_message}")
+    
+    # Notificar o frontend que a mensagem do usuário foi salva
+    socketio.emit('message_saved', {
+        'content': command_message,
+        'role': 'user',
+        'conversation_id': conversation_id
+    }, room=conversation_id)
+    
     # Inicia o processamento em background
     socketio.start_background_task(process_youtube_background, video_url, conversation_id)
     
     return jsonify({'status': 'Processamento iniciado'})
 
 def process_youtube_background(url, conversation_id):
+    print(f"[DEBUG] Iniciando processamento do vídeo: {url} para conversa: {conversation_id}")
     try:
         # Inicializar o handler do YouTube
         youtube_handler = YoutubeHandler()
         
-        # Tentar baixar as legendas
-        try:
-            subtitles = youtube_handler.download_subtitles(url)
-        except Exception as e:
-            error_msg = str(e)
-            if "Video unavailable" in error_msg:
-                socketio.emit('youtube_response', {
-                    'status': 'error',
-                    'message': 'O vídeo não está disponível. Verifique se o vídeo é público e se a URL está correta.',
-                    'conversation_id': conversation_id
-                })
-            elif "Private video" in error_msg:
-                socketio.emit('youtube_response', {
-                    'status': 'error',
-                    'message': 'Este é um vídeo privado. Apenas vídeos públicos podem ser processados.',
-                    'conversation_id': conversation_id
-                })
-            else:
-                socketio.emit('youtube_response', {
-                    'status': 'error',
-                    'message': f'Erro ao processar o vídeo: {error_msg}',
-                    'conversation_id': conversation_id
-                })
-            return
-
-        # Limpar as legendas
-        cleaned_subtitles = youtube_handler.clean_subtitles(subtitles)
+        # Baixar as legendas
+        print(f"[DEBUG] Chamando download_subtitles para URL: {url}")
+        subtitle_result = youtube_handler.download_subtitles(url)
+        print(f"[DEBUG] Resultado de download_subtitles: {subtitle_result}, Tipo: {type(subtitle_result)}")
         
-        # Emitir resposta de sucesso
+        if not subtitle_result:
+            raise Exception("Nenhuma legenda encontrada para o vídeo.")
+        
+        # Desempacotar a tupla
+        if isinstance(subtitle_result, tuple) and len(subtitle_result) == 2:
+            subtitle_file, video_title = subtitle_result
+            print(f"[DEBUG] subtitle_file: {subtitle_file}, Tipo: {type(subtitle_file)}")
+            print(f"[DEBUG] video_title: {video_title}, Tipo: {type(video_title)}")
+        else:
+            raise Exception(f"download_subtitles não retornou uma tupla válida. Recebido: {subtitle_result}")
+        
+        # Limpar as legendas
+        print(f"[DEBUG] Chamando clean_subtitles com: {subtitle_file}")
+        cleaned_subtitles = youtube_handler.clean_subtitles(subtitle_file)
+        print(f"[DEBUG] Tipo de cleaned_subtitles: {type(cleaned_subtitles)}")
+        if cleaned_subtitles:
+            print(f"[DEBUG] Legendas limpas: {cleaned_subtitles[:50]}...")
+        else:
+            print("[DEBUG] cleaned_subtitles é None")
+        
+        if not cleaned_subtitles:
+            raise Exception("Falha ao limpar as legendas.")
+        
+        # Formatando a resposta para o frontend
+        response_content = f"**Legendas do vídeo '{video_title}':**\n{cleaned_subtitles}"
+        
+        # Salvar no histórico
+        message_id = add_message_to_conversation(conversation_id, response_content, "assistant")
+        print(f"[DEBUG] Mensagem salva no histórico com ID: {message_id}")
+        
+        # Emitir resposta para o frontend na sala correta
         socketio.emit('youtube_response', {
             'status': 'success',
-            'subtitles': cleaned_subtitles,
+            'content': response_content,
             'conversation_id': conversation_id
-        })
+        }, room=conversation_id)
+        
+        print(f"[DEBUG] Resposta enviada via Socket.IO para a sala {conversation_id}")
         
     except Exception as e:
-        print(f"Erro ao processar vídeo do YouTube: {str(e)}")
+        error_msg = f"Erro ao processar vídeo do YouTube: {str(e)}"
+        print(f"[ERRO] {error_msg}")
+        print(f"[DEBUG] Tipo de exceção: {type(e)}")
+        import traceback
+        print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
         socketio.emit('youtube_response', {
             'status': 'error',
-            'message': 'Ocorreu um erro ao processar o vídeo. Por favor, tente novamente.',
+            'error': error_msg,
             'conversation_id': conversation_id
-        })
+        }, room=conversation_id)
 
 @app.route('/save_youtube_message', methods=['POST'])
 def save_youtube_message():
