@@ -1,78 +1,92 @@
 // youtubeHandler.js
 // Este arquivo lidará com o envio do comando /youtube ao backend.
 
-export function handleYoutubeCommand(command, conversationId) {
+export async function handleYoutubeCommand(command, conversationId) {
+    console.log('[DEBUG] Iniciando processamento do comando do YouTube');
+    
     // Extrair a URL do vídeo do comando
     const videoUrl = command.split(' ')[1];
     if (!videoUrl) {
-        console.error('URL do vídeo não fornecida');
-        return;
+        throw new Error('URL do vídeo não fornecida');
     }
 
     // Validar se a URL é do YouTube
     if (!videoUrl.includes('youtube.com')) {
-        console.error('URL inválida. Use um link do YouTube válido.');
-        // Adicionar mensagem de erro ao chat
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'message error';
-            errorMessage.innerHTML = `
-                <div class="message-content">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>URL inválida. Use um link do YouTube válido.</span>
-                </div>
-            `;
-            chatContainer.appendChild(errorMessage);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-        return;
+        throw new Error('URL inválida. Use um link do YouTube válido.');
     }
 
     console.log(`[DEBUG] Enviando requisição para processar vídeo: ${videoUrl}`);
     
-    // Enviar requisição para processar o vídeo
-    fetch('/process_youtube', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            conversation_id: conversationId,
-            video_url: videoUrl
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            console.error('Erro ao iniciar processamento:', data.error);
-            return;
+    try {
+        // Enviar requisição para processar o vídeo
+        const response = await fetch('/process_youtube', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                conversation_id: conversationId,
+                video_url: videoUrl
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao processar vídeo');
         }
-        console.log('Processamento iniciado:', data.status);
-    })
-    .catch(error => {
-        console.error('Erro ao enviar requisição:', error);
-    });
+
+        const data = await response.json();
+        console.log('[DEBUG] Processamento iniciado:', data.status);
+        
+        // Entrar na sala da conversa para receber eventos
+        if (window.socket) {
+            window.socket.emit('join_conversation', { conversation_id: conversationId });
+            console.log(`[DEBUG] Entrou na sala da conversa: ${conversationId}`);
+        } else {
+            console.error('[ERRO] Socket não inicializado');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('[ERRO] Falha ao processar vídeo:', error);
+        throw error;
+    }
 }
 
 // Função para configurar os listeners de eventos do Socket.IO
 export function setupYoutubeSocketListeners(socket) {
+    console.log('[DEBUG] Configurando listeners do YouTube');
+    
     socket.on('youtube_response', function(data) {
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const errorMessage = document.getElementById('error-message');
-        const successMessage = document.getElementById('success-message');
+        console.log('[DEBUG] Recebido youtube_response:', data);
         
-        loadingIndicator.style.display = 'none';
-        
+        const chatContainer = document.querySelector('.chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado');
+            return;
+        }
+
+        // Remove o indicador de carregamento
+        const loadingDiv = chatContainer.querySelector('.loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+
         if (data.status === 'error') {
-            errorMessage.textContent = data.message;
-            errorMessage.style.display = 'block';
-            successMessage.style.display = 'none';
+            console.error('[ERRO] Erro no processamento:', data.error);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message error';
+            errorDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${data.error}</span>
+                </div>
+            `;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         } else if (data.status === 'success') {
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'block';
-            // Processar as legendas recebidas
-            processSubtitles(data.subtitles);
+            console.log('[DEBUG] Processamento concluído com sucesso');
+            // A resposta será renderizada pelo youtubeEvents.js
         }
     });
 }

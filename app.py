@@ -231,65 +231,75 @@ def process_youtube():
     return jsonify({'status': 'Processamento iniciado'})
 
 def process_youtube_background(url, conversation_id):
-    print(f"[DEBUG] Iniciando processamento do vídeo: {url} para conversa: {conversation_id}")
+    print(f"[INFO] Iniciando processamento do vídeo: {url} para conversa: {conversation_id}")
+    youtube_handler = YoutubeHandler()
+    
     try:
-        # Inicializar o handler do YouTube
-        youtube_handler = YoutubeHandler()
-        
-        # Baixar as legendas
-        print(f"[DEBUG] Chamando download_subtitles para URL: {url}")
-        subtitle_result = youtube_handler.download_subtitles(url)
-        print(f"[DEBUG] Resultado de download_subtitles: {subtitle_result}, Tipo: {type(subtitle_result)}")
-        
-        if not subtitle_result:
-            raise Exception("Nenhuma legenda encontrada para o vídeo.")
-        
-        # Desempacotar a tupla
-        if isinstance(subtitle_result, tuple) and len(subtitle_result) == 2:
-            subtitle_file, video_title = subtitle_result
-            print(f"[DEBUG] subtitle_file: {subtitle_file}, Tipo: {type(subtitle_file)}")
-            print(f"[DEBUG] video_title: {video_title}, Tipo: {type(video_title)}")
-        else:
-            raise Exception(f"download_subtitles não retornou uma tupla válida. Recebido: {subtitle_result}")
-        
-        # Limpar as legendas
-        print(f"[DEBUG] Chamando clean_subtitles com: {subtitle_file}")
-        cleaned_subtitles = youtube_handler.clean_subtitles(subtitle_file)
-        print(f"[DEBUG] Tipo de cleaned_subtitles: {type(cleaned_subtitles)}")
-        if cleaned_subtitles:
-            print(f"[DEBUG] Legendas limpas: {cleaned_subtitles[:50]}...")
-        else:
-            print("[DEBUG] cleaned_subtitles é None")
-        
-        if not cleaned_subtitles:
-            raise Exception("Falha ao limpar as legendas.")
-        
-        # Formatando a resposta para o frontend
-        response_content = f"**Legendas do vídeo '{video_title}':**\n{cleaned_subtitles}"
-        
-        # Salvar no histórico
-        message_id = add_message_to_conversation(conversation_id, response_content, "assistant")
-        print(f"[DEBUG] Mensagem salva no histórico com ID: {message_id}")
-        
-        # Emitir resposta para o frontend na sala correta
+        # Notificar início do processamento
         socketio.emit('youtube_response', {
-            'status': 'success',
-            'content': response_content,
+            'status': 'processing',
+            'conversation_id': conversation_id,
+            'content': "Processando vídeo..."
+        }, room=conversation_id)
+        
+        # Garantir que o cliente está na sala correta
+        socketio.emit('join_conversation', {
             'conversation_id': conversation_id
         }, room=conversation_id)
         
-        print(f"[DEBUG] Resposta enviada via Socket.IO para a sala {conversation_id}")
+        subtitle_file, video_title = youtube_handler.download_subtitles(url)
+        
+        if not subtitle_file:
+            error_msg = f"Não foi possível encontrar legendas para o vídeo '{video_title}' em PT-BR, PT ou EN."
+            print(f"[ERRO] {error_msg}")
+            socketio.emit('youtube_response', {
+                'status': 'error',
+                'conversation_id': conversation_id,
+                'error': error_msg
+            }, room=conversation_id)
+            return
+            
+        print(f"[INFO] Legendas encontradas para o vídeo: {video_title}")
+        cleaned_subtitles = youtube_handler.clean_subtitles(subtitle_file)
+        
+        if not cleaned_subtitles:
+            error_msg = f"Não foi possível processar as legendas do vídeo '{video_title}'."
+            print(f"[ERRO] {error_msg}")
+            socketio.emit('youtube_response', {
+                'status': 'error',
+                'conversation_id': conversation_id,
+                'error': error_msg
+            }, room=conversation_id)
+            return
+            
+        # Formata a resposta com o título e as legendas
+        response_content = f"**Legendas do vídeo '{video_title}':**\n\n{cleaned_subtitles}"
+        
+        # Salva a mensagem no histórico
+        message_id = add_message_to_conversation(conversation_id, response_content, "assistant")
+        
+        # Envia a resposta para o frontend
+        socketio.emit('youtube_response', {
+            'status': 'success',
+            'conversation_id': conversation_id,
+            'content': response_content,
+            'message_id': message_id
+        }, room=conversation_id)
+        
+        # Notifica que a conversa foi atualizada
+        socketio.emit('conversation_updated', {
+            'conversation_id': conversation_id
+        })
+        
+        print(f"[INFO] Processamento do vídeo concluído com sucesso")
         
     except Exception as e:
-        error_msg = f"Erro ao processar vídeo do YouTube: {str(e)}"
+        error_msg = f"Erro ao processar o vídeo: {str(e)}"
         print(f"[ERRO] {error_msg}")
-        print(f"[DEBUG] Tipo de exceção: {type(e)}")
-        import traceback
-        print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
         socketio.emit('youtube_response', {
             'status': 'error',
-            'error': error_msg,
-            'conversation_id': conversation_id
+            'conversation_id': conversation_id,
+            'error': error_msg
         }, room=conversation_id)
 
 @app.route('/save_youtube_message', methods=['POST'])

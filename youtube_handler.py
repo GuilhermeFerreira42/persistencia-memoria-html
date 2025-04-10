@@ -12,50 +12,64 @@ class YoutubeHandler:
 
     def download_subtitles(self, video_url: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Baixa as legendas de um vídeo do YouTube, priorizando PT-BR
-        Retorna uma tupla (caminho_do_arquivo, título_do_vídeo)
+        Baixa legendas do vídeo em PT-BR, PT ou EN, com fallback para legendas automáticas.
+        Retorna uma tupla (caminho_do_arquivo, título_do_vídeo).
         """
-        print(f"[DEBUG] download_subtitles iniciado para URL: {video_url}")
+        print(f"[INFO] Tentando baixar legendas para: {video_url}")
+        
+        # Configuração para baixar legendas apenas em PT-BR, PT e EN
         ydl_opts = {
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': ['pt-BR'],  # Apenas PT-BR
-            'skip_download': True,
+            'writesubtitles': True,          # Baixa legendas manuais
+            'writeautomaticsub': True,       # Baixa legendas automáticas como fallback
+            'subtitleslangs': ['pt-BR', 'pt', 'en'],  # Limita a PT-BR, PT e EN
+            'skip_download': True,           # Não baixa o vídeo
             'outtmpl': os.path.join(self.download_path, '%(id)s.%(ext)s'),
-            'quiet': True
+            'quiet': False,                  # Logs detalhados para diagnóstico
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                print("[DEBUG] Extraindo informações do vídeo...")
+                print("[INFO] Iniciando extração de informações do vídeo...")
                 info = ydl.extract_info(video_url, download=True)
-                video_id = info['id']
-                video_title = info.get('title', 'Vídeo sem título')
-                print(f"[DEBUG] Vídeo ID: {video_id}, Título: {video_title}")
                 
-                # Procura apenas por legendas em PT-BR
-                pt_br_files = ['.pt-BR.vtt', '.pt_BR.vtt', '.pt-br.vtt']
-                for suffix in pt_br_files:
-                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
-                    if os.path.exists(file):
-                        print(f"[DEBUG] Encontradas legendas em PT-BR: {file}")
-                        print(f"[DEBUG] Retornando tupla: ({file}, {video_title})")
-                        return file, video_title
+                if not info:
+                    print("[ERRO] Não foi possível extrair informações do vídeo")
+                    return None, None
                 
-                # Se não encontrou legendas em PT-BR, tenta legendas automáticas
-                auto_pt_br_files = ['.pt-BR.auto.vtt', '.pt_BR.auto.vtt', '.pt-br.auto.vtt']
-                for suffix in auto_pt_br_files:
-                    file = os.path.join(self.download_path, f"{video_id}{suffix}")
-                    if os.path.exists(file):
-                        print(f"[DEBUG] Encontradas legendas automáticas em PT-BR: {file}")
-                        print(f"[DEBUG] Retornando tupla: ({file}, {video_title})")
-                        return file, video_title
-                
-                print("[DEBUG] Nenhuma legenda em PT-BR encontrada (manual ou automática)")
-                return None, None
-                
+                video_id = info.get('id')
+                video_title = info.get('title', 'Sem título')
+                print(f"[INFO] ID do vídeo: {video_id}, Título: {video_title}")
+
+                # Lista de sufixos para legendas manuais e automáticas, na ordem de prioridade
+                lang_options = [
+                    # PT-BR (manuais e automáticas)
+                    [f"{video_id}.pt-BR.vtt", f"{video_id}.pt_BR.vtt", f"{video_id}.pt-br.vtt",
+                     f"{video_id}.pt-BR.auto.vtt", f"{video_id}.pt_BR.auto.vtt"],
+                    # PT (manuais e automáticas)
+                    [f"{video_id}.pt.vtt", f"{video_id}.pt-PT.vtt", f"{video_id}.pt.auto.vtt"],
+                    # EN (manuais e automáticas)
+                    [f"{video_id}.en.vtt", f"{video_id}.en.auto.vtt"]
+                ]
+
+                # Busca por legendas na ordem de prioridade
+                for lang_group in lang_options:
+                    for file_name in lang_group:
+                        subtitle_file = os.path.join(self.download_path, file_name)
+                        if os.path.exists(subtitle_file):
+                            print(f"[INFO] Legenda encontrada: {subtitle_file}")
+                            return subtitle_file, video_title
+
+                print(f"[ERRO] Nenhuma legenda encontrada para {video_id} em PT-BR, PT ou EN")
+                return None, video_title
+
+        except yt_dlp.utils.DownloadError as e:
+            if '429' in str(e):
+                print("[ERRO] Limite de requisições excedido (429). Tente novamente mais tarde.")
+            else:
+                print(f"[ERRO] Erro no download: {str(e)}")
+            return None, None
         except Exception as e:
-            print(f"[ERRO] Erro ao baixar legendas: {str(e)}")
+            print(f"[ERRO] Falha ao baixar legendas: {str(e)}")
             import traceback
             print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
             return None, None

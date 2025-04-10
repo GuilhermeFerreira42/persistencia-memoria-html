@@ -18,6 +18,10 @@ export function setupYoutubeEvents(socket) {
             return;
         }
 
+        // Remove qualquer indicador de carregamento existente
+        const loadingDiv = chatContainer.querySelector('.loading');
+        if (loadingDiv) loadingDiv.remove();
+
         console.log("[DEBUG] Adicionando mensagem do usuário ao chat");
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message user';
@@ -27,21 +31,8 @@ export function setupYoutubeEvents(socket) {
             </div>
         `;
         
-        // Adiciona a mensagem com animação
-        messageDiv.style.opacity = '0';
         chatContainer.appendChild(messageDiv);
-        
-        // Força o reflow para a animação funcionar
-        messageDiv.offsetHeight;
-        
-        // Inicia a animação
-        messageDiv.style.transition = 'opacity 0.3s ease-in-out';
-        messageDiv.style.opacity = '1';
-        
-        // Rola para a nova mensagem
-        requestAnimationFrame(() => {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        });
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         
         console.log("[DEBUG] Mensagem do usuário adicionada com sucesso");
     });
@@ -52,8 +43,52 @@ export function setupYoutubeEvents(socket) {
         const chatContainer = document.querySelector('.chat-container');
         const conversationId = window.conversaAtual?.id;
 
-        if (!chatContainer || !conversationId || data.conversation_id !== conversationId) {
-            console.log("[DEBUG] Ignorando evento: chat container não encontrado ou conversa diferente");
+        if (!chatContainer) {
+            console.error("[ERRO] Chat container não encontrado");
+            return;
+        }
+
+        if (!conversationId) {
+            console.error("[ERRO] ID da conversa atual não encontrado");
+            return;
+        }
+
+        if (data.conversation_id !== conversationId) {
+            console.log("[DEBUG] Ignorando resposta de outra conversa", {
+                atual: conversationId,
+                recebido: data.conversation_id
+            });
+            return;
+        }
+
+        // Remove qualquer indicador de carregamento existente
+        const loadingDiv = chatContainer.querySelector('.loading');
+        if (loadingDiv) {
+            console.log("[DEBUG] Removendo indicador de carregamento");
+            loadingDiv.remove();
+        }
+
+        // Verifica se já existe uma resposta com o mesmo message_id
+        if (data.message_id) {
+            const existingMessage = chatContainer.querySelector(`.message[data-message-id="${data.message_id}"]`);
+            if (existingMessage) {
+                console.log("[DEBUG] Resposta já existe, ignorando duplicata");
+                return;
+            }
+        }
+
+        // Adiciona indicador de carregamento se estiver processando
+        if (data.status === 'processing') {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message loading';
+            loadingDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>${data.content}</span>
+                </div>
+            `;
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
             return;
         }
 
@@ -61,6 +96,7 @@ export function setupYoutubeEvents(socket) {
             console.log("[DEBUG] Exibindo mensagem de erro");
             const errorMessage = document.createElement('div');
             errorMessage.className = 'message error';
+            errorMessage.dataset.messageId = data.message_id || `error_${Date.now()}`;
             errorMessage.innerHTML = `
                 <div class="message-content">
                     <i class="fas fa-exclamation-circle"></i>
@@ -68,16 +104,8 @@ export function setupYoutubeEvents(socket) {
                 </div>
             `;
             
-            // Adiciona a mensagem de erro com animação
-            errorMessage.style.opacity = '0';
             chatContainer.appendChild(errorMessage);
-            errorMessage.offsetHeight;
-            errorMessage.style.transition = 'opacity 0.3s ease-in-out';
-            errorMessage.style.opacity = '1';
-            
-            requestAnimationFrame(() => {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            });
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
             
             console.log("[DEBUG] Mensagem de erro exibida");
             return;
@@ -87,6 +115,7 @@ export function setupYoutubeEvents(socket) {
             console.log("[DEBUG] Exibindo resposta do YouTube");
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message assistant youtube';
+            messageDiv.dataset.messageId = data.message_id || `youtube_${Date.now()}`;
             messageDiv.innerHTML = `
                 <div class="message-content">
                     ${marked.parse(data.content)}
@@ -95,43 +124,37 @@ export function setupYoutubeEvents(socket) {
                     <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
                         <i class="fas fa-copy"></i>
                     </button>
-                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                        <i class="fas fa-redo"></i>
-                    </button>
                 </div>
             `;
             
-            // Adiciona a mensagem com animação
-            messageDiv.style.opacity = '0';
             chatContainer.appendChild(messageDiv);
             
-            // Força o reflow e inicia a animação
-            messageDiv.offsetHeight;
-            messageDiv.style.transition = 'all 0.3s ease-in-out';
-            messageDiv.style.opacity = '1';
-            
-            // Força a atualização do DOM e rola para a nova mensagem
-            requestAnimationFrame(() => {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                
-                // Destaca a nova mensagem brevemente
-                messageDiv.style.animation = 'highlightMessage 1s ease-in-out';
-                setTimeout(() => {
-                    messageDiv.style.animation = '';
-                }, 1000);
-            });
+            // Garante que a mensagem seja visível
+            setTimeout(() => {
+                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
 
             // Notifica que uma nova mensagem foi adicionada
-            chatContainer.dispatchEvent(new Event('messageAdded'));
+            const event = new CustomEvent('messageAdded', {
+                detail: {
+                    type: 'youtube',
+                    messageId: messageDiv.dataset.messageId,
+                    conversationId: data.conversation_id
+                }
+            });
+            chatContainer.dispatchEvent(event);
+            
+            // Atualiza o histórico imediatamente
+            updateConversationHistory();
             
             console.log("[DEBUG] Resposta do YouTube renderizada com sucesso");
         } else {
-            console.log("[DEBUG] Evento inválido ou sem conteúdo");
+            console.log("[AVISO] Evento inválido ou sem conteúdo", data);
         }
     });
 
-    // Listener para atualizar a barra lateral quando uma mensagem é adicionada
-    document.addEventListener('messageAdded', () => {
+    // Função para atualizar o histórico
+    function updateConversationHistory() {
         console.log("[DEBUG] Atualizando histórico na barra lateral");
         fetch('/get_conversation_history')
             .then(response => response.json())
@@ -146,5 +169,10 @@ export function setupYoutubeEvents(socket) {
             .catch(error => {
                 console.error("[ERRO] Falha ao atualizar histórico:", error);
             });
+    }
+
+    // Listener para atualizar a barra lateral quando uma mensagem é adicionada
+    document.addEventListener('messageAdded', () => {
+        updateConversationHistory();
     });
 } 

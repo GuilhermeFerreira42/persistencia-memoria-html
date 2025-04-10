@@ -30,6 +30,9 @@ const processedChunks = new Map();
 // Mapa para rastrear o último chunk recebido por conversa
 const lastReceivedChunks = new Map();
 
+// Mapa para rastrear mensagens já enviadas
+const sentMessages = new Map();
+
 // Inicializa o socket apenas uma vez
 let socket;
 if (!window.socket) {
@@ -52,14 +55,24 @@ if (!window.socket) {
 
     // Listener para chunks da mensagem
     socket.on('message_chunk', (data) => {
+        const { content, conversation_id, chunk_number } = data;
+        
+        // Verificar duplicação de mensagem
+        if (isDuplicateMessage(conversation_id, content)) {
+            logger.debug('Chunk ignorado por ser duplicado', {
+                conversationId: conversation_id,
+                chunkNumber: chunk_number
+            });
+            return;
+        }
+        
         logger.debug('Recebido chunk', { 
-            conversationId: data.conversation_id,
-            chunkNumber: data.chunk_number,
-            chunkSize: data.content?.length,
+            conversationId: conversation_id,
+            chunkNumber: chunk_number,
+            chunkSize: content?.length,
             timestamp: Date.now()
         });
 
-        const { content, conversation_id, chunk_number } = data;
         if (!content || !conversation_id || content === '[DONE]') {
             logger.debug('Chunk vazio ou marcador de fim recebido', { content, conversation_id });
             return;
@@ -359,44 +372,86 @@ function forcarRenderizacao(elemento) {
     });
 }
 
-export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
-    if (!mensagem.trim()) return;
+// Função para verificar se uma mensagem é duplicada
+function isDuplicateMessage(conversationId, content) {
+    const key = `${conversationId}:${content}`;
+    const lastSentTime = sentMessages.get(key);
+    const now = Date.now();
+    
+    // Se a mensagem foi enviada nos últimos 2 segundos, é considerada duplicata
+    if (lastSentTime && (now - lastSentTime) < 2000) {
+        logger.debug('Mensagem duplicada detectada', {
+            conversationId,
+            content: content.substring(0, 20) + '...',
+            timeDiff: now - lastSentTime
+        });
+        return true;
+    }
+    
+    sentMessages.set(key, now);
+    return false;
+}
 
-    // Verificar se é um comando do YouTube
+export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
+    logger.debug('Iniciando envio de mensagem', { mensagem });
+    
+    if (!mensagem.trim()) {
+        logger.debug('Mensagem vazia, ignorando');
+        return;
+    }
+
+    // Verifica se é um comando do YouTube
     if (mensagem.startsWith('/youtube ')) {
-        // Se a conversa ainda não foi iniciada, cria uma nova
+        logger.debug('Comando do YouTube detectado');
+        
+        // Cria nova conversa se necessário
         if (!window.conversaAtual) {
+            logger.debug('Criando nova conversa para comando do YouTube');
             criarNovaConversa();
         }
-
-        // Adiciona o comando do usuário ao chat e ao histórico
+        
+        // Adiciona mensagem do usuário
         adicionarMensagem(chatContainer, mensagem, 'user');
         adicionarMensagemAoHistorico(mensagem, 'user');
-
-        // Mostra o indicador de carregamento
-        const loadingDiv = mostrarCarregamento(chatContainer);
-
+        
+        // Adiciona indicador de carregamento
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message loading';
+        loadingDiv.innerHTML = `
+            <div class="message-content">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Processando vídeo do YouTube...</span>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        
+        // Processa o comando do YouTube
         try {
-            // Usa a função handleYoutubeCommand para processar o comando
-            handleYoutubeCommand(mensagem, window.conversaAtual.id);
-            
-            // Remove o indicador de carregamento após um tempo
-            setTimeout(() => {
-                if (loadingDiv && loadingDiv.parentNode) {
-                    loadingDiv.remove();
-                }
-            }, 2000);
-            
-            // Notifica que o histórico foi atualizado
-            window.dispatchEvent(new CustomEvent('historicoAtualizado'));
-            return; // Interrompe o fluxo para mensagens normais
+            await handleYoutubeCommand(mensagem, window.conversaAtual.id);
+            logger.debug('Comando do YouTube processado com sucesso');
         } catch (error) {
-            loadingDiv.remove();
-            const errorMsg = "Erro ao processar o vídeo";
-            adicionarMensagem(chatContainer, errorMsg, 'assistant');
-            adicionarMensagemAoHistorico(errorMsg, 'assistant');
-            return;
+            logger.error('Erro ao processar comando do YouTube', error);
+            // Remove o indicador de carregamento em caso de erro
+            if (loadingDiv.parentNode) {
+                loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+            // Adiciona mensagem de erro
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message error';
+            errorDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Erro ao processar vídeo do YouTube: ${error.message}</span>
+                </div>
+            `;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         }
+        
+        return;
     }
 
     // Continua com o processamento normal de mensagens...
