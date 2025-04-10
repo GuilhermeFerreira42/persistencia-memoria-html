@@ -57,36 +57,59 @@ export async function handleYoutubeCommand(command, conversationId) {
 export function setupYoutubeSocketListeners(socket) {
     console.log('[DEBUG] Configurando listeners do YouTube');
     
-    socket.on('youtube_response', function(data) {
-        console.log('[DEBUG] Recebido youtube_response:', data);
+    socket.on('youtube_response', (response) => {
+        console.log('[DEBUG] Recebida resposta do YouTube:', response);
         
-        const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) {
-            console.error('[ERRO] Container de chat não encontrado');
-            return;
-        }
-
-        // Remove o indicador de carregamento
-        const loadingDiv = chatContainer.querySelector('.loading');
+        // Remover animação de carregamento
+        const loadingDiv = document.querySelector('.message.loading');
         if (loadingDiv) {
             loadingDiv.remove();
         }
-
-        if (data.status === 'error') {
-            console.error('[ERRO] Erro no processamento:', data.error);
+        
+        // Verificar se a mensagem já existe
+        const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
+        if (existingMessage) {
+            console.log('[DEBUG] Mensagem já existe, ignorando');
+            return;
+        }
+        
+        // Adicionar nova mensagem
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.setAttribute('data-message-id', response.message_id);
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <p>${response.content}</p>
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+    });
+    
+    socket.on('youtube_error', (error) => {
+        console.error('[DEBUG] Erro no processamento do YouTube:', error);
+        
+        // Remover animação de carregamento
+        const loadingDiv = document.querySelector('.message.loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+        
+        // Exibir mensagem de erro
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'message error';
             errorDiv.innerHTML = `
                 <div class="message-content">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>${data.error}</span>
+                    <p>Erro ao processar vídeo do YouTube: ${error.message}</p>
                 </div>
             `;
             chatContainer.appendChild(errorDiv);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        } else if (data.status === 'success') {
-            console.log('[DEBUG] Processamento concluído com sucesso');
-            // A resposta será renderizada pelo youtubeEvents.js
         }
     });
 }

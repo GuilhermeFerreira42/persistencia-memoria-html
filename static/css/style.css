@@ -41,4 +41,24 @@
     color: #155724;
     background-color: #d4edda;
     border: 1px solid #c3e6cb;
+}
+
+.test-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.test-btn:hover {
+    color: var(--accent-color);
+}
+
+.test-btn:active {
+    transform: scale(0.95);
 } 

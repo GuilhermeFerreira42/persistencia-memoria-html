@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const stopBtn = document.getElementById('stop-btn');
     const newChatBtn = document.querySelector('.new-chat-btn');
+    const testBtn = document.getElementById('test-btn');
 
     // Configurar menu de comando usando o módulo criado
     const welcomeCommandMenu = document.getElementById('command-menu');
@@ -236,6 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // Adicionar evento de clique para o botão de teste
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            console.log('[DEBUG] Testando conectividade do Socket.IO');
+            await testSocketConnection();
+        });
+    }
 });
 
 // Expor funções globalmente

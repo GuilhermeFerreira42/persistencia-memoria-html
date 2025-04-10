@@ -117,13 +117,18 @@ function setupEventListeners() {
     
     // Receber notificação de que uma conversa foi atualizada
     socket.on('conversation_updated', (data) => {
+        console.log('[DEBUG] Evento conversation_updated recebido:', data);
+        console.log('[DEBUG] Chat ativo:', window.conversaAtual?.id);
+        
         // Atualizar lista de conversas
         atualizarListaConversas();
         
         // Se for a conversa atual, atualizar a UI
         if (window.conversaAtual && window.conversaAtual.id === data.conversation_id) {
+            console.log('[DEBUG] Atualizando DOM para conversa atual');
             // Se a aba estiver inativa, recarregar a conversa quando se tornar ativa
             if (document.visibilityState !== 'visible') {
+                console.log('[DEBUG] Aba inativa, marcando para recarregar');
                 marcarParaRecarregar(data.conversation_id);
             }
         }
@@ -166,22 +171,36 @@ function setupEventListeners() {
         // Atualizar lista de conversas
         atualizarListaConversas();
     });
+
+    // Listener para evento de teste
+    socket.on('test_event', (data) => {
+        console.log('[DEBUG] Evento de teste recebido:', data);
+        console.log('[DEBUG] Chat ativo:', window.conversaAtual?.id);
+        console.log('[DEBUG] Sala atual:', window.salaAtual);
+    });
 }
 
 /**
  * Entra na sala de uma conversa específica para receber atualizações
  */
 export function entrarNaSalaDeConversa(conversationId) {
-    if (!socket || !isConnected) return;
+    if (!socket || !isConnected) {
+        console.log('[DEBUG] Socket não disponível ou não conectado');
+        return;
+    }
+    
+    console.log(`[DEBUG] Entrando na sala da conversa: ${conversationId}`);
     
     // Sair de todas as salas anteriores primeiro
     if (window.salaAtual) {
+        console.log(`[DEBUG] Saindo da sala anterior: ${window.salaAtual}`);
         socket.emit('leave_conversation', { conversation_id: window.salaAtual });
     }
     
     // Entrar na nova sala
     socket.emit('join_conversation', { conversation_id: conversationId });
     window.salaAtual = conversationId;
+    console.log(`[DEBUG] Entrou na sala: ${conversationId}`);
 }
 
 /**
@@ -258,3 +277,27 @@ const melhorarBlocosCodigo = window.melhorarBlocosCodigo || function() {};
 const carregarConversa = window.carregarConversa || function() {};
 const atualizarListaConversas = window.atualizarListaConversas || function() {};
 const mostrarTelaInicial = window.mostrarTelaInicial || function() {};
+
+/**
+ * Testa a conectividade do Socket.IO
+ */
+export async function testSocketConnection() {
+    if (!window.conversaAtual?.id) {
+        console.log('[DEBUG] Nenhuma conversa ativa para testar');
+        return;
+    }
+    
+    try {
+        console.log('[DEBUG] Testando conectividade do Socket.IO');
+        const response = await fetch('/test_socket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversation_id: window.conversaAtual.id })
+        });
+        
+        const data = await response.json();
+        console.log('[DEBUG] Resposta do teste:', data);
+    } catch (error) {
+        console.error('[ERRO] Falha ao testar conectividade:', error);
+    }
+}

@@ -175,4 +175,35 @@ export function setupYoutubeEvents(socket) {
     document.addEventListener('messageAdded', () => {
         updateConversationHistory();
     });
+}
+
+export function handleYoutubeCommand(command, socket) {
+    console.log('[DEBUG] Processando comando do YouTube:', command);
+    
+    // Verificar se a mensagem já existe
+    const existingMessage = document.querySelector(`.message[data-message-id="${command.message_id}"]`);
+    if (existingMessage) {
+        console.log('[DEBUG] Mensagem já existe, ignorando');
+        return;
+    }
+    
+    // Adicionar animação de carregamento
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message loading';
+        loadingDiv.innerHTML = `
+            <div class="message-content">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Processando vídeo do YouTube...</span>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+    }
+    
+    // Enviar comando para o servidor
+    socket.emit('youtube_command', command);
 } 

@@ -107,9 +107,11 @@ def stream():
                     'conversation_id': conversation_id
                 }, room=conversation_id)
                 # Notificar que a conversa foi atualizada
+                print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
+                print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         except Exception as e:
             print(f"[ERRO] Erro durante streaming: {str(e)}")
             # Em caso de erro, notificar o cliente
@@ -164,9 +166,11 @@ def send_message():
                     'conversation_id': conversation_id
                 }, room=conversation_id)
                 # Notificar que a conversa foi atualizada
+                print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
+                print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
                 print(f"[DEBUG] Resposta final da IA salva na conversa: {conversation_id}")
         except Exception as e:
             print(f"[ERRO] Erro durante streaming: {str(e)}")
@@ -287,9 +291,11 @@ def process_youtube_background(url, conversation_id):
         }, room=conversation_id)
         
         # Notifica que a conversa foi atualizada
+        print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
         socketio.emit('conversation_updated', {
             'conversation_id': conversation_id
         })
+        print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         
         print(f"[INFO] Processamento do vídeo concluído com sucesso")
         
@@ -402,6 +408,27 @@ def log_frontend():
         return jsonify({'status': 'success'}), 200
     except Exception as e:
         print(f"[ERRO] Falha ao processar log do frontend: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test_socket', methods=['POST'])
+def test_socket():
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        
+        if not conversation_id:
+            return jsonify({'error': 'ID da conversa não fornecido'}), 400
+            
+        print(f"[DEBUG] Enviando evento de teste para conversation_id: {conversation_id}")
+        socketio.emit('test_event', {
+            'message': 'Teste de conectividade',
+            'conversation_id': conversation_id,
+            'timestamp': datetime.now().isoformat()
+        }, room=conversation_id)
+        
+        return jsonify({'status': 'Evento de teste enviado'})
+    except Exception as e:
+        print(f"[ERRO] Falha ao enviar evento de teste: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ---- WebSocket event handlers ----

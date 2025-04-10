@@ -410,6 +410,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             criarNovaConversa();
         }
         
+        // Verificar se a mensagem já existe
+        const existingMessage = document.querySelector(`.message[data-content="${mensagem}"]`);
+        if (existingMessage) {
+            logger.debug('Mensagem já existe, ignorando');
+            return;
+        }
+        
         // Adiciona mensagem do usuário
         adicionarMensagem(chatContainer, mensagem, 'user');
         adicionarMensagemAoHistorico(mensagem, 'user');
@@ -432,6 +439,11 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         try {
             await handleYoutubeCommand(mensagem, window.conversaAtual.id);
             logger.debug('Comando do YouTube processado com sucesso');
+            
+            // Remover o indicador de carregamento
+            if (loadingDiv.parentNode) {
+                loadingDiv.parentNode.removeChild(loadingDiv);
+            }
         } catch (error) {
             logger.error('Erro ao processar comando do YouTube', error);
             // Remove o indicador de carregamento em caso de erro
