@@ -1,7 +1,14 @@
 // youtubeHandler.js
 // Este arquivo lidará com o envio do comando /youtube ao backend.
 
+let isProcessingYoutube = false;
+
 export async function handleYoutubeCommand(command, conversationId) {
+    if (isProcessingYoutube) {
+        console.log('[DEBUG] Já existe um processamento de YouTube em andamento');
+        return;
+    }
+
     console.log('[DEBUG] Iniciando processamento do comando do YouTube');
     
     // Extrair a URL do vídeo do comando
@@ -11,13 +18,17 @@ export async function handleYoutubeCommand(command, conversationId) {
     }
 
     // Validar se a URL é do YouTube
-    if (!videoUrl.includes('youtube.com')) {
+    if (!videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be')) {
         throw new Error('URL inválida. Use um link do YouTube válido.');
     }
 
     console.log(`[DEBUG] Enviando requisição para processar vídeo: ${videoUrl}`);
     
     try {
+        isProcessingYoutube = true;
+        const sendBtn = document.querySelector('#send-btn');
+        if (sendBtn) sendBtn.disabled = true;
+
         // Enviar requisição para processar o vídeo
         const response = await fetch('/process_youtube', {
             method: 'POST',
@@ -50,6 +61,10 @@ export async function handleYoutubeCommand(command, conversationId) {
     } catch (error) {
         console.error('[ERRO] Falha ao processar vídeo:', error);
         throw error;
+    } finally {
+        isProcessingYoutube = false;
+        const sendBtn = document.querySelector('#send-btn');
+        if (sendBtn) sendBtn.disabled = false;
     }
 }
 
@@ -60,11 +75,9 @@ export function setupYoutubeSocketListeners(socket) {
     socket.on('youtube_response', (response) => {
         console.log('[DEBUG] Recebida resposta do YouTube:', response);
         
-        // Remover animação de carregamento
-        const loadingDiv = document.querySelector('.message.loading');
-        if (loadingDiv) {
-            loadingDiv.remove();
-        }
+        // Remover todas as animações de carregamento
+        const loadingDivs = document.querySelectorAll('.message.loading');
+        loadingDivs.forEach(div => div.remove());
         
         // Verificar se a mensagem já existe
         const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
@@ -77,26 +90,29 @@ export function setupYoutubeSocketListeners(socket) {
         const chatContainer = document.querySelector('.chat-container');
         if (chatContainer) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
+            messageDiv.className = 'message assistant youtube';
             messageDiv.setAttribute('data-message-id', response.message_id);
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    <p>${response.content}</p>
+                    ${marked.parse(response.content)}
+                </div>
+                <div class="message-actions">
+                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                        <i class="fas fa-copy"></i>
+                    </button>
                 </div>
             `;
             chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
     });
     
     socket.on('youtube_error', (error) => {
         console.error('[DEBUG] Erro no processamento do YouTube:', error);
         
-        // Remover animação de carregamento
-        const loadingDiv = document.querySelector('.message.loading');
-        if (loadingDiv) {
-            loadingDiv.remove();
-        }
+        // Remover todas as animações de carregamento
+        const loadingDivs = document.querySelectorAll('.message.loading');
+        loadingDivs.forEach(div => div.remove());
         
         // Exibir mensagem de erro
         const chatContainer = document.querySelector('.chat-container');
@@ -105,12 +121,18 @@ export function setupYoutubeSocketListeners(socket) {
             errorDiv.className = 'message error';
             errorDiv.innerHTML = `
                 <div class="message-content">
-                    <p>Erro ao processar vídeo do YouTube: ${error.message}</p>
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Erro ao processar vídeo do YouTube: ${error.message}</span>
                 </div>
             `;
             chatContainer.appendChild(errorDiv);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         }
+        
+        // Resetar estado
+        isProcessingYoutube = false;
+        const sendBtn = document.querySelector('#send-btn');
+        if (sendBtn) sendBtn.disabled = false;
     });
 }
 

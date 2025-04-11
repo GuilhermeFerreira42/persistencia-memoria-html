@@ -1,6 +1,8 @@
 // youtubeEvents.js
 // Este arquivo lidará com os eventos Socket.IO relacionados ao YouTube.
 
+let isProcessingYoutube = false;
+
 export function setupYoutubeEvents(socket) {
     // Evento para quando a mensagem do usuário é salva
     socket.on('message_saved', (data) => {
@@ -19,8 +21,8 @@ export function setupYoutubeEvents(socket) {
         }
 
         // Remove qualquer indicador de carregamento existente
-        const loadingDiv = chatContainer.querySelector('.loading');
-        if (loadingDiv) loadingDiv.remove();
+        const loadingDivs = chatContainer.querySelectorAll('.loading');
+        loadingDivs.forEach(div => div.remove());
 
         console.log("[DEBUG] Adicionando mensagem do usuário ao chat");
         const messageDiv = document.createElement('div');
@@ -43,30 +45,22 @@ export function setupYoutubeEvents(socket) {
         const chatContainer = document.querySelector('.chat-container');
         const conversationId = window.conversaAtual?.id;
 
-        if (!chatContainer) {
-            console.error("[ERRO] Chat container não encontrado");
+        if (!chatContainer || !conversationId || data.conversation_id !== conversationId) {
+            console.log("[DEBUG] Ignorando resposta: container não encontrado ou conversa diferente");
             return;
         }
 
-        if (!conversationId) {
-            console.error("[ERRO] ID da conversa atual não encontrado");
-            return;
-        }
-
-        if (data.conversation_id !== conversationId) {
-            console.log("[DEBUG] Ignorando resposta de outra conversa", {
-                atual: conversationId,
-                recebido: data.conversation_id
-            });
-            return;
-        }
-
-        // Remove qualquer indicador de carregamento existente
-        const loadingDiv = chatContainer.querySelector('.loading');
-        if (loadingDiv) {
+        // Remove todos os indicadores de carregamento existentes
+        const loadingDivs = chatContainer.querySelectorAll('.loading');
+        loadingDivs.forEach(div => {
             console.log("[DEBUG] Removendo indicador de carregamento");
-            loadingDiv.remove();
-        }
+            div.remove();
+        });
+
+        // Reseta o estado de processamento
+        isProcessingYoutube = false;
+        const sendBtn = document.querySelector('#send-btn');
+        if (sendBtn) sendBtn.disabled = false;
 
         // Verifica se já existe uma resposta com o mesmo message_id
         if (data.message_id) {
@@ -75,21 +69,6 @@ export function setupYoutubeEvents(socket) {
                 console.log("[DEBUG] Resposta já existe, ignorando duplicata");
                 return;
             }
-        }
-
-        // Adiciona indicador de carregamento se estiver processando
-        if (data.status === 'processing') {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message loading';
-            loadingDiv.innerHTML = `
-                <div class="message-content">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>${data.content}</span>
-                </div>
-            `;
-            chatContainer.appendChild(loadingDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-            return;
         }
 
         if (data.status === 'error') {
@@ -106,8 +85,6 @@ export function setupYoutubeEvents(socket) {
             
             chatContainer.appendChild(errorMessage);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-            
-            console.log("[DEBUG] Mensagem de erro exibida");
             return;
         }
 
@@ -128,11 +105,7 @@ export function setupYoutubeEvents(socket) {
             `;
             
             chatContainer.appendChild(messageDiv);
-            
-            // Garante que a mensagem seja visível
-            setTimeout(() => {
-                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }, 100);
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
 
             // Notifica que uma nova mensagem foi adicionada
             const event = new CustomEvent('messageAdded', {
@@ -144,40 +117,17 @@ export function setupYoutubeEvents(socket) {
             });
             chatContainer.dispatchEvent(event);
             
-            // Atualiza o histórico imediatamente
-            updateConversationHistory();
-            
             console.log("[DEBUG] Resposta do YouTube renderizada com sucesso");
-        } else {
-            console.log("[AVISO] Evento inválido ou sem conteúdo", data);
         }
-    });
-
-    // Função para atualizar o histórico
-    function updateConversationHistory() {
-        console.log("[DEBUG] Atualizando histórico na barra lateral");
-        fetch('/get_conversation_history')
-            .then(response => response.json())
-            .then(history => {
-                if (window.atualizarHistoricoConversas) {
-                    window.atualizarHistoricoConversas(history);
-                    console.log("[DEBUG] Histórico atualizado com sucesso");
-                } else {
-                    console.log("[AVISO] Função atualizarHistoricoConversas não encontrada");
-                }
-            })
-            .catch(error => {
-                console.error("[ERRO] Falha ao atualizar histórico:", error);
-            });
-    }
-
-    // Listener para atualizar a barra lateral quando uma mensagem é adicionada
-    document.addEventListener('messageAdded', () => {
-        updateConversationHistory();
     });
 }
 
 export function handleYoutubeCommand(command, socket) {
+    if (isProcessingYoutube) {
+        console.log('[DEBUG] Já existe um processamento de YouTube em andamento');
+        return;
+    }
+
     console.log('[DEBUG] Processando comando do YouTube:', command);
     
     // Verificar se a mensagem já existe
@@ -186,6 +136,11 @@ export function handleYoutubeCommand(command, socket) {
         console.log('[DEBUG] Mensagem já existe, ignorando');
         return;
     }
+    
+    // Ativar estado de processamento
+    isProcessingYoutube = true;
+    const sendBtn = document.querySelector('#send-btn');
+    if (sendBtn) sendBtn.disabled = true;
     
     // Adicionar animação de carregamento
     const chatContainer = document.querySelector('.chat-container');

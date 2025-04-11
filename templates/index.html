@@ -146,9 +146,6 @@
                             <button type="button" class="stop-btn" id="stop-btn" style="display: none;">
                                 <i class="fas fa-stop" style="font-weight: 100;"></i>
                             </button>
-                            <button type="button" class="test-btn" id="test-btn" title="Testar conectividade">
-                                <i class="fas fa-wifi" style="font-size: 0.9rem;"></i>
-                            </button>
                         </form>
                     </div>
                 </div>
@@ -196,6 +193,31 @@
                 } catch (err) {
                     console.error('Erro ao copiar código:', err);
                     alert('Não foi possível copiar o código. Por favor, tente novamente.');
+                } finally {
+                    document.body.removeChild(tempTextarea);
+                }
+            };
+
+            window.copiarMensagem = function(button) {
+                const messageContent = button.closest('.message').querySelector('.message-content');
+                const tempTextarea = document.createElement('textarea');
+                tempTextarea.value = messageContent.innerText.trim();
+                
+                document.body.appendChild(tempTextarea);
+                tempTextarea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    button.innerHTML = '<i class="fas fa-check"></i>';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.innerHTML = '<i class="fas fa-copy"></i>';
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Erro ao copiar mensagem:', err);
+                    alert('Não foi possível copiar a mensagem. Por favor, tente novamente.');
                 } finally {
                     document.body.removeChild(tempTextarea);
                 }
