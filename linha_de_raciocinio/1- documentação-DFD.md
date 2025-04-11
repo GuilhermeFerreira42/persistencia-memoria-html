@@ -454,3 +454,95 @@ flowchart TD
     BE9 --> D5
     D5 -- "sim" --> UT9
     D5 -- "não" --> BE9
+
+
+### Documentação do Módulo `youtube-system`
+
+#### 1. Introdução
+O módulo `youtube-system` permite que os usuários do chat obtenham legendas de vídeos do YouTube usando o comando `/youtube <URL>`. As legendas são processadas em background no servidor e exibidas no chat correto, com uma animação de carregamento visível durante o processo. O sistema utiliza `conversation_id` para garantir o isolamento entre chats, exibindo respostas apenas na conversa correspondente.
+
+#### 2. Funcionalidades
+- **Comando `/youtube <URL>`**: Baixa e exibe legendas de vídeos do YouTube em PT-BR, PT ou EN.
+- **Animação de Carregamento**: Mostra um spinner com a mensagem "Processando vídeo do YouTube..." durante o processamento.
+- **Isolamento de Chats**: Garante que as respostas apareçam apenas no chat correto usando `conversation_id`.
+- **Tratamento de Erros**: Exibe mensagens amigáveis para URLs inválidas, vídeos sem legendas ou erros de processamento.
+- **Comunicação em Tempo Real**: Usa Socket.IO para enviar eventos do backend ao frontend.
+
+#### 3. Estrutura de Arquivos
+- **Frontend**:
+  - `chatActions.js`: Envia o comando `/youtube` ao backend e adiciona a animação de carregamento.
+  - `youtubeEvents.js`: Escuta eventos WebSocket e atualiza o chat com a resposta ou erro, removendo a animação.
+  - `styles.css`: Contém os estilos da animação de carregamento.
+- **Backend**:
+  - `app.py`: Define a rota `/process_youtube` e inicia o processamento em background via WebSocket.
+  - `youtube_handler.py`: Classe `YoutubeHandler` para baixar e limpar legendas.
+
+#### 4. Fluxo de Funcionamento
+1. **Envio do Comando**:
+   - O usuário digita `/youtube <URL>` no chat.
+2. **Frontend (`chatActions.js`)**:
+   - Adiciona a animação de carregamento ao chat.
+   - Envia uma requisição POST para `/process_youtube` com `conversation_id` e `video_url`.
+3. **Backend (`app.py`)**:
+   - Salva o comando no histórico com `add_message_to_conversation`.
+   - Inicia uma tarefa em background (`process_youtube_background`) para processar o vídeo.
+   - Emite um evento WebSocket `youtube_response` com `status: 'processing'`.
+4. **Processamento em Background**:
+   - `YoutubeHandler.download_subtitles` baixa as legendas em PT-BR, PT ou EN.
+   - `YoutubeHandler.clean_subtitles` limpa o texto das legendas.
+   - Salva a resposta no histórico e emite `youtube_response` com `status: 'success'` ou `status: 'error'`.
+5. **Frontend (`youtubeEvents.js`)**:
+   - Recebe o evento `youtube_response`.
+   - Remove a animação de carregamento.
+   - Exibe a resposta (legendas ou erro) no chat.
+
+#### 5. Instruções de Uso
+- **Dependências**:
+  - **Backend**: `yt-dlp` (para baixar legendas), `flask-socketio` (para WebSocket).
+  - **Frontend**: `socket.io-client`, `marked` (para renderizar Markdown), `font-awesome` (ícones).
+- **Instalação**:
+  1. Instale as dependências do backend: `pip install yt-dlp flask-socketio`.
+  2. As dependências do frontend estão incluídas via CDN no `index.html`.
+- **Como Rodar**:
+  1. Inicie o servidor: `python app.py`.
+  2. Acesse o frontend em `http://localhost:5000`.
+- **Uso do Comando**:
+  - Digite `/youtube <URL>` no chat.
+  - Exemplo: `/youtube https://www.youtube.com/watch?v=abc123`.
+
+#### 6. Manutenção e Extensões
+- **Adicionar Novos Comandos**:
+  - Crie novas funções em `chatActions.js` para enviar comandos e em `youtubeEvents.js` para processar respostas.
+  - Adicione rotas correspondentes em `app.py`.
+- **Melhorar Feedback Visual**:
+  - Inclua o título do vídeo ou uma thumbnail na resposta, modificando o formato em `process_youtube_background`.
+- **Suporte a Outros Idiomas**:
+  - Edite `youtube_handler.py` para adicionar mais idiomas na lista `subtitleslangs` de `ydl_opts`.
+- **Escalabilidade**:
+  - Considere usar uma fila de tarefas (ex.: Celery) para processar vídeos em background em larga escala.
+
+#### 7. Diagrama de Fluxo
+```mermaid
+graph TD
+    A[Usuário envia /youtube <URL>] --> B[Frontend: chatActions.js]
+    B --> C[Adiciona animação de carregamento]
+    B --> D[Envia POST /process_youtube]
+    D --> E[Backend: app.py]
+    E --> F[Salva comando no histórico]
+    E --> G[Inicia tarefa em background]
+    G --> H[YoutubeHandler: baixa e limpa legendas]
+    H --> I[Emite youtube_response via WebSocket]
+    I --> J[Frontend: youtubeEvents.js]
+    J --> K[Remove animação de carregamento]
+    J --> L[Exibe resposta no chat]
+```
+
+#### 8. Considerações Finais
+- **Testes**: Certifique-se de testar com URLs válidas, inválidas e vídeos sem legendas para verificar o comportamento da animação e das mensagens de erro.
+- **Segurança**: Valide URLs no frontend e backend para evitar ataques de injeção.
+- **Performance**: O processamento em background evita bloqueios no servidor, mas monitore o uso de recursos com muitos usuários simultâneos.
+
+---
+
+### Conclusão
+O código atualizado resolve o problema da animação de carregamento, mantendo-a visível até que o processamento esteja concluído. A documentação da Fase 6 fornece um guia completo para entender, usar e manter o módulo `youtube-system`. Com isso, o sistema de isolamento de chats para o comando `/youtube` está finalizado e bem documentado. Se precisar de mais ajustes ou testes, é só avisar!
