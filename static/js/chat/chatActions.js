@@ -1,4 +1,3 @@
-
 import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
@@ -132,13 +131,6 @@ if (!window.socket) {
             return;
         }
 
-        // Remover o indicador de carregamento quando receber o primeiro chunk
-        const loadingElements = chatContainer.querySelectorAll('.loading-message');
-        if (loadingElements.length > 0 && chunk_number === 1) {
-            loadingElements.forEach(el => el.remove());
-            logger.debug('Indicador de carregamento removido ao receber primeiro chunk');
-        }
-
         // Buscar ou criar mensagem de streaming
         let messageId = streamingMessageIds.get(conversation_id);
         let streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-message-id="${messageId}"]`);
@@ -214,13 +206,6 @@ if (!window.socket) {
         if (!chatContainer) {
             logger.error('Container do chat não encontrado');
             return;
-        }
-
-        // Remover qualquer indicador de carregamento restante
-        const loadingElements = chatContainer.querySelectorAll('.loading-message');
-        if (loadingElements.length > 0) {
-            loadingElements.forEach(el => el.remove());
-            logger.debug('Indicadores de carregamento restantes removidos no response_complete');
         }
 
         try {
@@ -438,7 +423,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         
         // Adiciona indicador de carregamento
         const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'message loading-message';
+        loadingDiv.className = 'message loading';
         loadingDiv.innerHTML = `
             <div class="message-content">
                 <div class="loading-spinner">
@@ -489,11 +474,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
     const conversationId = window.conversaAtual?.id;
     if (!conversationId) {
+        // console.warn('[DEBUG] ID da conversa não definido ao enviar mensagem');
         return;
     }
 
     const userTimestamp = new Date().toISOString();
     const userMessageId = userTimestamp;
+    // console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
 
     try {
         if (sendBtn) {
@@ -525,26 +512,27 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         forcarRenderizacao(userMessageDiv);
 
         // Remover qualquer placeholder existente antes de criar um novo
+        // console.log('[DEBUG] Removendo placeholders existentes antes de criar novo');
         const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
         existingPlaceholders.forEach(placeholder => {
+            // console.log('[DEBUG] Removendo placeholder antigo:', {
+            //     id: placeholder.dataset.conversationId,
+            //     classes: placeholder.className
+            // });
             placeholder.remove();
         });
 
-        // Adicionar uma nova mensagem para mostrar a animação de carregamento
-        const loadingMessageDiv = document.createElement('div');
-        loadingMessageDiv.className = 'message assistant loading-message';
-        loadingMessageDiv.dataset.conversationId = conversationId;
-        loadingMessageDiv.innerHTML = `
-            <div class="message-content">
-                <div class="loading">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-        `;
-        chatContainer.appendChild(loadingMessageDiv);
-        forcarRenderizacao(loadingMessageDiv);
+        // Criar mensagem de streaming inicial
+        const messageId = `streaming_${conversationId}`;
+        streamingMessageIds.set(conversationId, messageId);
+        const streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversationId);
+        // console.log('[DEBUG] Placeholder de streaming criado para conversa:', conversationId);
+
+        streamingStates.set(conversationId, true);
+        // console.log('[DEBUG] Estado de streaming definido:', {
+        //     conversationId,
+        //     isStreaming: streamingStates.has(conversationId)
+        // });
 
         // Rolar para o final suavemente
         chatContainer.scrollTo({
@@ -571,17 +559,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             throw new Error(`Erro na resposta do servidor: ${response.status}`);
         }
 
-        // Não removemos a animação de carregamento aqui,
-        // ela será removida quando o primeiro chunk ou response_complete for recebido via WebSocket
-        
+        // console.log('[DEBUG] Mensagem enviada com sucesso para o backend');
     } catch (error) {
-        logger.error('Falha ao enviar mensagem:', error);
-        
-        // Remover a animação de carregamento em caso de erro
-        const loadingMessages = chatContainer.querySelectorAll('.loading-message');
-        loadingMessages.forEach(msg => msg.remove());
-        
-        // Mostrar mensagem de erro
+        // console.error('[ERRO] Falha ao enviar mensagem:', error);
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
@@ -591,9 +571,9 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         // Remover o placeholder e estado de streaming em caso de erro
         const streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${conversationId}"]`);
         if (streamingMessage) {
+            // console.log('[DEBUG] Removendo placeholder devido a erro');
             streamingMessage.remove();
         }
-        
         streamingStates.delete(conversationId);
     } finally {
         if (sendBtn) {
