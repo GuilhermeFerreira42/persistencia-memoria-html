@@ -14,11 +14,6 @@ export function renderMessage(text) {
         return text;
     }
 
-    // console.log('[DEBUG] Iniciando renderização de mensagem:', {
-    //     tamanho: text.length,
-    //     preview: text.substring(0, 50) + '...'
-    // });
-
     // Verificar dependências e logar se não estiverem disponíveis
     if (typeof marked === 'undefined' || typeof hljs === 'undefined') {
         console.warn('[DEBUG] Dependências não encontradas:', {
@@ -49,23 +44,12 @@ export function renderMessage(text) {
             }
         });
 
-        // console.log('[DEBUG] Renderizando markdown com marked.js');
         const htmlContent = marked.parse(text);
-        // console.log('[DEBUG] HTML gerado:', {
-        //     tamanho: htmlContent.length,
-        //     preview: htmlContent.substring(0, 50) + '...'
-        // });
 
-        // console.log('[DEBUG] Sanitizando HTML com DOMPurify');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img'],
             ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel']
         });
-
-        // console.log('[DEBUG] HTML sanitizado:', {
-        //     tamanho: sanitizedHtml.length,
-        //     preview: sanitizedHtml.substring(0, 50) + '...'
-        // });
 
         return sanitizedHtml;
     } catch (error) {
@@ -123,56 +107,6 @@ export function accumulateChunk(chunk, conversationId) {
 }
 
 /**
- * Renderiza a resposta completa acumulada
- * @param {string} conversationId - ID da conversa
- * @returns {string} HTML formatado da resposta completa
- */
-export function renderCompleteResponse(conversationId) {
-    if (!conversationId) {
-        console.warn('[DEBUG] conversationId não fornecido para renderização completa');
-        return '';
-    }
-
-    // console.log('[DEBUG] Iniciando renderização completa para conversa:', conversationId);
-
-    const completeResponse = accumulatedResponses.get(conversationId);
-    if (!completeResponse) {
-        console.warn('[DEBUG] Nenhuma resposta acumulada encontrada para:', conversationId);
-        return '';
-    }
-
-    // console.log('[DEBUG] Resposta completa encontrada:', {
-    //     conversationId,
-    //     tamanho: completeResponse.length,
-    //     preview: completeResponse.substring(0, 50) + '...'
-    // });
-
-    try {
-        // Renderizar com todas as otimizações
-        const renderedContent = renderMessage(completeResponse);
-        
-        // Limpar a resposta acumulada após renderização bem-sucedida
-        accumulatedResponses.delete(conversationId);
-        // console.log('[DEBUG] Resposta acumulada limpa após renderização:', conversationId);
-        
-        // Emitir evento de renderização completa
-        const event = new CustomEvent('response_rendered', {
-            detail: {
-                conversationId,
-                content: renderedContent
-            }
-        });
-        window.dispatchEvent(event);
-        
-        return renderedContent;
-    } catch (error) {
-        console.error('[ERRO] Falha ao renderizar resposta completa:', error);
-        // Não limpar a resposta acumulada em caso de erro
-        return '';
-    }
-}
-
-/**
  * Limpa a resposta acumulada de uma conversa
  * @param {string} conversationId - ID da conversa
  */
@@ -208,11 +142,50 @@ export function getAccumulatedState(conversationId) {
     };
 }
 
+/**
+ * Renderiza a resposta completa acumulada
+ * @param {string} conversationId - ID da conversa
+ * @returns {string} HTML formatado da resposta completa
+ */
+export function renderCompleteResponse(conversationId) {
+    if (!conversationId) {
+        console.warn('[DEBUG] conversationId não fornecido para renderização completa');
+        return '';
+    }
+
+    const completeResponse = accumulatedResponses.get(conversationId);
+    if (!completeResponse) {
+        console.warn('[DEBUG] Nenhuma resposta acumulada encontrada para:', conversationId);
+        return '';
+    }
+
+    try {
+        // Renderizar com todas as otimizações
+        const renderedContent = renderMessage(completeResponse);
+        
+        // Limpar a resposta acumulada após renderização bem-sucedida
+        accumulatedResponses.delete(conversationId);
+        
+        // Emitir evento de renderização completa
+        const event = new CustomEvent('response_rendered', {
+            detail: {
+                conversationId,
+                content: renderedContent
+            }
+        });
+        window.dispatchEvent(event);
+        
+        return renderedContent;
+    } catch (error) {
+        console.error('[ERRO] Falha ao renderizar resposta completa:', error);
+        // Não limpar a resposta acumulada em caso de erro
+        return '';
+    }
+}
+
 // Sistema de logging
 const logger = {
     debug: (message, data = {}) => {
-        // console.log(`[DEBUG] ${message}`, data);
-        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -224,12 +197,10 @@ const logger = {
             })
         }).catch(() => {
             // Silenciosamente ignora erros de logging
-            // console.error('[ERRO] Falha ao salvar log:', err);
         });
     },
     error: (message, error = null) => {
         console.error(`[ERRO] ${message}`, error);
-        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -241,53 +212,12 @@ const logger = {
             })
         }).catch(() => {
             // Silenciosamente ignora erros de logging
-            // console.error('[ERRO] Falha ao salvar log:', err);
         });
     }
 };
 
 // Cache para chunks de código
 const codeChunkCache = new Map();
-
-/**
- * Processa um chunk de código e retorna o HTML formatado
- * @param {string} chunk - Chunk de texto que pode conter código
- * @returns {string} HTML formatado
- */
-function processCodeChunk(chunk) {
-    if (!chunk) return '';
-    
-    // Verificar se o chunk contém código
-    const codeMatch = chunk.match(/```(\w+)?\n([\s\S]*?)```/);
-    if (!codeMatch) return chunk;
-    
-    const [, lang, code] = codeMatch;
-    const cacheKey = `${lang || 'plaintext'}_${code}`;
-    
-    // Verificar cache
-    if (codeChunkCache.has(cacheKey)) {
-        return codeChunkCache.get(cacheKey);
-    }
-    
-    try {
-        let highlighted;
-        if (lang && hljs.getLanguage(lang)) {
-            highlighted = hljs.highlight(code, { language: lang }).value;
-        } else {
-            highlighted = hljs.highlight(code).value;
-        }
-        
-        const html = `<pre><code class="language-${lang || 'plaintext'}">${highlighted}</code></pre>`;
-        
-        // Armazenar no cache
-        codeChunkCache.set(cacheKey, html);
-        
-        return html;
-    } catch (e) {
-        logger.error('Erro ao processar chunk de código', e);
-        return `<pre><code>${code}</code></pre>`;
-    }
-}
 
 /**
  * Renderiza um chunk de mensagem em streaming
@@ -345,4 +275,18 @@ export function renderStreamingMessage(chunk) {
         logger.error('Erro ao renderizar chunk:', error);
         return `<p>${escapeHTML(chunk)}</p>`;
     }
+}
+
+// Função para escapar HTML (usada em caso de erro)
+function escapeHTML(text) {
+    return text.replace(/[&<>"']/g, function(m) {
+        switch (m) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case "'": return '&#039;';
+            default: return m;
+        }
+    });
 }

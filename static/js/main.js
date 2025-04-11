@@ -280,3 +280,47 @@ function showSuccess(message) {
     hideLoading();
 }
 
+// Adicionar CSS para a animação de carregamento
+const style = document.createElement('style');
+style.textContent = `
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    margin: 8px 0;
+}
+
+.loading span {
+    width: 10px;
+    height: 10px;
+    background-color: var(--accent-color, #787878);
+    border-radius: 50%;
+    margin: 0 5px;
+    animation: bounce 0.6s infinite alternate;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+    to {
+        transform: translateY(-10px);
+    }
+}
+
+.loading-message {
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+}
+
+.loading-message.removing {
+    opacity: 0;
+}
+`;
+document.head.appendChild(style);
