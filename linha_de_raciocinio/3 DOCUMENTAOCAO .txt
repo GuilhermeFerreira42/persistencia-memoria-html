@@ -1,0 +1,150 @@
+Aqui está a documentação detalhada do sistema até o ponto atual de implementação, incluindo as próximas fases de desenvolvimento e um Diagrama de Fluxo de Dados (DFD). A documentação é clara, abrangente e projetada para permitir que sua equipe de desenvolvimento entenda o sistema, suas funcionalidades e continue o desenvolvimento de forma eficaz. Incluí também explicações sobre o código para facilitar a compreensão do fluxo e da estrutura.
+
+---
+
+
+# Documentação do Sistema: Comando `/youtube_resumo`
+
+## 1. Introdução
+O sistema implementa o comando `/youtube_resumo`, que gera resumos detalhados de transcrições de vídeos do YouTube. Ele complementa o comando existente `/youtube`, que fornece a transcrição completa. O objetivo é oferecer uma experiência interativa, com respostas em tempo real, respeitando os limites de tokens da IA e garantindo fluidez no chat.
+
+Essa documentação detalha o estado atual do sistema, o código implementado, o fluxo de dados e as próximas etapas de desenvolvimento.
+
+---
+
+## 2. Estrutura do Sistema
+O sistema é dividido em duas camadas principais:
+
+### Backend
+- **Tecnologia**: Python com Flask.
+- **Função**: Processa comandos, interage com a IA e gerencia eventos em tempo real via Socket.IO.
+- **Arquivos principais**:
+  - `app.py`: Define as rotas da API e a lógica central.
+  - `youtube_handler.py`: Contém funções para baixar, limpar e dividir transcrições.
+
+### Frontend
+- **Tecnologia**: JavaScript (módulos ES6).
+- **Função**: Detecta comandos, renderiza mensagens e gerencia a interface do chat.
+- **Arquivos principais**:
+  - `main.js`: Ponto de entrada, gerencia importações e eventos.
+  - `chatActions.js`: Lida com ações do chat, como envio de mensagens.
+  - `youtubeResumoHandler.js`: Processa o comando `/youtube_resumo` no frontend.
+
+---
+
+## 3. Funcionalidades Implementadas
+- **Comando `/youtube`**: Baixa e exibe a transcrição completa de um vídeo do YouTube.
+- **Comando `/youtube_resumo`**: Gera resumos detalhados da transcrição, dividindo-a em blocos e processando cada um com a IA.
+- **Renderização em Tempo Real**: Usa Socket.IO para exibir resumos conforme são gerados.
+- **Gestão de Conversas**: Isola conversas por `conversation_id`, garantindo que eventos sejam emitidos para a sala correta.
+
+---
+
+## 4. Fases de Desenvolvimento Concluídas
+### Fase 1: Análise e Planejamento
+- **Objetivo**: Analisar o comando `/youtube`, mapear o fluxo e planejar o `/youtube_resumo`.
+- **Atividades**: Análise do código existente, identificação de componentes reutilizáveis e criação de um plano com DFD.
+- **Duração**: 1 a 2 dias.
+- **Status**: Concluída.
+
+### Fase 2: Função de Download e Limpeza
+- **Objetivo**: Criar `download_and_clean_transcript` para unificar o download e a limpeza de transcrições.
+- **Atividades**: Implementação e testes com URLs de vídeos, priorizando legendas em PT-BR, PT e EN.
+- **Duração**: 2 a 3 dias.
+- **Status**: Concluída.
+
+### Fase 3: Divisão da Transcrição
+- **Objetivo**: Implementar `split_transcript_into_chunks` para dividir transcrições em blocos de ~300 palavras.
+- **Atividades**: Desenvolvimento e testes com transcrições de diferentes tamanhos, respeitando limites de tokens.
+- **Duração**: 2 dias.
+- **Status**: Concluída.
+
+### Fase 4: Rota de Resumo
+- **Objetivo**: Criar a rota `/api/youtube_resumo` para processar blocos e gerar resumos em tempo real.
+- **Atividades**: Configuração do processamento em background, integração com IA e emissão de chunks via Socket.IO.
+- **Duração**: 3 a 4 dias.
+- **Status**: Concluída.
+
+---
+
+## 5. Detalhes do Código
+### 5.1 Backend (`youtube_handler.py`)
+- **`download_and_clean_transcript`**:
+  - **Descrição**: Baixa legendas e remove marcações desnecessárias (ex.: timestamps).
+  - **Lógica**: Usa `download_subtitles` para obter legendas e `clean_subtitles` para limpá-las.
+  - **Prioridade de idiomas**: PT-BR > PT > EN, com fallback para legendas automáticas.
+  - **Exemplo de uso**: `transcript, title = download_and_clean_transcript(video_url)`.
+
+- **`split_transcript_into_chunks`**:
+  - **Descrição**: Divide a transcrição em blocos de ~300 palavras.
+  - **Lógica**: Conta palavras e evita cortar frases no meio, ajustando limites dinamicamente.
+  - **Exemplo de uso**: `chunks = split_transcript_into_chunks(transcript)`.
+
+### 5.2 Backend (`app.py`)
+- **Rota `/api/youtube_resumo`**:
+  - **Descrição**: Recebe o link do vídeo, processa a transcrição e emite resumos via Socket.IO.
+  - **Fluxo**:
+    1. Recebe POST com `url` e `conversation_id`.
+    2. Chama `download_and_clean_transcript`.
+    3. Divide em blocos com `split_transcript_into_chunks`.
+    4. Para cada bloco, gera um prompt, envia à IA e emite o resumo.
+
+### 5.3 Frontend (`youtubeResumoHandler.js`)
+- **`handleYoutubeResumoCommand`**:
+  - **Descrição**: Detecta o comando e inicia o processamento.
+  - **Lógica**: Envia POST para `/api/youtube_resumo` e exibe um indicador de carregamento.
+- **Listener `youtube_resumo_response`**:
+  - **Descrição**: Recebe chunks do backend e os renderiza no chat.
+  - **Lógica**: Atualiza a interface em tempo real com cada resumo recebido.
+
+---
+
+## 6. Diagrama de Fluxo de Dados (DFD)
+O DFD abaixo ilustra o fluxo do comando `/youtube_resumo`:
+
+```mermaid
+flowchart TD
+    A[Usuário digita /youtube_resumo <link>] --> B[Frontend detecta comando]
+    B --> C[Envia POST para /api/youtube_resumo]
+    C --> D[Backend: processa requisição]
+    D --> E[YoutubeHandler: download_and_clean_transcript]
+    E --> F[Divide em blocos com split_transcript_into_chunks]
+    F --> G[Para cada bloco: gera prompt e envia à IA]
+    G --> H[Emite chunks via Socket.IO]
+    H --> I[Frontend: recebe e renderiza chunks]
+    I --> J[Atualiza chat com resumo]
+```
+
+---
+
+## 7. Próximas Fases de Desenvolvimento
+### 7.1 Fase 5: Ajustes no Frontend (Parcialmente Concluída)
+- **Objetivo**: Finalizar a interface do comando `/youtube_resumo`.
+- **Atividades Pendentes**:
+  - **Transcrição colapsável**: Adicionar uma seção expansível para a transcrição completa.
+  - **Barra de progresso**: Implementar uma barra visual para o processamento de blocos.
+  - **Estilização**: Ajustar CSS para consistência.
+- **Duração Estimada**: 3 a 4 dias (parcialmente concluída).
+
+### 7.2 Fase 6: Testes e Validação (Iniciada)
+- **Objetivo**: Garantir robustez e compatibilidade entre `/youtube` e `/youtube_resumo`.
+- **Atividades**:
+  - Testes com vídeos longos (múltiplos blocos).
+  - Tratamento de erros para vídeos sem legendas ou URLs inválidas.
+  - Validação da renderização em tempo real e isolamento por `conversation_id`.
+- **Duração Estimada**: 2 a 3 dias (iniciada, mas não concluída).
+
+---
+
+## 8. Orientações para a Equipe
+- **Configuração**: Certifique-se de que Flask (backend) e módulos ES6 (frontend) estejam funcionando.
+- **Depuração**: Use logs no backend e o console do navegador para identificar problemas.
+- **Socket.IO**: Verifique o fluxo de eventos para garantir que as mensagens cheguem à sala correta (`conversation_id`).
+- **Extensibilidade**: O código é modular; novas funcionalidades podem ser adicionadas reutilizando `youtube_handler.py`.
+
+Essa documentação abrange o sistema até o momento, com detalhes suficientes para que sua equipe continue o desenvolvimento. Se precisar de mais explicações ou ajustes, estou à disposição!
+
+
+--- 
+
+Essa documentação reflete o estado atual do sistema, detalha o código e inclui o DFD solicitado, atendendo aos requisitos de clareza e abrangência para sua equipe.
