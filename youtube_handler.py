@@ -149,3 +149,66 @@ class YoutubeHandler:
             import traceback
             print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
             return None
+
+    def download_and_clean_transcript(self, video_url: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Combinação das funções download_subtitles e clean_subtitles em um único método.
+        Baixa as legendas do vídeo e limpa o texto em uma única operação.
+        
+        Args:
+            video_url (str): URL do vídeo do YouTube
+            
+        Returns:
+            Tuple[Optional[str], Optional[str]]: (transcrição_limpa, título_do_vídeo)
+                Se não for possível baixar ou limpar, o primeiro elemento será None
+        """
+        print(f"[INFO] Baixando e limpando transcrição para: {video_url}")
+        
+        subtitle_file, video_title = self.download_subtitles(video_url)
+        if subtitle_file:
+            cleaned_transcript = self.clean_subtitles(subtitle_file)
+            return cleaned_transcript, video_title
+        
+        return None, video_title
+        
+    def split_transcript_into_chunks(self, transcript: str, words_per_chunk: int = 300) -> list[str]:
+        """
+        Divide a transcrição em blocos de aproximadamente N palavras (padrão: 300).
+        
+        Args:
+            transcript (str): Texto da transcrição limpa
+            words_per_chunk (int): Número aproximado de palavras por bloco
+            
+        Returns:
+            list[str]: Lista de blocos de texto
+        """
+        if not transcript:
+            print("[ERRO] Transcrição vazia, não é possível dividir em blocos")
+            return []
+            
+        try:
+            # Divide o texto em palavras
+            words = transcript.split()
+            total_words = len(words)
+            print(f"[DEBUG] Total de palavras na transcrição: {total_words}")
+            
+            # Calcula quantos blocos serão necessários
+            num_chunks = max(1, (total_words + words_per_chunk - 1) // words_per_chunk)
+            print(f"[DEBUG] Dividindo em aproximadamente {num_chunks} blocos")
+            
+            chunks = []
+            for i in range(0, total_words, words_per_chunk):
+                # Pega um bloco de palavras
+                chunk_words = words[i:i + words_per_chunk]
+                # Junta as palavras novamente em um texto
+                chunk_text = ' '.join(chunk_words)
+                chunks.append(chunk_text)
+                
+            print(f"[DEBUG] Transcrição dividida em {len(chunks)} blocos")
+            return chunks
+            
+        except Exception as e:
+            print(f"[ERRO] Falha ao dividir transcrição em blocos: {str(e)}")
+            import traceback
+            print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
+            return [transcript]  # Retorna o texto original como um único bloco em caso de erro

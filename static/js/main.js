@@ -1,5 +1,6 @@
 import './init.js';
 import { handleYoutubeCommand, setupYoutubeSocketListeners } from './youtube-system/youtubeHandler.js';
+import { handleYoutubeResumoCommand, setupYoutubeResumoSocketListeners } from './youtube-system/youtubeResumoHandler.js';
 import { setupYoutubeEvents } from './youtube-system/youtubeEvents.js';
 import { 
     iniciarChat,
@@ -8,9 +9,8 @@ import {
     melhorarBlocosCodigo,
     inicializarSync
 } from './chat.js';
-import { enviarMensagem, interromperResposta, entrarNaSala, sairDaSala } from './chat/chatActions.js';
+import { enviarMensagem, interromperResposta, entrarNaSala, sairDaSala, carregarConversa } from './chat/chatActions.js';
 import { 
-    carregarConversa,
     atualizarListaConversas,
     criarNovaConversa,
     adicionarMensagemAoHistorico,
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar listeners do Socket.IO para o YouTube
     const socket = io();
     setupYoutubeSocketListeners(socket);
+    setupYoutubeResumoSocketListeners(socket);
     setupYoutubeEvents(socket);
     
     const welcomeForm = document.getElementById('welcome-form');
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const COMMANDS = [
         { command: '/youtube', description: 'Processar vídeo do YouTube' },
+        { command: '/youtube_resumo', description: 'Resumo detalhado de vídeo do YouTube' },
         { command: '/salvar', description: 'Salvar conversa atual' },
         { command: '/historico', description: 'Ver histórico completo' },
         { command: '/config', description: 'Abrir configurações' }

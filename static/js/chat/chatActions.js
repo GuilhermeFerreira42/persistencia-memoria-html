@@ -4,6 +4,7 @@ import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversa
 import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
 import { handleYoutubeCommand } from '../youtube-system/youtubeHandler.js';
+import { handleYoutubeResumoCommand } from '../youtube-system/youtubeResumoHandler.js';
 
 // Sistema de logging
 const logger = {
@@ -457,6 +458,55 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 <div class="message-content">
                     <i class="fas fa-exclamation-circle"></i>
                     <span>Erro ao processar vídeo do YouTube: ${error.message}</span>
+                </div>
+            `;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+        
+        return;
+    }
+
+    // Processar comando do YouTube Resumo
+    if (mensagem.startsWith('/youtube_resumo')) {
+        console.log("[INFO] Processando comando do YouTube Resumo");
+        
+        // Criar um elemento visual para indicar o processamento
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message loading';
+        loadingDiv.innerHTML = `
+            <div class="message-content">
+                <div class="loading-indicator">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Processando resumo do vídeo do YouTube...</span>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        
+        // Processa o comando do YouTube Resumo
+        try {
+            await handleYoutubeResumoCommand(mensagem, window.conversaAtual.id);
+            logger.debug('Comando do YouTube Resumo processado com sucesso');
+            
+            // Remover o indicador de carregamento
+            if (loadingDiv.parentNode) {
+                loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+        } catch (error) {
+            logger.error('Erro ao processar comando do YouTube Resumo', error);
+            // Remove o indicador de carregamento em caso de erro
+            if (loadingDiv.parentNode) {
+                loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+            // Adiciona mensagem de erro
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message error';
+            errorDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Erro ao processar resumo do vídeo: ${error.message}</span>
                 </div>
             `;
             chatContainer.appendChild(errorDiv);

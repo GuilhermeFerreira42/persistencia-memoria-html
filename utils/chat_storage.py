@@ -162,6 +162,41 @@ def add_message_to_conversation(conversation_id, content, role):
     
     return message_id  # Retorna o ID da mensagem para uso posterior
 
+def update_message_in_conversation(conversation_id, message_id, new_content):
+    """
+    Atualiza o conteúdo de uma mensagem existente em uma conversa.
+    
+    Args:
+        conversation_id (str): ID da conversa
+        message_id (str): ID da mensagem a ser atualizada
+        new_content (str): Novo conteúdo da mensagem
+        
+    Returns:
+        bool: True se a mensagem foi atualizada com sucesso, False caso contrário
+    """
+    print(f"[DEBUG] Atualizando mensagem {message_id} na conversa {conversation_id}")
+    
+    conversation = get_conversation_by_id(conversation_id)
+    
+    if not conversation:
+        print(f"[ERRO] Conversa não encontrada: {conversation_id}")
+        return False
+    
+    # Procura a mensagem pelo ID
+    for message in conversation["messages"]:
+        if message.get("message_id") == message_id:
+            # Atualiza o conteúdo da mensagem
+            message["content"] = new_content
+            message["updated_at"] = datetime.now().isoformat()
+            
+            # Salva a conversa atualizada
+            save_conversation(conversation)
+            print(f"[DEBUG] Mensagem {message_id} atualizada com sucesso")
+            return True
+    
+    print(f"[ERRO] Mensagem {message_id} não encontrada na conversa {conversation_id}")
+    return False
+
 def delete_conversation(conversation_id):
     """Exclui uma conversa e sua entrada no índice"""
     filename = f"conversation_{conversation_id}.json"
