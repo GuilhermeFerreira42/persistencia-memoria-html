@@ -63,115 +63,24 @@ export async function handleYoutubeResumoCommand(command, conversationId) {
         console.error('[ERRO] Falha ao processar resumo do vídeo:', error);
         throw error;
     } finally {
-        isProcessingYoutubeResumo = false;
-        const sendBtn = document.querySelector('#send-btn');
-        if (sendBtn) sendBtn.disabled = false;
+        setTimeout(() => {
+            isProcessingYoutubeResumo = false;
+            const sendBtn = document.querySelector('#send-btn');
+            if (sendBtn) sendBtn.disabled = false;
+        }, 2000); // Um pequeno atraso para garantir que o streaming comece
     }
 }
 
-// Função para configurar os listeners de eventos do Socket.IO
+// Configuração dos listeners de socket.io já é feita pelo sistema principal
+// Não precisamos mais configurar listeners específicos para o YouTube Resumo,
+// pois usaremos os eventos padrão message_chunk e response_complete
+
 export function setupYoutubeResumoSocketListeners(socket) {
-    console.log('[DEBUG] Configurando listeners do YouTube Resumo');
+    console.log('[DEBUG] O YouTube Resumo agora usa o sistema de streaming padrão');
     
-    socket.on('youtube_resumo_response', (response) => {
-        console.log('[DEBUG] Recebida resposta do YouTube Resumo:', response);
-        
-        // Remover todas as animações de carregamento
-        const loadingDivs = document.querySelectorAll('.message.loading');
-        loadingDivs.forEach(div => div.remove());
-        
-        const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) return;
-        
-        // Se o status for "processing", atualizar a mensagem existente
-        if (response.status === 'processing' && response.message_id) {
-            const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
-            
-            if (existingMessage) {
-                // Atualizar o conteúdo
-                const contentDiv = existingMessage.querySelector('.message-content');
-                if (contentDiv) {
-                    contentDiv.innerHTML = marked.parse(response.content);
-                    
-                    // Adicionar barra de progresso se houver informações de blocos
-                    if (response.current_chunk && response.total_chunks) {
-                        let progressDiv = existingMessage.querySelector('.progress-container');
-                        if (!progressDiv) {
-                            progressDiv = document.createElement('div');
-                            progressDiv.className = 'progress-container mt-3';
-                            progressDiv.innerHTML = `
-                                <div class="progress">
-                                    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                                <div class="progress-text">Processando blocos: 
-                                    <span class="current-block">0</span>/<span class="total-blocks">0</span>
-                                </div>
-                            `;
-                            contentDiv.appendChild(progressDiv);
-                        }
-                        
-                        // Atualizar barra de progresso
-                        const progressBar = progressDiv.querySelector('.progress-bar');
-                        const currentBlock = progressDiv.querySelector('.current-block');
-                        const totalBlocks = progressDiv.querySelector('.total-blocks');
-                        
-                        const percentage = (response.current_chunk / response.total_chunks) * 100;
-                        progressBar.style.width = `${percentage}%`;
-                        progressBar.setAttribute('aria-valuenow', percentage);
-                        currentBlock.textContent = response.current_chunk;
-                        totalBlocks.textContent = response.total_chunks;
-                    }
-                }
-                
-                // Rolar para a mensagem
-                existingMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                return;
-            }
-        }
-        
-        // Se não existir mensagem ou não for uma atualização, criar nova mensagem
-        if (!document.querySelector(`.message[data-message-id="${response.message_id}"]`)) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message assistant youtube-resumo';
-            messageDiv.setAttribute('data-message-id', response.message_id);
-            
-            let messageContent = `
-                <div class="message-content">
-                    ${marked.parse(response.content)}
-            `;
-            
-            // Adicionar barra de progresso se for uma mensagem de "processing"
-            if (response.status === 'processing' && response.total_chunks) {
-                messageContent += `
-                    <div class="progress-container mt-3">
-                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" style="width: 0%" 
-                                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <div class="progress-text">Processando blocos: 
-                            <span class="current-block">0</span>/<span class="total-blocks">${response.total_chunks}</span>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            messageContent += `
-                </div>
-                <div class="message-actions">
-                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>
-            `;
-            
-            messageDiv.innerHTML = messageContent;
-            chatContainer.appendChild(messageDiv);
-            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-    });
-    
+    // Listener de erro ainda é útil para erros específicos do YouTube
     socket.on('youtube_resumo_error', (error) => {
-        console.error('[DEBUG] Erro no processamento do resumo do YouTube:', error);
+        console.error('[ERRO] Erro no processamento do resumo do YouTube:', error);
         
         // Remover todas as animações de carregamento
         const loadingDivs = document.querySelectorAll('.message.loading');

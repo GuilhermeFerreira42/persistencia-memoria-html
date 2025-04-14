@@ -347,11 +347,9 @@ def process_youtube_resumo():
             'conversation_id': conversation_id
         })
         
-        # Envia confirmação inicial para o cliente
-        socketio.emit('youtube_resumo_response', {
-            'status': 'started',
-            'conversation_id': conversation_id,
-            'content': "Iniciando processamento do resumo..."
+        # Adiciona o cliente à sala da conversa
+        socketio.emit('join_conversation', {
+            'conversation_id': conversation_id
         }, room=conversation_id)
         
         # Inicia o processamento em background
@@ -389,10 +387,21 @@ def process_youtube_resumo_background(url, conversation_id):
         if not transcript:
             error_msg = f"Não foi possível processar as legendas do vídeo '{video_title or 'desconhecido'}' em PT-BR, PT ou EN."
             print(f"[ERRO] {error_msg}")
-            socketio.emit('youtube_resumo_response', {
+            socketio.emit('youtube_resumo_error', {
                 'status': 'error',
                 'conversation_id': conversation_id,
                 'error': error_msg
+            }, room=conversation_id)
+            
+            # Também exibir o erro como uma mensagem normal
+            error_response = f"**Erro:** {error_msg}"
+            message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+            socketio.emit('message_chunk', {
+                'content': error_response,
+                'conversation_id': conversation_id
+            }, room=conversation_id)
+            socketio.emit('response_complete', {
+                'conversation_id': conversation_id
             }, room=conversation_id)
             return
             
@@ -404,10 +413,21 @@ def process_youtube_resumo_background(url, conversation_id):
         if not transcript_chunks:
             error_msg = f"Falha ao dividir a transcrição do vídeo '{video_title}' em blocos."
             print(f"[ERRO] {error_msg}")
-            socketio.emit('youtube_resumo_response', {
+            socketio.emit('youtube_resumo_error', {
                 'status': 'error',
                 'conversation_id': conversation_id,
                 'error': error_msg
+            }, room=conversation_id)
+            
+            # Também exibir o erro como uma mensagem normal
+            error_response = f"**Erro:** {error_msg}"
+            message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+            socketio.emit('message_chunk', {
+                'content': error_response,
+                'conversation_id': conversation_id
+            }, room=conversation_id)
+            socketio.emit('response_complete', {
+                'conversation_id': conversation_id
             }, room=conversation_id)
             return
         
@@ -421,12 +441,9 @@ def process_youtube_resumo_background(url, conversation_id):
         message_id = add_message_to_conversation(conversation_id, full_response, "assistant")
         
         # Envia a resposta inicial para o frontend
-        socketio.emit('youtube_resumo_response', {
-            'status': 'processing',
-            'conversation_id': conversation_id,
+        socketio.emit('message_chunk', {
             'content': full_response,
-            'message_id': message_id,
-            'total_chunks': len(transcript_chunks)
+            'conversation_id': conversation_id
         }, room=conversation_id)
         
         # Processa cada bloco com a IA para gerar resumos
@@ -436,7 +453,12 @@ def process_youtube_resumo_background(url, conversation_id):
             block_number = i + 1
             
             # Adiciona cabeçalho do bloco
-            response_content += f"\n\n### Bloco {block_number}/{len(transcript_chunks)}\n\n"
+            block_header = f"\n\n### Bloco {block_number}/{len(transcript_chunks)}\n\n"
+            socketio.emit('message_chunk', {
+                'content': block_header,
+                'conversation_id': conversation_id
+            }, room=conversation_id)
+            response_content += block_header
             
             # Prepara o prompt para a IA
             prompt = f"""Resumir o seguinte trecho de uma transcrição de vídeo do YouTube em um parágrafo conciso, 
@@ -446,37 +468,33 @@ def process_youtube_resumo_background(url, conversation_id):
             
             Resumo detalhado:"""
             
-            # Gera o resumo com a IA
+            # Gera o resumo com a IA e envia em streaming
             try:
-                resumo = process_with_ai(prompt, conversation_id)
-                if resumo:
-                    response_content += resumo
-                else:
-                    response_content += f"*Não foi possível gerar um resumo para este bloco*\n\n**Trecho original:**\n\n{chunk[:150]}..."
+                for resumo_chunk in process_with_ai_stream(prompt, conversation_id):
+                    if resumo_chunk:
+                        # Enviar chunk via socket para streaming em tempo real
+                        socketio.emit('message_chunk', {
+                            'content': resumo_chunk,
+                            'conversation_id': conversation_id
+                        }, room=conversation_id)
+                        response_content += resumo_chunk
             except Exception as e:
-                print(f"[ERRO] Falha ao gerar resumo para o bloco {block_number}: {str(e)}")
-                response_content += f"*Erro ao gerar resumo para este bloco*\n\n**Trecho original:**\n\n{chunk[:150]}..."
-            
-            # Atualiza o frontend com o progresso
-            socketio.emit('youtube_resumo_response', {
-                'status': 'processing',
-                'conversation_id': conversation_id,
-                'content': response_content,
-                'message_id': message_id,
-                'current_chunk': block_number,
-                'total_chunks': len(transcript_chunks)
-            }, room=conversation_id)
+                error_msg = f"Falha ao gerar resumo para o bloco {block_number}: {str(e)}"
+                print(f"[ERRO] {error_msg}")
+                error_response = f"*Erro ao gerar resumo para este bloco*\n\n**Trecho original:**\n\n{chunk[:150]}..."
+                socketio.emit('message_chunk', {
+                    'content': error_response,
+                    'conversation_id': conversation_id
+                }, room=conversation_id)
+                response_content += error_response
+        
+        # Notificar que a resposta está completa
+        socketio.emit('response_complete', {
+            'conversation_id': conversation_id
+        }, room=conversation_id)
         
         # Atualiza a mensagem no histórico
         update_message_in_conversation(conversation_id, message_id, response_content)
-        
-        # Envia a resposta final para o frontend
-        socketio.emit('youtube_resumo_response', {
-            'status': 'success',
-            'conversation_id': conversation_id,
-            'content': response_content,
-            'message_id': message_id
-        }, room=conversation_id)
         
         # Notifica que a conversa foi atualizada
         print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
@@ -490,10 +508,21 @@ def process_youtube_resumo_background(url, conversation_id):
     except Exception as e:
         error_msg = f"Erro ao processar o resumo do vídeo: {str(e)}"
         print(f"[ERRO] {error_msg}")
-        socketio.emit('youtube_resumo_response', {
+        socketio.emit('youtube_resumo_error', {
             'status': 'error',
             'conversation_id': conversation_id,
             'error': error_msg
+        }, room=conversation_id)
+        
+        # Também exibir o erro como uma mensagem normal
+        error_response = f"**Erro:** {error_msg}"
+        message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+        socketio.emit('message_chunk', {
+            'content': error_response,
+            'conversation_id': conversation_id
+        }, room=conversation_id)
+        socketio.emit('response_complete', {
+            'conversation_id': conversation_id
         }, room=conversation_id)
 
 @app.route('/rename_conversation/<conversation_id>', methods=['POST'])
