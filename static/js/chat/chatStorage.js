@@ -17,6 +17,7 @@ export function carregarConversa(id) {
         return;
     }
     
+    console.log(`[DEBUG-JS] carregarConversa em chatStorage.js chamada para conversa ID: ${id}`);
     loadingConversations.add(id);
     
     // Reset the current view
@@ -43,6 +44,7 @@ export function carregarConversa(id) {
             return response.json();
         })
         .then(conversa => {
+            console.log(`[DEBUG-JS] Dados da conversa ${id} recebidos com sucesso do backend`);
             if (conversa.error) {
                 console.error('Erro ao carregar conversa:', conversa.error);
                 chatContainer.innerHTML = '<div class="error-message">Erro ao carregar conversa</div>';
@@ -305,7 +307,7 @@ function configureScrollListener(conversationId, nextOffset, limit) {
 }
 
 export function atualizarListaConversas() {
-    // // console.log('[DEBUG] Atualizando lista de conversas');
+    console.log('[DEBUG-JS] atualizarListaConversas em chatStorage.js chamada');
     
     const chatList = document.querySelector('.chat-list');
     if (!chatList) {
@@ -321,6 +323,7 @@ export function atualizarListaConversas() {
     fetch('/get_conversation_history')
         .then(response => response.json())
         .then(conversas => {
+            console.log(`[DEBUG-JS] Recebidas ${conversas.length} conversas do histórico via /get_conversation_history`);
             chatList.innerHTML = '';
             conversas.forEach(conversa => {
                 const conversaElement = document.createElement('div');
@@ -439,6 +442,7 @@ export function atualizarListaConversas() {
 }
 
 export function criarNovaConversa() {
+    console.log('[DEBUG-JS] criarNovaConversa em chatStorage.js chamada');
     const novaConversa = {
         id: Date.now().toString(),
         title: "Nova Conversa",
@@ -460,6 +464,7 @@ export function criarNovaConversa() {
     // Atualizar lista de conversas instantaneamente ao criar nova conversa
     atualizarListaConversas();
     window.dispatchEvent(new CustomEvent('historicoAtualizado'));
+    console.log(`[DEBUG-JS] Nova conversa criada com ID: ${novaConversa.id}`);
     
     return novaConversa;
 }
@@ -468,10 +473,10 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
     // Se não especificado, usa a conversa atual
     conversationId = conversationId || (window.conversaAtual ? window.conversaAtual.id : null);
     
-    // // console.log(`[DEBUG] Adicionando mensagem à conversa ${conversationId}, tipo: ${tipo}`);
+    console.log(`[DEBUG-JS] adicionarMensagemAoHistorico em chatStorage.js chamada para conversa ${conversationId}, tipo: ${tipo}`);
     
     if (!conversationId) {
-        // // console.log('[CORREÇÃO] Não há conversa atual, criando uma nova');
+        console.log('[DEBUG-JS] Não há conversa atual, criando uma nova');
         const novaConversa = criarNovaConversa();
         conversationId = novaConversa.id;
     }
@@ -480,7 +485,7 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
     let conversation = window.conversations[conversationId];
     
     if (!conversation) {
-        // console.log(`[ERRO] Conversa ${conversationId} não encontrada na estrutura global`);
+        console.log(`[ERRO-JS] Conversa ${conversationId} não encontrada na estrutura global`);
         return;
     }
     

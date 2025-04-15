@@ -1,3 +1,15 @@
+"""
+Manipulador de Vídeos do YouTube
+
+Este módulo fornece funcionalidades para trabalhar com vídeos do YouTube,
+especialmente para baixar e processar legendas/transcrições.
+
+A classe YoutubeHandler oferece métodos para:
+- Baixar legendas de vídeos do YouTube (PT-BR, PT e EN)
+- Limpar e formatar o texto das legendas
+- Dividir transcrições em blocos para processamento
+"""
+
 import os
 import json
 import yt_dlp
@@ -5,7 +17,18 @@ import re
 from typing import Optional, Dict, Any, Tuple
 
 class YoutubeHandler:
+    """
+    Classe para manipular vídeos do YouTube, com foco em download e processamento de legendas.
+    Oferece suporte para baixar legendas em português e inglês, limpá-las e dividi-las em blocos.
+    """
+    
     def __init__(self, download_path: str = "./temp"):
+        """
+        Inicializa o manipulador de vídeos do YouTube.
+        
+        Args:
+            download_path (str): Caminho para salvar arquivos temporários
+        """
         self.download_path = download_path
         if not os.path.exists(download_path):
             os.makedirs(download_path)
@@ -13,7 +36,13 @@ class YoutubeHandler:
     def download_subtitles(self, video_url: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Baixa legendas do vídeo em PT-BR, PT ou EN, com fallback para legendas automáticas.
-        Retorna uma tupla (caminho_do_arquivo, título_do_vídeo).
+        
+        Args:
+            video_url (str): URL do vídeo do YouTube
+            
+        Returns:
+            Tuple[Optional[str], Optional[str]]: (caminho_do_arquivo, título_do_vídeo)
+                Se não for possível baixar, o primeiro elemento será None
         """
         print(f"[INFO] Tentando baixar legendas para: {video_url}")
         
@@ -76,10 +105,22 @@ class YoutubeHandler:
 
     def clean_subtitles(self, subtitle_file: str) -> Optional[str]:
         """
-        Limpa as legendas removendo timestamps, formatação e repetições
-        Retorna o texto limpo
+        Limpa as legendas removendo timestamps, formatação e repetições.
+        
+        O processo de limpeza:
+        1. Remove cabeçalhos WEBVTT e metadados
+        2. Remove timestamps e números de sequência
+        3. Remove tags HTML e formatação especial
+        4. Remove linhas duplicadas
+        5. Junta o texto em um formato contínuo
+        
+        Args:
+            subtitle_file (str): Caminho do arquivo de legendas
+            
+        Returns:
+            Optional[str]: Texto limpo das legendas ou None se ocorrer erro
         """
-        print(f"[DEBUG] clean_subtitles recebeu: {subtitle_file} (tipo: {type(subtitle_file)})")
+        # print(f"[DEBUG] clean_subtitles recebeu: {subtitle_file} (tipo: {type(subtitle_file)})")
         
         if not isinstance(subtitle_file, str):
             print(f"[ERRO] subtitle_file não é uma string, é {type(subtitle_file)}")
@@ -96,16 +137,16 @@ class YoutubeHandler:
                 try:
                     with open(subtitle_file, 'r', encoding=encoding) as f:
                         content = f.read()
-                        print(f"[DEBUG] Arquivo lido com sucesso usando encoding: {encoding}")
+                        # print(f"[DEBUG] Arquivo lido com sucesso usando encoding: {encoding}")
                         break
                 except UnicodeDecodeError:
-                    print(f"[DEBUG] Falha ao ler com encoding: {encoding}")
+                    # print(f"[DEBUG] Falha ao ler com encoding: {encoding}")
                     continue
             
             if content is None:
                 raise Exception("Não foi possível ler o arquivo com nenhuma codificação suportada")
 
-            print("[DEBUG] Iniciando limpeza das legendas...")
+            # print("[DEBUG] Iniciando limpeza das legendas...")
             
             # Remove cabeçalho WEBVTT e metadados
             content = re.sub(r'WEBVTT.*\n', '', content)
@@ -134,14 +175,14 @@ class YoutubeHandler:
             # Remove arquivo temporário
             try:
                 os.remove(subtitle_file)
-                print(f"[DEBUG] Arquivo temporário removido: {subtitle_file}")
+                # print(f"[DEBUG] Arquivo temporário removido: {subtitle_file}")
             except Exception as e:
                 print(f"[AVISO] Não foi possível remover o arquivo temporário: {str(e)}")
             
             # Junta as linhas com espaço e remove espaços extras
             result = ' '.join(cleaned_lines).strip()
-            print(f"[DEBUG] Texto limpo gerado com sucesso, tamanho: {len(result)} caracteres")
-            print(f"[DEBUG] Primeiros 100 caracteres: {result[:100]}...")
+            # print(f"[DEBUG] Texto limpo gerado com sucesso, tamanho: {len(result)} caracteres")
+            # print(f"[DEBUG] Primeiros 100 caracteres: {result[:100]}...")
             return result
             
         except Exception as e:
@@ -174,6 +215,7 @@ class YoutubeHandler:
     def split_transcript_into_chunks(self, transcript: str, words_per_chunk: int = 300) -> list[str]:
         """
         Divide a transcrição em blocos de aproximadamente N palavras (padrão: 300).
+        Útil para processar textos longos em partes menores para resumo ou análise.
         
         Args:
             transcript (str): Texto da transcrição limpa
@@ -190,25 +232,20 @@ class YoutubeHandler:
             # Divide o texto em palavras
             words = transcript.split()
             total_words = len(words)
-            print(f"[DEBUG] Total de palavras na transcrição: {total_words}")
+            # print(f"[DEBUG] Total de palavras na transcrição: {total_words}")
             
             # Calcula quantos blocos serão necessários
             num_chunks = max(1, (total_words + words_per_chunk - 1) // words_per_chunk)
-            print(f"[DEBUG] Dividindo em aproximadamente {num_chunks} blocos")
+            # print(f"[DEBUG] Dividindo em aproximadamente {num_chunks} blocos")
             
             chunks = []
             for i in range(0, total_words, words_per_chunk):
-                # Pega um bloco de palavras
-                chunk_words = words[i:i + words_per_chunk]
-                # Junta as palavras novamente em um texto
-                chunk_text = ' '.join(chunk_words)
-                chunks.append(chunk_text)
+                chunk = ' '.join(words[i:i + words_per_chunk])
+                chunks.append(chunk)
                 
-            print(f"[DEBUG] Transcrição dividida em {len(chunks)} blocos")
+            print(f"[INFO] Transcrição dividida em {len(chunks)} blocos")
             return chunks
             
         except Exception as e:
-            print(f"[ERRO] Falha ao dividir transcrição em blocos: {str(e)}")
-            import traceback
-            print(f"[DEBUG] Traceback completo: {traceback.format_exc()}")
-            return [transcript]  # Retorna o texto original como um único bloco em caso de erro
+            print(f"[ERRO] Erro ao dividir transcrição em blocos: {str(e)}")
+            return []

@@ -1,3 +1,18 @@
+"""
+Aplicação de Chat com Persistência e Processamento de Dados
+
+Este módulo contém a aplicação principal Flask e implementa uma interface
+de chat que suporta conversas persistentes com uma IA e processamento
+de vídeos do YouTube.
+
+Funcionalidades principais:
+- Interface web para conversas com IA (Ollama - gemma2:2b)
+- Persistência de conversas em arquivos JSON
+- Processamento de transcrições de vídeos do YouTube
+- Geração de resumos para conteúdo de vídeos
+- Comunicação em tempo real via WebSockets
+"""
+
 import init_eventlet
 
 from flask import Flask, render_template, request, jsonify, Response
@@ -5,7 +20,6 @@ import json
 import os
 from datetime import datetime
 import requests
-from utils.text_processor import split_text, clean_and_format_text
 from youtube_handler import YoutubeHandler
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from utils.chat_storage import (
@@ -18,43 +32,61 @@ from utils.chat_storage import (
     update_message_in_conversation
 )
 
+# Inicialização da aplicação
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'sua_chave_secreta_aqui'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
+# Configuração da API Ollama
 API_URL = "http://localhost:11434/v1/chat/completions"
 MODEL_NAME = "gemma2:2b"
 youtube_handler = YoutubeHandler()
 
 @app.route('/')
 def home():
+    """Rota principal que renderiza a página inicial"""
+    # print("[DEBUG-PYTHON] Rota principal '/' acessada em app.py")
     conversations = get_conversation_history()
     return render_template('index.html', conversations=conversations)
 
 @app.route('/get_conversation_history')
 def conversation_history():
+    """Endpoint para obter o histórico de todas as conversas"""
     try:
+        # print("[DEBUG-PYTHON] Rota /get_conversation_history acessada em app.py")
         conversations = get_conversation_history()
+        # print(f"[DEBUG-PYTHON] Retornando {len(conversations)} conversas do histórico")
         return jsonify(conversations)
     except Exception as e:
-        print(f"[ERRO] Falha ao obter histórico de conversas: {str(e)}")
+        print(f"[ERRO-PYTHON] Falha ao obter histórico de conversas: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/get_conversation/<conversation_id>')
 def get_conversation(conversation_id):
+    """Endpoint para obter uma conversa específica pelo ID"""
     try:
+        # print(f"[DEBUG-PYTHON] Rota /get_conversation/{conversation_id} acessada em app.py")
         conversation = get_conversation_by_id(conversation_id)
         if conversation:
+            # print(f"[DEBUG-PYTHON] Conversa {conversation_id} encontrada e será retornada")
             return jsonify(conversation)
-        print(f"[ERRO] Conversa não encontrada: {conversation_id}")
+        print(f"[ERRO-PYTHON] Conversa não encontrada: {conversation_id}")
         return jsonify({'error': 'Conversa não encontrada'}), 404
     except Exception as e:
-        print(f"[ERRO] Falha ao obter conversa: {str(e)}")
+        print(f"[ERRO-PYTHON] Falha ao obter conversa: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/get_conversation/<conversation_id>/<int:offset>/<int:limit>')
 def get_conversation_batch(conversation_id, offset, limit):
-    """Endpoint para carregar mensagens em lotes para lazy loading"""
+    """
+    Endpoint para carregar mensagens em lotes para lazy loading.
+    Permite carregar partes da conversa para melhorar a performance com históricos longos.
+    
+    Args:
+        conversation_id: ID da conversa
+        offset: Índice inicial das mensagens a serem carregadas
+        limit: Número máximo de mensagens a serem retornadas
+    """
     try:
         conversation = get_conversation_by_id(conversation_id)
         if conversation:
@@ -78,14 +110,18 @@ def get_conversation_batch(conversation_id, offset, limit):
 
 @app.route('/stream')
 def stream():
-    """Endpoint para streaming de respostas usando Server-Sent Events (SSE)"""
+    """
+    Endpoint para streaming de respostas usando Server-Sent Events (SSE).
+    Permite enviar respostas da IA em tempo real para o cliente, 
+    pedaço por pedaço, sem esperar a resposta completa.
+    """
     conversation_id = request.args.get('conversation_id')
     message = request.args.get('message', '')
     
     if not conversation_id:
         return jsonify({'error': 'ID de conversa não fornecido'}), 400
         
-    print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
+    # print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
     
     def event_stream():
         accumulated_response = ""
@@ -108,11 +144,11 @@ def stream():
                     'conversation_id': conversation_id
                 }, room=conversation_id)
                 # Notificar que a conversa foi atualizada
-                print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
+                # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
-                print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
+                # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         except Exception as e:
             print(f"[ERRO] Erro durante streaming: {str(e)}")
             # Em caso de erro, notificar o cliente
@@ -128,19 +164,27 @@ def stream():
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
+    """
+    Endpoint para enviar uma mensagem para a IA.
+    Cria uma nova conversa se necessário, salva a mensagem do usuário
+    e processa a resposta da IA em streaming.
+    """
     data = request.json
     message = data.get('message', '')
     conversation_id = data.get('conversation_id')
 
+    # print(f"[DEBUG-PYTHON] Rota /send_message acessada em app.py para conversa: {conversation_id}")
+
     if not conversation_id:
         conversation_id = create_new_conversation()
-        print(f"[DEBUG] Nova conversa criada com ID: {conversation_id}")
+        # print(f"[DEBUG-PYTHON] Nova conversa criada em app.py com ID: {conversation_id}")
     else:
-        print(f"[DEBUG] Usando conversa existente: {conversation_id}")
+        # print(f"[DEBUG-PYTHON] Usando conversa existente em app.py: {conversation_id}")
+        pass
 
     # Salvar mensagem do usuário
     add_message_to_conversation(conversation_id, message, "user")
-    print(f"[DEBUG] Mensagem do usuário salva na conversa: {conversation_id}")
+    # print(f"[DEBUG-PYTHON] Mensagem do usuário salva na conversa: {conversation_id}")
 
     # Processar resposta da IA
     accumulated_response = []
@@ -160,21 +204,21 @@ def send_message():
             # Salvar apenas a resposta final
             if accumulated_response:
                 complete_response = ''.join(accumulated_response)
-                print(f"[DEBUG] Salvando resposta final para {conversation_id}")
+                # print(f"[DEBUG-PYTHON] Salvando resposta final para {conversation_id}")
                 add_message_to_conversation(conversation_id, complete_response, "assistant")
                 # Notificar que a resposta está completa
                 socketio.emit('response_complete', {
                     'conversation_id': conversation_id
                 }, room=conversation_id)
                 # Notificar que a conversa foi atualizada
-                print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
+                # print(f"[DEBUG-PYTHON] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
-                print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
-                print(f"[DEBUG] Resposta final da IA salva na conversa: {conversation_id}")
+                # print(f"[DEBUG-PYTHON] Evento conversation_updated emitido com sucesso")
+                # print(f"[DEBUG-PYTHON] Resposta final da IA salva na conversa: {conversation_id}")
         except Exception as e:
-            print(f"[ERRO] Erro durante streaming: {str(e)}")
+            print(f"[ERRO-PYTHON] Erro durante streaming: {str(e)}")
             # Em caso de erro, notificar o cliente
             socketio.emit('stream_error', {
                 'conversation_id': conversation_id,
@@ -196,7 +240,7 @@ def save_message():
         if not all([conversation_id, content, role]):
             return jsonify({'error': 'Dados incompletos'}), 400
         
-        print(f"[DEBUG] Salvando mensagem para conversa: {conversation_id}, role: {role}")
+        print(f"[DEBUG-PYTHON] Rota /save_message acessada para conversa: {conversation_id}, role: {role}")
         add_message_to_conversation(conversation_id, content, role)
         
         # Notificar clientes via WebSocket
@@ -206,7 +250,7 @@ def save_message():
         
         return jsonify({'status': 'success', 'conversation_id': conversation_id})
     except Exception as e:
-        print(f"Erro ao salvar mensagem: {str(e)}")
+        print(f"[ERRO-PYTHON] Erro ao salvar mensagem: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/process_youtube', methods=['POST'])
@@ -236,6 +280,14 @@ def process_youtube():
     return jsonify({'status': 'Processamento iniciado'})
 
 def process_youtube_background(url, conversation_id):
+    """
+    Função que processa um vídeo do YouTube em background.
+    Baixa as legendas, limpa e retorna como mensagem na conversa.
+    
+    Args:
+        url: URL do vídeo do YouTube
+        conversation_id: ID da conversa onde salvar o resultado
+    """
     print(f"[INFO] Iniciando processamento do vídeo: {url} para conversa: {conversation_id}")
     youtube_handler = YoutubeHandler()
     
@@ -282,11 +334,11 @@ def process_youtube_background(url, conversation_id):
         }, room=conversation_id)
         
         # Notifica que a conversa foi atualizada
-        print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
+        # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
         socketio.emit('conversation_updated', {
             'conversation_id': conversation_id
         })
-        print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
+        # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         
         print(f"[INFO] Processamento do vídeo concluído com sucesso")
         
@@ -364,6 +416,12 @@ def process_youtube_resumo():
 def process_youtube_resumo_background(url, conversation_id):
     """
     Processa um vídeo do YouTube em background, gerando resumos por blocos de transcrição.
+    O processo divide a transcrição em blocos menores e gera um resumo para cada bloco
+    usando a IA, permitindo um resumo mais detalhado do conteúdo completo.
+    
+    Args:
+        url: URL do vídeo do YouTube
+        conversation_id: ID da conversa onde salvar o resultado
     """
     print(f"[INFO] Iniciando processamento de resumo do vídeo: {url} para conversa: {conversation_id}")
     youtube_handler = YoutubeHandler()
@@ -497,11 +555,11 @@ def process_youtube_resumo_background(url, conversation_id):
         update_message_in_conversation(conversation_id, message_id, response_content)
         
         # Notifica que a conversa foi atualizada
-        print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
+        # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
         socketio.emit('conversation_updated', {
             'conversation_id': conversation_id
         })
-        print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
+        # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         
         print(f"[INFO] Processamento do resumo do vídeo concluído com sucesso")
         
@@ -651,6 +709,17 @@ def handle_leave_conversation(data):
         print(f"[SOCKET] Cliente {request.sid} saiu da sala: {conversation_id}")
 
 def process_with_ai(text, conversation_id=None):
+    """
+    Processa um texto com a IA e retorna a resposta completa.
+    Esta função faz uma chamada síncrona para a API da Ollama.
+    
+    Args:
+        text: Texto/prompt a ser enviado para a IA
+        conversation_id: ID da conversa (opcional, para rastreamento)
+        
+    Returns:
+        str: Resposta gerada pela IA
+    """
     try:
         # Incluir o ID da conversa no contexto para rastreamento
         context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
@@ -680,6 +749,18 @@ def process_with_ai(text, conversation_id=None):
         return "Ocorreu um erro inesperado ao processar sua mensagem."
 
 def process_with_ai_stream(text, conversation_id=None):
+    """
+    Processa um texto com a IA e retorna a resposta em streaming.
+    Esta função faz chamadas para a API Ollama com streaming ativado,
+    retornando cada pedaço da resposta à medida que é gerado.
+    
+    Args:
+        text: Texto/prompt a ser enviado para a IA
+        conversation_id: ID da conversa (opcional, para rastreamento)
+        
+    Yields:
+        str: Partes da resposta gerada pela IA
+    """
     try:
         context_header = f"[Conversa: {conversation_id}] " if conversation_id else ""
         print(f"{context_header}Iniciando streaming para: {text[:50]}...")
@@ -713,8 +794,8 @@ def process_with_ai_stream(text, conversation_id=None):
                             chunk_count += 1
                             accumulated_response += content
                             
-                            print(f"{context_header}Chunk #{chunk_count}: {len(content)} caracteres")
-                            print(f"{context_header}Preview: {content[:50]}...")
+                            # print(f"{context_header}Chunk #{chunk_count}: {len(content)} caracteres")
+                            # print(f"{context_header}Preview: {content[:50]}...")
                             
                             socketio.emit('message_chunk', {
                                 'content': content,
@@ -727,7 +808,7 @@ def process_with_ai_stream(text, conversation_id=None):
                     print(f"{context_header}[ERRO] {error_msg}")
         
         print(f"{context_header}Streaming concluído. Total de chunks: {chunk_count}")
-        print(f"{context_header}Tamanho total da resposta: {len(accumulated_response)} caracteres")
+        # print(f"{context_header}Tamanho total da resposta: {len(accumulated_response)} caracteres")
         
         socketio.emit('response_complete', {
             'conversation_id': conversation_id,

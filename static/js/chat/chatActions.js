@@ -393,9 +393,20 @@ function isDuplicateMessage(conversationId, content) {
     return false;
 }
 
+// Função para enviar mensagem
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
-    logger.debug('Iniciando envio de mensagem', { mensagem });
+    console.log('[DEBUG-JS] enviarMensagem em chatActions.js chamada');
     
+    if (!mensagem || mensagem.trim() === '') {
+        return;
+    }
+    
+    // Log para a conversa atual
+    console.log(`[DEBUG-JS] Enviando mensagem para conversa: ${window.conversaAtual?.id || 'nova conversa'}`);
+    
+    // O código original continua aqui
+    logger.debug('Iniciando envio de mensagem', { mensagem });
+
     if (!mensagem.trim()) {
         logger.debug('Mensagem vazia, ignorando');
         return;
@@ -800,9 +811,17 @@ socket.on('conversation_updated', (data) => {
     }
 });
 
+// Função para interromper resposta atual
 export function interromperResposta() {
+    console.log('[DEBUG-JS] interromperResposta em chatActions.js chamada');
+    
     const conversationId = window.conversaAtual?.id;
-    if (!conversationId) return;
+    if (!conversationId) {
+        console.log('[DEBUG-JS] Nenhuma conversa ativa para interromper');
+        return;
+    }
+    
+    console.log(`[DEBUG-JS] Interrompendo resposta para conversa: ${conversationId}`);
     
     if (streamingStates.has(conversationId)) {
         streamingStates.delete(conversationId);
