@@ -1,5 +1,5 @@
 import { escapeHTML } from './chat/chatUtils.js';
-import { renderMessage } from './messageRenderer.js';
+import { renderMarkdown, renderMessageContainer, setCurrentConversation } from './messageRenderer.js';
 import { melhorarBlocosCodigo } from './chat/chatUtils.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
@@ -11,9 +11,11 @@ export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     // Verificar se há uma conversa carregada na estrutura global
     const conversationId = window.conversaAtual?.id;
     if (conversationId && window.conversations && window.conversations[conversationId]) {
-        // console.log(`[DEBUG] Iniciando chat para conversa: ${conversationId}`);
+        // Definir a conversa atual no renderizador de mensagens
+        setCurrentConversation(conversationId);
     } else {
-        // console.log('[DEBUG] Iniciando chat sem conversa ativa');
+        // Limpar a referência da conversa atual
+        setCurrentConversation(null);
     }
 }
 
@@ -26,7 +28,7 @@ export function mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer,
     
     // Limpar referência da conversa atual para evitar mistura de contextos
     window.conversaAtual = null;
-    // console.log('[DEBUG] Retornando para tela inicial, conversa atual limpa');
+    setCurrentConversation(null);
     
     // Remover qualquer listener de scroll
     if (chatContainer._scrollListener) {
@@ -51,57 +53,43 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     // Gerar um ID único para a mensagem - evitando caracteres especiais
     const messageId = `${Date.now()}_${tipo}`;
     
-    // Verificar se a mensagem já existe
-    if (document.querySelector(`.message[data-message-id="${messageId}"]`)) {
-        // console.log(`[DEBUG] Mensagem ${messageId} já existe, ignorando duplicata`);
+    // Usar a nova função de renderização com containers individuais
+    renderMessageContainer({
+        content: texto,
+        conversationId,
+        role: tipo,
+        messageId,
+        isStreaming: false
+    });
+}
+
+// Adicionando uma nova função para lidar com chunks de streaming
+export function atualizarMensagemStreaming(messageId, chunk, conversationId) {
+    // Verificar se há uma conversa ativa
+    if (!conversationId) {
+        console.warn('[AVISO] Tentando atualizar mensagem sem conversa ativa');
         return;
     }
     
-    const mensagemDiv = document.createElement('div');
-    mensagemDiv.className = `message ${tipo}`;
-    mensagemDiv.dataset.messageId = messageId;
+    // Obter a mensagem existente do DOM
+    const messageDiv = document.getElementById(`message-${messageId}`);
     
-    // Associar ID da conversa para garantir isolamento
-    if (conversationId) {
-        mensagemDiv.dataset.conversationId = conversationId;
+    // Se a mensagem não existir, criar uma nova
+    if (!messageDiv) {
+        return renderMessageContainer({
+            content: chunk,
+            conversationId,
+            role: 'assistant',
+            messageId,
+            isStreaming: true
+        });
     }
     
-    // Processamento de Markdown para mensagens do assistente
-    let conteudoHtml;
-    if (tipo === 'assistant') {
-        conteudoHtml = renderMessage(texto);
-    } else {
-        conteudoHtml = `<p>${escapeHTML(texto).replace(/\n/g, '<br>')}</p>`;
-    }
-    
-    const conteudo = `
-        <div class="message-content">${conteudoHtml}</div>
-        <div class="message-actions">
-            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                <i class="fas fa-copy"></i>
-            </button>
-            ${tipo === 'assistant' ? `
-                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                    <i class="fas fa-redo"></i>
-                </button>
-            ` : ''}
-        </div>
-    `;
-    
-    mensagemDiv.innerHTML = conteudo;
-    chatContainer.appendChild(mensagemDiv);
-    
-    // Usar requestAnimationFrame para garantir que o scroll seja aplicado após a renderização
-    requestAnimationFrame(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    });
-    
-    // Melhorar os blocos de código imediatamente após adicionar a mensagem
-    if (tipo === 'assistant') {
-        setTimeout(() => {
-            // console.log('[DEBUG] Aplicando melhorias aos blocos de código...');
-            melhorarBlocosCodigo();
-        }, 0);
+    // Se a mensagem existir, atualizar seu conteúdo
+    const contentDiv = messageDiv.querySelector('.message-content');
+    if (contentDiv) {
+        const renderedChunk = renderMarkdown(chunk);
+        contentDiv.innerHTML = renderedChunk;
     }
 }
 
@@ -112,31 +100,41 @@ export function mostrarCarregamento(chatContainer) {
         return document.createElement('div'); // Retorna um div vazio como fallback
     }
     
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'loading message assistant';
+    const loadingId = `loading_${Date.now()}`;
     
     // Associar ID da conversa para garantir isolamento
     const conversationId = window.conversaAtual?.id;
-    if (conversationId) {
-        loadingDiv.dataset.conversationId = conversationId;
-        // console.log(`[DEBUG] Mostrando carregamento para conversa: ${conversationId}`);
-    } else {
-        console.warn('[AVISO] Mostrando carregamento sem conversa ativa');
+    
+    // Criar o indicador de carregamento como uma mensagem com ID único
+    return renderMessageContainer({
+        content: `<div class="loading-indicator"><span></span><span></span><span></span></div>`,
+        conversationId,
+        role: 'assistant',
+        messageId: loadingId,
+        isStreaming: false
+    });
+}
+
+// Handler para processar chunks de mensagem recebidos via Socket.IO
+export function handleMessageChunk(data) {
+    const { content, conversation_id: conversationId, message_id: messageId, role } = data;
+    
+    // Verificar se esta mensagem corresponde à conversa ativa
+    if (conversationId !== window.conversaAtual?.id) {
+        return;
     }
     
-    loadingDiv.innerHTML = `
-        <span></span>
-        <span></span>
-        <span></span>
-    `;
-    chatContainer.appendChild(loadingDiv);
+    // ID da mensagem (usar o fornecido ou gerar um novo)
+    const uniqueMessageId = messageId || `msg_${Date.now()}`;
     
-    // Usar requestAnimationFrame para garantir que o scroll seja aplicado após a renderização
-    requestAnimationFrame(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+    // Renderizar ou atualizar o container da mensagem
+    renderMessageContainer({
+        content,
+        conversationId,
+        role: role || 'assistant',
+        messageId: uniqueMessageId,
+        isStreaming: true
     });
-    
-    return loadingDiv;
 }
 
 // Adicionar CSS para os novos elementos
@@ -161,6 +159,15 @@ style.textContent = `
     text-align: center;
     color: var(--text-secondary);
     font-style: italic;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 `;
 document.head.appendChild(style);

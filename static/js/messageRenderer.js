@@ -3,7 +3,7 @@
  * @param {string} text - Texto em formato Markdown
  * @returns {string} HTML formatado
  */
-export function renderMessage(text) {
+export function renderMarkdown(text) {
     if (!text) {
         console.warn('[DEBUG] Texto vazio recebido para renderização');
         return '';
@@ -13,11 +13,6 @@ export function renderMessage(text) {
     if (typeof text === 'string' && text.includes('data-no-markdown')) {
         return text;
     }
-
-    // console.log('[DEBUG] Iniciando renderização de mensagem:', {
-    //     tamanho: text.length,
-    //     preview: text.substring(0, 50) + '...'
-    // });
 
     // Verificar dependências e logar se não estiverem disponíveis
     if (typeof marked === 'undefined' || typeof hljs === 'undefined') {
@@ -49,23 +44,12 @@ export function renderMessage(text) {
             }
         });
 
-        // console.log('[DEBUG] Renderizando markdown com marked.js');
         const htmlContent = marked.parse(text);
-        // console.log('[DEBUG] HTML gerado:', {
-        //     tamanho: htmlContent.length,
-        //     preview: htmlContent.substring(0, 50) + '...'
-        // });
 
-        // console.log('[DEBUG] Sanitizando HTML com DOMPurify');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img'],
             ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel']
         });
-
-        // console.log('[DEBUG] HTML sanitizado:', {
-        //     tamanho: sanitizedHtml.length,
-        //     preview: sanitizedHtml.substring(0, 50) + '...'
-        // });
 
         return sanitizedHtml;
     } catch (error) {
@@ -73,6 +57,9 @@ export function renderMessage(text) {
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }
+
+// Função renomeada para evitar conflito com a nova implementação
+export const renderMessage = renderMarkdown;
 
 // Mapa para armazenar as respostas acumuladas por conversa
 const accumulatedResponses = new Map();
@@ -88,12 +75,6 @@ export function accumulateChunk(chunk, conversationId) {
         return;
     }
     
-    // console.log('[DEBUG] Acumulando chunk:', {
-    //     conversationId,
-    //     chunkSize: chunk.length,
-    //     chunkPreview: chunk.substring(0, 50) + '...'
-    // });
-    
     let accumulated = accumulatedResponses.get(conversationId) || '';
     
     // Verificar se o chunk é válido e pode ser concatenado
@@ -104,12 +85,6 @@ export function accumulateChunk(chunk, conversationId) {
     
     accumulated += chunk;
     accumulatedResponses.set(conversationId, accumulated);
-    
-    // console.log('[DEBUG] Estado atual da acumulação:', {
-    //     conversationId,
-    //     totalSize: accumulated.length,
-    //     preview: accumulated.substring(accumulated.length - Math.min(50, accumulated.length))
-    // });
 
     // Emitir evento de atualização
     const event = new CustomEvent('chunk_accumulated', {
@@ -120,6 +95,113 @@ export function accumulateChunk(chunk, conversationId) {
         }
     });
     window.dispatchEvent(event);
+}
+
+// Variável para armazenar a referência ao ID da conversa atual
+let currentConversationId = null;
+
+/**
+ * Define qual é a conversa ativa atual
+ * @param {string} conversationId - ID da conversa ativa
+ */
+export function setCurrentConversation(conversationId) {
+    currentConversationId = conversationId;
+}
+
+/**
+ * Renderiza ou atualiza uma mensagem em um container individual
+ * @param {Object} params - Parâmetros da mensagem
+ * @param {string} params.content - Conteúdo do texto/chunk
+ * @param {string} params.conversationId - ID da conversa
+ * @param {string} params.role - Papel ("user" ou "assistant")
+ * @param {string} params.messageId - ID único da mensagem
+ * @param {boolean} params.isStreaming - Indica se é streaming
+ * @returns {HTMLElement} O elemento da mensagem
+ */
+export function renderMessageContainer({ content, conversationId, role = 'assistant', messageId, isStreaming = false }) {
+    // Verificar se a conversa corresponde à conversa ativa
+    if (conversationId !== currentConversationId && conversationId !== window.conversaAtual?.id) {
+        return null;
+    }
+
+    // Identificar o container de chat
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) {
+        console.error('[ERRO] Container de chat não encontrado');
+        return null;
+    }
+
+    // Verificar se já existe um container para esta mensagem
+    let messageDiv = document.getElementById(`message-${messageId}`);
+    
+    // Criar container se não existir
+    if (!messageDiv) {
+        messageDiv = document.createElement("div");
+        messageDiv.id = `message-${messageId}`;
+        messageDiv.className = `message ${role} fade-in`; 
+        messageDiv.dataset.messageId = messageId;
+        messageDiv.dataset.conversationId = conversationId;
+        
+        // Estrutura interna da mensagem
+        messageDiv.innerHTML = `
+            <div class="message-content"></div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+                ${role === 'assistant' ? `
+                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        
+        chatContainer.appendChild(messageDiv);
+        
+        // Rolar para o final se estiver próximo do fundo
+        scrollToBottomIfNear(chatContainer);
+    }
+
+    // Localizar o container de conteúdo
+    const contentContainer = messageDiv.querySelector('.message-content');
+    if (!contentContainer) {
+        console.error('[ERRO] Container de conteúdo não encontrado na mensagem');
+        return messageDiv;
+    }
+
+    // Converter markdown e sanitizar o conteúdo
+    const sanitizedHTML = renderMarkdown(content);
+
+    // Atualizar o conteúdo
+    if (isStreaming) {
+        // No modo streaming, adicionamos incrementalmente
+        contentContainer.innerHTML = sanitizedHTML;
+    } else {
+        // Em modo normal, substituímos o conteúdo
+        contentContainer.innerHTML = sanitizedHTML;
+    }
+
+    // Melhorar blocos de código se for mensagem do assistente
+    if (role === 'assistant' && typeof window.melhorarBlocosCodigo === 'function') {
+        setTimeout(() => {
+            window.melhorarBlocosCodigo();
+        }, 0);
+    }
+
+    return messageDiv;
+}
+
+/**
+ * Função auxiliar para rolar para o final se estiver próximo
+ * @param {HTMLElement} chatContainer - Container de chat
+ */
+function scrollToBottomIfNear(chatContainer) {
+    if (chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100) {
+        requestAnimationFrame(() => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    }
 }
 
 /**
@@ -133,27 +215,18 @@ export function renderCompleteResponse(conversationId) {
         return '';
     }
 
-    // console.log('[DEBUG] Iniciando renderização completa para conversa:', conversationId);
-
     const completeResponse = accumulatedResponses.get(conversationId);
     if (!completeResponse) {
         console.warn('[DEBUG] Nenhuma resposta acumulada encontrada para:', conversationId);
         return '';
     }
 
-    // console.log('[DEBUG] Resposta completa encontrada:', {
-    //     conversationId,
-    //     tamanho: completeResponse.length,
-    //     preview: completeResponse.substring(0, 50) + '...'
-    // });
-
     try {
         // Renderizar com todas as otimizações
-        const renderedContent = renderMessage(completeResponse);
+        const renderedContent = renderMarkdown(completeResponse);
         
         // Limpar a resposta acumulada após renderização bem-sucedida
         accumulatedResponses.delete(conversationId);
-        // console.log('[DEBUG] Resposta acumulada limpa após renderização:', conversationId);
         
         // Emitir evento de renderização completa
         const event = new CustomEvent('response_rendered', {
@@ -167,7 +240,6 @@ export function renderCompleteResponse(conversationId) {
         return renderedContent;
     } catch (error) {
         console.error('[ERRO] Falha ao renderizar resposta completa:', error);
-        // Não limpar a resposta acumulada em caso de erro
         return '';
     }
 }
@@ -178,7 +250,6 @@ export function renderCompleteResponse(conversationId) {
  */
 export function clearAccumulatedResponse(conversationId) {
     if (conversationId) {
-        // console.log('[DEBUG] Limpando resposta acumulada para:', conversationId);
         const hadResponse = accumulatedResponses.has(conversationId);
         accumulatedResponses.delete(conversationId);
         
@@ -211,8 +282,6 @@ export function getAccumulatedState(conversationId) {
 // Sistema de logging
 const logger = {
     debug: (message, data = {}) => {
-        // console.log(`[DEBUG] ${message}`, data);
-        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -224,12 +293,10 @@ const logger = {
             })
         }).catch(() => {
             // Silenciosamente ignora erros de logging
-            // console.error('[ERRO] Falha ao salvar log:', err);
         });
     },
     error: (message, error = null) => {
         console.error(`[ERRO] ${message}`, error);
-        // Tentar enviar log para o backend, mas não quebrar se falhar
         fetch('/log-frontend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -241,7 +308,6 @@ const logger = {
             })
         }).catch(() => {
             // Silenciosamente ignora erros de logging
-            // console.error('[ERRO] Falha ao salvar log:', err);
         });
     }
 };

@@ -56,7 +56,7 @@ if (!window.socket) {
 
     // Listener para chunks da mensagem
     socket.on('message_chunk', (data) => {
-        const { content, conversation_id, chunk_number } = data;
+        const { content, conversation_id, chunk_number, message_id } = data;
         
         // Verificar duplicação de mensagem
         if (isDuplicateMessage(conversation_id, content)) {
@@ -125,40 +125,28 @@ if (!window.socket) {
         }
         streamingChunks.set(conversation_id, streamingChunks.get(conversation_id) + content);
         
-        // Atualizar UI com o novo chunk
-        const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) {
-            logger.error('Container de chat não encontrado');
-            return;
-        }
-
-        // Buscar ou criar mensagem de streaming
-        let messageId = streamingMessageIds.get(conversation_id);
-        let streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-message-id="${messageId}"]`);
+        // Verificar se há um ID de mensagem
+        const messageId = message_id || streamingMessageIds.get(conversation_id) || `streaming_${conversation_id}_${Date.now()}`;
         
-        if (!streamingMessage) {
-            messageId = `streaming_${conversation_id}`;
-            streamingMessageIds.set(conversation_id, messageId);
-            logger.debug('Criando nova mensagem de streaming', { messageId, conversation_id });
-            streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversation_id);
-        }
+        // Atualizar o ID da mensagem em streaming para esta conversa
+        streamingMessageIds.set(conversation_id, messageId);
 
-        if (streamingMessage) {
-            logger.debug('Atualizando mensagem de streaming', {
-                messageId,
-                chunkNumber: chunk_number,
-                chunkSize: content.length,
-                totalSize: streamingChunks.get(conversation_id).length
-            });
-            atualizarMensagemStreaming(messageId, content);
-            // Também acumular no messageRenderer para consistência
-            accumulateChunk(content, conversation_id);
-        } else {
-            logger.error('Falha ao criar/atualizar mensagem de streaming', {
+        // Usar o novo sistema de renderização com containers individuais
+        import('../messageRenderer.js').then(({ renderMessageContainer, accumulateChunk }) => {
+            // Renderizar ou atualizar o container da mensagem
+            renderMessageContainer({
+                content: streamingChunks.get(conversation_id),
                 conversationId: conversation_id,
-                messageId
+                role: 'assistant',
+                messageId: messageId,
+                isStreaming: true
             });
-        }
+            
+            // Também acumular o chunk para referência
+            accumulateChunk(content, conversation_id);
+        }).catch(error => {
+            logger.error('Erro ao importar módulo de renderização', error);
+        });
     });
 
     // Listener para resposta completa
@@ -169,7 +157,7 @@ if (!window.socket) {
             streamingStates: Array.from(streamingStates.entries())
         });
 
-        const { conversation_id, total_chunks } = data;
+        const { conversation_id, total_chunks, message_id } = data;
         if (!conversation_id) {
             logger.error('ID da conversa não fornecido na resposta completa');
             return;
@@ -181,7 +169,12 @@ if (!window.socket) {
                 atual: window.conversaAtual?.id,
                 recebido: conversation_id
             });
-            clearAccumulatedResponse(conversation_id);
+            import('../messageRenderer.js').then(({ clearAccumulatedResponse }) => {
+                clearAccumulatedResponse(conversation_id);
+            }).catch(error => {
+                logger.error('Erro ao importar módulo de renderização', error);
+            });
+            
             streamingStates.delete(conversation_id);
             streamingChunks.delete(conversation_id);
             streamingMessageIds.delete(conversation_id);
@@ -192,6 +185,7 @@ if (!window.socket) {
 
         // Remove estado de streaming
         const wasStreaming = streamingStates.delete(conversation_id);
+        const finalMessageId = message_id || streamingMessageIds.get(conversation_id) || `complete_${conversation_id}_${Date.now()}`;
         streamingMessageIds.delete(conversation_id);
         processedChunks.delete(conversation_id);
         lastReceivedChunks.delete(conversation_id);
@@ -203,46 +197,31 @@ if (!window.socket) {
             processedChunks: processedChunks.get(conversation_id)?.size || 0
         });
 
-        const chatContainer = document.querySelector('.chat-container');
-        if (!chatContainer) {
-            logger.error('Container do chat não encontrado');
-            return;
-        }
+        import('../messageRenderer.js').then(({ renderMessageContainer, clearAccumulatedResponse }) => {
+            // Usar o conteúdo acumulado como o conteúdo final
+            const finalContent = streamingChunks.get(conversation_id) || '';
+            
+            // Renderizar a mensagem final usando o mesmo ID para garantir continuidade
+            renderMessageContainer({
+                content: finalContent,
+                conversationId: conversation_id,
+                role: 'assistant',
+                messageId: finalMessageId,
+                isStreaming: false
+            });
 
-        try {
-            const renderedHtml = renderCompleteResponse(conversation_id);
-            if (!renderedHtml) {
-                throw new Error('Resposta vazia ou inválida');
-            }
-
-            const streamingMessage = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversation_id}"]`);
-            if (streamingMessage) {
-                logger.debug('Removendo mensagem de streaming', { conversationId: conversation_id });
-                streamingMessage.remove();
-            }
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message assistant';
-            messageDiv.dataset.messageId = `${Date.now()}_assistant`;
-            messageDiv.dataset.conversationId = conversation_id;
-            messageDiv.innerHTML = `
-                <div class="message-content">${renderedHtml}</div>
-                <div class="message-actions">
-                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                        <i class="fas fa-redo"></i>
-                    </button>
-                </div>
-            `;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-
+            // Limpar a resposta acumulada
+            clearAccumulatedResponse(conversation_id);
             streamingChunks.delete(conversation_id);
-        } catch (error) {
-            logger.error('Falha ao processar resposta', error);
-        }
+            
+            // Rolar para o final da conversa se estiver próximo do fundo
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            }
+        }).catch(error => {
+            logger.error('Erro ao importar módulo de renderização', error);
+        });
     });
 } else {
     socket = window.socket;
