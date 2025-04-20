@@ -372,6 +372,102 @@ function isDuplicateMessage(conversationId, content) {
     return false;
 }
 
+// Mapa para controle único de containers de streaming por conversa
+const streamingStates = new Map();
+
+// ==== FUNÇÕES AUXILIARES PARA STREAMING =====
+
+// Gera e registra um único messageId para cada streaming
+function iniciarStreamingMensagem(conversationId) {
+    if (!streamingStates.has(conversationId)) {
+        const messageId = `streaming_${conversationId}_${Date.now()}`;
+        streamingStates.set(conversationId, {
+            messageId,
+            chunks: [],
+            isStreaming: true
+        });
+    }
+    return streamingStates.get(conversationId).messageId;
+}
+
+// Cria o container único para resposta de streaming (com cursor)
+function criarContainerStreaming(chatContainer, conversationId) {
+    const state = streamingStates.get(conversationId);
+    if (!state) return null;
+    const { messageId } = state;
+    let container = document.getElementById(messageId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = messageId;
+        container.className = 'message assistant streaming';
+        container.dataset.messageId = messageId;
+        container.dataset.conversationId = conversationId;
+        container.innerHTML = `
+            <div class="message-content"><span class="cursor">▍</span></div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem"><i class="fas fa-copy"></i></button>
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta"><i class="fas fa-redo"></i></button>
+            </div>
+        `;
+        chatContainer.appendChild(container);
+    }
+    return container;
+}
+
+// Atualiza incrementalmente o conteúdo na mesma mensagem (cursor integrado)
+function atualizarStreamingMensagem(conversationId, novoChunk) {
+    const state = streamingStates.get(conversationId);
+    if (!state) return;
+    state.chunks.push(novoChunk);
+    const messageId = state.messageId;
+    const container = document.getElementById(messageId);
+    if (!container) return;
+
+    const messageContent = container.querySelector('.message-content');
+    if (messageContent) {
+        // use markdown para converter o texto c/ código
+        if (typeof marked !== 'undefined') {
+            messageContent.innerHTML = marked.parse(state.chunks.join('')) + '<span class="cursor">▍</span>';
+        } else {
+            messageContent.innerHTML = state.chunks.join('') + '<span class="cursor">▍</span>';
+        }
+    }
+}
+
+// Finaliza o streaming, removendo o cursor e exibindo resposta final no mesmo container
+function finalizarStreamingMensagem(conversationId, conteudoFinal) {
+    const state = streamingStates.get(conversationId);
+    if (!state) return;
+    const messageId = state.messageId;
+    const container = document.getElementById(messageId);
+    if (!container) return;
+
+    state.isStreaming = false;
+
+    const messageContent = container.querySelector('.message-content');
+    if (messageContent) {
+        if (typeof marked !== 'undefined') {
+            messageContent.innerHTML = marked.parse(conteudoFinal);
+        } else {
+            messageContent.innerHTML = conteudoFinal;
+        }
+    }
+    container.classList.remove('streaming');
+    // cursor removido naturalmente por não estar mais na innerHTML
+}
+
+// Remove containers e estado se necessário (erro ou interrupção)
+function removerStreamingMensagem(conversationId) {
+    const state = streamingStates.get(conversationId);
+    if (!state) return;
+    const { messageId } = state;
+    const container = document.getElementById(messageId);
+    if (container) container.remove();
+    streamingStates.delete(conversationId);
+}
+
+// --------------------------------------------------
+
 // Função para enviar mensagem
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
     console.log('[DEBUG-JS] enviarMensagem em chatActions.js chamada');
@@ -551,28 +647,15 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         chatContainer.appendChild(userMessageDiv);
         forcarRenderizacao(userMessageDiv);
 
-        // Remover qualquer placeholder existente antes de criar um novo
-        // console.log('[DEBUG] Removendo placeholders existentes antes de criar novo');
-        const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
-        existingPlaceholders.forEach(placeholder => {
-            // console.log('[DEBUG] Removendo placeholder antigo:', {
-            //     id: placeholder.dataset.conversationId,
-            //     classes: placeholder.className
-            // });
-            placeholder.remove();
-        });
+        // Antes de enviar para o backend (após criar mensagem do usuário):
+        // Remove possíveis containers de streaming antigos
+        removerStreamingMensagem(conversationId);
 
-        // Criar mensagem de streaming inicial
-        const messageId = `streaming_${conversationId}`;
-        streamingMessageIds.set(conversationId, messageId);
-        const streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversationId);
-        // console.log('[DEBUG] Placeholder de streaming criado para conversa:', conversationId);
+        // Inicia/define um novo streamingId e salva no estado
+        const streamingMessageId = iniciarStreamingMensagem(conversationId);
 
-        streamingStates.set(conversationId, true);
-        // console.log('[DEBUG] Estado de streaming definido:', {
-        //     conversationId,
-        //     isStreaming: streamingStates.has(conversationId)
-        // });
+        // Cria container de streaming único com cursor
+        criarContainerStreaming(chatContainer, conversationId);
 
         // Rolar para o final suavemente
         chatContainer.scrollTo({
@@ -821,73 +904,16 @@ export function interromperResposta() {
     if (sendBtn && stopBtn) {
         atualizarBotoes(sendBtn, stopBtn);
     }
+    removerStreamingMensagem(conversationId);
 }
 
-export function carregarConversa(conversationId) {
-    // console.log('[DEBUG] Carregando conversa:', conversationId);
-    window.conversaAtual = { id: conversationId };
-    
-    const chatContainer = document.querySelector('.chat-container');
-    if (!chatContainer) {
-        // console.warn('[DEBUG] Container do chat não encontrado ao carregar conversa');
-        return;
-    }
+socket.on('message_chunk', (data) => {
+    const { content, conversation_id } = data;
+    if (!content || !conversation_id) return;
 
-    // Limpa o container
-    chatContainer.innerHTML = '';
+    // Só processa se for da conversa atual
+    if (window.conversaAtual?.id !== conversation_id) return;
 
-    // Carrega mensagens existentes
-    fetch(`/get_conversation/${conversationId}/0/20`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.messages) {
-                data.messages.forEach(msg => {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `message ${msg.role}`;
-                    messageDiv.dataset.messageId = msg.timestamp;
-                    messageDiv.dataset.conversationId = conversationId;
-                    messageDiv.innerHTML = `
-                        <div class="message-content">${renderMessage(msg.content)}</div>
-                        <div class="message-actions">
-                            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            ${msg.role === 'assistant' ? `
-                                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            ` : ''}
-                        </div>
-                    `;
-                    chatContainer.appendChild(messageDiv);
-                });
-            }
-
-            // Verifica se a conversa está em streaming
-            const isStreaming = streamingStates.has(conversationId);
-            // console.log('[DEBUG] Verificando estado de streaming:', {
-            //     conversationId,
-            //     isStreaming,
-            //     allStates: Array.from(streamingStates.entries())
-            // });
-
-            if (isStreaming) {
-                // console.log('[DEBUG] Conversa em streaming detectada, recriando placeholder');
-                const streamingMessage = document.createElement('div');
-                streamingMessage.className = 'message assistant streaming-message';
-                streamingMessage.dataset.conversationId = conversationId;
-                streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-                chatContainer.appendChild(streamingMessage);
-                
-                // Rolar para o final suavemente
-                chatContainer.scrollTo({
-                    top: chatContainer.scrollHeight,
-                    behavior: 'smooth'
-                });
-            }
-        })
-        .catch(error => {
-            console.error('[ERRO] Falha ao carregar conversa:', error);
-            chatContainer.innerHTML = '<div class="error-message">Erro ao carregar a conversa. Por favor, tente novamente.</div>';
-        });
-}
+    // Garante que o streaming está iniciado e container criado
+    iniciarStreamingMensagem(conversation_id);
+    criarContainerStreaming(document.querySelector('.chat-container
