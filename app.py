@@ -22,6 +22,7 @@ from datetime import datetime
 import requests
 from youtube_handler import YoutubeHandler
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from uuid import uuid4
 from utils.chat_storage import (
     create_new_conversation,
     add_message_to_conversation,
@@ -41,6 +42,9 @@ socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 API_URL = "http://localhost:11434/v1/chat/completions"
 MODEL_NAME = "gemma2:2b"
 youtube_handler = YoutubeHandler()
+
+# Cache para mensagens em streaming
+streaming_messages = {}
 
 @app.route('/')
 def home():
@@ -173,57 +177,72 @@ def send_message():
     message = data.get('message', '')
     conversation_id = data.get('conversation_id')
 
-    # print(f"[DEBUG-PYTHON] Rota /send_message acessada em app.py para conversa: {conversation_id}")
-
     if not conversation_id:
         conversation_id = create_new_conversation()
-        # print(f"[DEBUG-PYTHON] Nova conversa criada em app.py com ID: {conversation_id}")
-    else:
-        # print(f"[DEBUG-PYTHON] Usando conversa existente em app.py: {conversation_id}")
-        pass
+
+    # Gerar um ID único para a mensagem da IA
+    message_id = str(uuid4())
+    
+    # Inicializar cache para esta mensagem
+    if conversation_id not in streaming_messages:
+        streaming_messages[conversation_id] = {}
+    streaming_messages[conversation_id][message_id] = ""
 
     # Salvar mensagem do usuário
     add_message_to_conversation(conversation_id, message, "user")
-    # print(f"[DEBUG-PYTHON] Mensagem do usuário salva na conversa: {conversation_id}")
-
-    # Processar resposta da IA
-    accumulated_response = []
     
     def generate_streamed_response():
         try:
             for part in process_with_ai_stream(message, conversation_id):
                 if part:
-                    accumulated_response.append(part)
-                    # Emitir via WebSocket apenas para a conversa atual
+                    # Acumular no cache
+                    streaming_messages[conversation_id][message_id] += part
+                    
+                    # Emitir via WebSocket
                     socketio.emit('message_chunk', {
-                        'content': part, 
-                        'conversation_id': conversation_id
+                        'content': part,
+                        'conversation_id': conversation_id,
+                        'message_id': message_id
                     }, room=conversation_id)
-                    yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id})}\n\n"
+                    
+                    # Enviar pedaço como evento SSE
+                    yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id, 'message_id': message_id})}\n\n"
             
-            # Salvar apenas a resposta final
-            if accumulated_response:
-                complete_response = ''.join(accumulated_response)
-                # print(f"[DEBUG-PYTHON] Salvando resposta final para {conversation_id}")
+            # Salvar resposta final
+            complete_response = streaming_messages[conversation_id][message_id]
+            if complete_response:
                 add_message_to_conversation(conversation_id, complete_response, "assistant")
+                
                 # Notificar que a resposta está completa
                 socketio.emit('response_complete', {
-                    'conversation_id': conversation_id
+                    'conversation_id': conversation_id,
+                    'message_id': message_id,
+                    'complete_response': complete_response
                 }, room=conversation_id)
-                # Notificar que a conversa foi atualizada
-                # print(f"[DEBUG-PYTHON] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
+                
+                # Notificar atualização da conversa
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
-                # print(f"[DEBUG-PYTHON] Evento conversation_updated emitido com sucesso")
-                # print(f"[DEBUG-PYTHON] Resposta final da IA salva na conversa: {conversation_id}")
+                
+                # Limpar cache após finalizar
+                del streaming_messages[conversation_id][message_id]
+                if not streaming_messages[conversation_id]:
+                    del streaming_messages[conversation_id]
+                    
         except Exception as e:
-            print(f"[ERRO-PYTHON] Erro durante streaming: {str(e)}")
-            # Em caso de erro, notificar o cliente
+            print(f"[ERRO] Erro durante streaming: {str(e)}")
             socketio.emit('stream_error', {
                 'conversation_id': conversation_id,
+                'message_id': message_id,
                 'error': str(e)
             }, room=conversation_id)
+            
+            # Limpar cache em caso de erro
+            if message_id in streaming_messages.get(conversation_id, {}):
+                del streaming_messages[conversation_id][message_id]
+                if not streaming_messages[conversation_id]:
+                    del streaming_messages[conversation_id]
 
     response = Response(generate_streamed_response(), content_type="text/event-stream")
     response.headers['Cache-Control'] = 'no-cache'

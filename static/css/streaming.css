@@ -1,0 +1,71 @@
+/* Estilos para o sistema de streaming */
+
+/* Cursor piscante */
+.cursor {
+    display: inline-block;
+    width: 0.5em;
+    height: 1.2em;
+    background-color: currentColor;
+    margin-left: 2px;
+    animation: blink 1s steps(2) infinite;
+    vertical-align: text-bottom;
+    opacity: 0.7;
+}
+
+@keyframes blink {
+    0% { opacity: 0.7; }
+    50% { opacity: 0; }
+    100% { opacity: 0.7; }
+}
+
+/* Placeholder para mensagens em carregamento */
+.placeholder {
+    color: #666;
+    font-style: italic;
+}
+
+/* Container de mensagem durante streaming */
+.message.assistant {
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Mensagem de erro */
+.error-message {
+    color: #dc3545;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: rgba(220, 53, 69, 0.1);
+    margin: 8px 0;
+}
+
+/* Animação de fade in */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Estilos para garantir que o cursor fique na mesma linha do texto */
+.message.assistant p:last-child {
+    display: inline;
+    margin: 0;
+}
+
+/* Ajuste para markdown dentro da mensagem */
+.message.assistant pre {
+    margin: 1em 0;
+    white-space: pre-wrap;
+}
+
+.message.assistant code {
+    font-family: monospace;
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Ajustes para garantir que o cursor fique alinhado com o texto */
+.message.assistant .cursor {
+    position: relative;
+    top: 2px;
+} 

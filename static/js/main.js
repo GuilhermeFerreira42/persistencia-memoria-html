@@ -19,6 +19,11 @@ import {
 } from './chat/chatStorage.js';
 import { initializeInputBar, destroyInputBar } from './modules/inputBar.js';
 import { copiarMensagem, regenerarResposta } from './chat/chatUtils.js';
+import { chatUI } from './chatUI.js';
+import { streamingManager } from './modules/streamingManager.js';
+import { initializeTheme } from './theme.js';
+import { initSidebar } from './sidebar.js';
+import { initCommandMenu } from './commandMenu.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
@@ -31,12 +36,70 @@ window.regenerarResposta = regenerarResposta;
 let welcomeBar = null;
 let chatBar = null;
 
+// Configuração do Socket.IO
+const socket = io();
+
+// Exportar socket para uso em outros módulos
+export { socket };
+
+// Configuração do Marked
+marked.setOptions({
+    renderer: new marked.Renderer(),
+    highlight: function(code, language) {
+        const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+        return hljs.highlight(code, { language: validLanguage }).value;
+    },
+    pedantic: false,
+    gfm: true,
+    breaks: true,
+    sanitize: false,
+    smartypants: false,
+    xhtml: false
+});
+
+// Inicialização do DOMPurify
+DOMPurify.setConfig({
+    ALLOWED_TAGS: [
+        'a', 'b', 'blockquote', 'br', 'code', 'div', 'em',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'i', 'li', 'ol', 'p', 'pre', 'span',
+        'strong', 'table', 'tbody', 'td', 'th',
+        'thead', 'tr', 'ul'
+    ],
+    ALLOWED_ATTR: ['href', 'class', 'style', 'target']
+});
+
+// Função principal de inicialização
 document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar componentes
+    initializeTheme();
+    initSidebar();
+    
+    // Configurar Socket.IO
+    socket.on('connect', () => {
+        console.log('Conectado ao servidor Socket.IO');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Desconectado do servidor Socket.IO');
+    });
+
+    // Entrar na sala da conversa atual quando mudar de chat
+    document.addEventListener('conversation-selected', (e) => {
+        const { conversationId } = e.detail;
+        if (socket.currentRoom) {
+            socket.emit('leave_conversation', { conversation_id: socket.currentRoom });
+        }
+        if (conversationId) {
+            socket.emit('join_conversation', { conversation_id: conversationId });
+            socket.currentRoom = conversationId;
+        }
+    });
+
     // Inicializar WebSocket para sincronização entre abas
     inicializarSync();
     
     // Configurar listeners do Socket.IO para o YouTube
-    const socket = io();
     setupYoutubeSocketListeners(socket);
     setupYoutubeResumoSocketListeners(socket);
     setupYoutubeEvents(socket);

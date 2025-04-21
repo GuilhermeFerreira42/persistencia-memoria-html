@@ -1,6 +1,7 @@
 import { escapeHTML } from './chat/chatUtils.js';
 import { renderMarkdown, renderMessageContainer, setCurrentConversation } from './messageRenderer.js';
 import { melhorarBlocosCodigo } from './chat/chatUtils.js';
+import { streamingManager } from './modules/streamingManager.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     welcomeScreen.style.display = 'none';
@@ -171,3 +172,153 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+class ChatUI {
+    constructor() {
+        this.currentConversationId = null;
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Verificar se os elementos existem antes de adicionar listeners
+        const sendButton = document.getElementById('send-btn');
+        const messageInput = document.getElementById('chat-input');
+        
+        if (sendButton) {
+            sendButton.addEventListener('click', () => this.sendMessage());
+        }
+        
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+        }
+
+        // Listener para mudança de conversa
+        document.addEventListener('conversation-selected', (e) => {
+            this.handleConversationChange(e.detail.conversationId);
+        });
+    }
+
+    async sendMessage() {
+        const messageInput = document.getElementById('chat-input');
+        const message = messageInput.value.trim();
+        
+        if (!message) return;
+        
+        // Limpar input
+        messageInput.value = '';
+        
+        try {
+            // Adicionar mensagem do usuário ao chat
+            this.appendUserMessage(message);
+            
+            // Enviar mensagem para o backend
+            const response = await fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message,
+                    conversation_id: this.currentConversationId
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Falha ao enviar mensagem');
+            }
+            
+            // O streaming será gerenciado pelo StreamingManager
+            
+        } catch (error) {
+            console.error('Erro ao enviar mensagem:', error);
+            this.showError('Erro ao enviar mensagem. Por favor, tente novamente.');
+        }
+    }
+
+    appendUserMessage(message) {
+        const chatContainer = document.getElementById('chat-container');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user';
+        messageDiv.innerHTML = `<p>${this.escapeHtml(message)}</p>`;
+        chatContainer.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+
+    handleConversationChange(conversationId) {
+        this.currentConversationId = conversationId;
+        
+        // Limpar chat atual
+        const chatContainer = document.getElementById('chat-container');
+        chatContainer.innerHTML = '';
+        
+        if (conversationId) {
+            // Carregar histórico da conversa
+            this.loadConversationHistory(conversationId);
+            // Restaurar estado do streaming, se houver
+            streamingManager.restoreStreamingState(conversationId);
+        }
+    }
+
+    async loadConversationHistory(conversationId) {
+        try {
+            const response = await fetch(`/get_conversation/${conversationId}`);
+            if (!response.ok) {
+                throw new Error('Falha ao carregar histórico');
+            }
+            
+            const conversation = await response.json();
+            this.displayConversationHistory(conversation.messages);
+            
+        } catch (error) {
+            console.error('Erro ao carregar histórico:', error);
+            this.showError('Erro ao carregar histórico da conversa.');
+        }
+    }
+
+    displayConversationHistory(messages) {
+        const chatContainer = document.getElementById('chat-container');
+        
+        messages.forEach(message => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.role}`;
+            
+            if (message.role === 'assistant') {
+                messageDiv.innerHTML = marked.parse(message.content);
+                messageDiv.innerHTML = DOMPurify.sanitize(messageDiv.innerHTML);
+            } else {
+                messageDiv.innerHTML = `<p>${this.escapeHtml(message.content)}</p>`;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+        });
+        
+        this.scrollToBottom();
+    }
+
+    showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        document.getElementById('chat-container').appendChild(errorDiv);
+        this.scrollToBottom();
+    }
+
+    scrollToBottom() {
+        const chatContainer = document.getElementById('chat-container');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// Exportar instância única
+export const chatUI = new ChatUI();
