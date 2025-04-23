@@ -1,7 +1,7 @@
 import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
-import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse } from '../messageRenderer.js';
+import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse, renderMessageChunk, completeMessage } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
 import { handleYoutubeCommand } from '../youtube-system/youtubeHandler.js';
 import { handleYoutubeResumoCommand } from '../youtube-system/youtubeResumoHandler.js';
@@ -33,6 +33,12 @@ const lastReceivedChunks = new Map();
 
 // Mapa para rastrear mensagens já enviadas
 const sentMessages = new Map();
+
+// Gerenciar estado de streaming
+const streamingMessages = new Set();
+
+// Monitoramento de streams ativos
+let activeStreams = new Set();
 
 // Inicializa o socket apenas uma vez
 let socket;
@@ -891,3 +897,67 @@ export function carregarConversa(conversationId) {
             chatContainer.innerHTML = '<div class="error-message">Erro ao carregar a conversa. Por favor, tente novamente.</div>';
         });
 }
+
+// Sistema de debug
+class ChatDebugger {
+    constructor() {
+        this.logs = [];
+        this.maxLogSize = 100;
+    }
+
+    log(eventType, data) {
+        this.logs.push({ timestamp: Date.now(), eventType, data });
+        if (this.logs.length > this.maxLogSize) this.logs.shift();
+        console.debug(`[ChatDebug] ${eventType}:`, data);
+    }
+
+    exportLogs() {
+        const data = JSON.stringify(this.logs, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        return URL.createObjectURL(blob);
+    }
+}
+
+const chatDebugger = new ChatDebugger();
+
+export const handleSocketMessages = (socket) => {
+    socket.on('message_chunk', ({ messageId, content }) => {
+        chatDebugger.log('message_chunk', { messageId, contentLength: content.length });
+        
+        if (!streamingMessages.has(messageId)) {
+            streamingMessages.add(messageId);
+        }
+        renderMessageChunk(messageId, content);
+    });
+
+    socket.on('response_complete', ({ messageId }) => {
+        chatDebugger.log('response_complete', { messageId });
+        
+        streamingMessages.delete(messageId);
+        completeMessage(messageId);
+    });
+
+    socket.on('stream_error', ({ messageId }) => {
+        chatDebugger.log('stream_error', { messageId });
+        
+        streamingMessages.delete(messageId);
+        const entry = messageRegistry.get(messageId);
+        if (entry) {
+            entry.container.innerHTML += '<div class="error">Erro no streaming</div>';
+            messageRegistry.delete(messageId);
+        }
+    });
+
+    // Log de eventos do socket
+    socket.onAny((event, data) => {
+        chatDebugger.log(`socket_${event}`, data);
+    });
+};
+
+// Monitoramento periódico de streams ativos
+setInterval(() => {
+    chatDebugger.log('active_streams', {
+        streamingMessages: Array.from(streamingMessages),
+        messageRegistry: Array.from(messageRegistry.keys())
+    });
+}, 10000);

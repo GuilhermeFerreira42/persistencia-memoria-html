@@ -1,3 +1,4 @@
+
 # Documentação do Projeto - Sistema de Chat com IA
 
 ## 1. Visão Geral do Projeto
@@ -246,4 +247,3 @@ Nossa solução atual visa uma abordagem completamente unificada:
 3. Personalização avançada da interface
 4. Integração com APIs externas
 5. Sistema de tags para organização
-

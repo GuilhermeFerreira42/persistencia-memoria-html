@@ -1,3 +1,6 @@
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
+import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
+
 /**
  * Renderiza uma mensagem formatada com Markdown usando marked.js e highlight.js
  * @param {string} text - Texto em formato Markdown
@@ -412,3 +415,104 @@ export function renderStreamingMessage(chunk) {
         return `<p>${escapeHTML(chunk)}</p>`;
     }
 }
+
+// Registro global de mensagens
+const messageRegistry = new Map();
+
+/**
+ * Cria um novo container para uma mensagem
+ * @param {string} messageId - ID único da mensagem
+ * @returns {HTMLElement} Container criado
+ */
+const createContainer = (messageId) => {
+    const container = document.createElement('div');
+    container.className = 'message assistant streaming';
+    container.dataset.messageId = messageId;
+    document.querySelector('.chat-container').appendChild(container);
+    return container;
+};
+
+/**
+ * Renderiza o conteúdo em um container
+ * @param {Object} entry - Entrada do registro
+ */
+const renderContent = (entry) => {
+    const html = DOMPurify.sanitize(marked.parse(entry.content + '<span class="streaming-cursor">█</span>'));
+    entry.container.innerHTML = html;
+    
+    // Rolagem suave para o novo conteúdo
+    requestAnimationFrame(() => {
+        entry.container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+};
+
+/**
+ * Limpa containers órfãos
+ * @param {string} messageId - ID da mensagem a ser limpa
+ */
+const cleanupOrphan = (messageId) => {
+    const entry = messageRegistry.get(messageId);
+    if (entry && !entry.container.textContent.trim()) {
+        entry.container.remove();
+        messageRegistry.delete(messageId);
+    }
+};
+
+/**
+ * Renderiza um chunk de mensagem
+ * @param {string} messageId - ID único da mensagem
+ * @param {string} chunk - Conteúdo do chunk
+ */
+export const renderMessageChunk = (messageId, chunk) => {
+    if (!messageRegistry.has(messageId)) {
+        const container = createContainer(messageId);
+        messageRegistry.set(messageId, {
+            container,
+            content: '',
+            timer: setTimeout(() => cleanupOrphan(messageId), 30000)
+        });
+    }
+    
+    const entry = messageRegistry.get(messageId);
+    entry.content += chunk;
+    renderContent(entry);
+};
+
+/**
+ * Finaliza uma mensagem
+ * @param {string} messageId - ID da mensagem a ser finalizada
+ */
+export const completeMessage = (messageId) => {
+    const entry = messageRegistry.get(messageId);
+    if (entry) {
+        clearTimeout(entry.timer);
+        entry.container.querySelector('.streaming-cursor')?.remove();
+        messageRegistry.delete(messageId);
+    }
+};
+
+// Sistema de backup para limpeza de containers vazios
+setInterval(() => {
+    document.querySelectorAll('.message-content:empty').forEach(container => {
+        const messageId = container.closest('.message')?.dataset.messageId;
+        if (messageId) {
+            cleanupOrphan(messageId);
+        }
+    });
+}, 5000);
+
+// Estilos para o cursor
+const style = document.createElement('style');
+style.textContent = `
+.streaming-cursor {
+    animation: blink 1s step-end infinite;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+`;
+document.head.appendChild(style);
