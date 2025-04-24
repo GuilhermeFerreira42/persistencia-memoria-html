@@ -1,5 +1,6 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
+import { logger } from './utils/logger.js';
 
 /**
  * Renderiza uma mensagem formatada com Markdown usando marked.js e highlight.js
@@ -8,18 +9,19 @@ import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.
  */
 export function renderMarkdown(text) {
     if (!text) {
-        console.warn('[DEBUG] Texto vazio recebido para renderização');
+        logger.warn('Texto vazio recebido para renderização');
         return '';
     }
 
     // Se o texto for um elemento DOM com data-no-markdown, retorna o HTML bruto
     if (typeof text === 'string' && text.includes('data-no-markdown')) {
+        logger.debug('Conteúdo HTML direto detectado (data-no-markdown)');
         return text;
     }
 
     // Verificar dependências e logar se não estiverem disponíveis
     if (typeof marked === 'undefined' || typeof hljs === 'undefined') {
-        console.warn('[DEBUG] Dependências não encontradas:', {
+        logger.error('Dependências de renderização não encontradas', {
             marked: typeof marked,
             hljs: typeof hljs
         });
@@ -27,6 +29,10 @@ export function renderMarkdown(text) {
     }
 
     try {
+        logger.debug('Iniciando renderização de Markdown', {
+            textSize: text.length
+        });
+        
         // Configurar marked para suportar tabelas e outros elementos
         marked.setOptions({
             breaks: true,
@@ -40,7 +46,10 @@ export function renderMarkdown(text) {
                     try {
                         return hljs.highlight(code, { language: lang }).value;
                     } catch (e) {
-                        console.warn('[DEBUG] Erro ao destacar código:', e);
+                        logger.warn('Erro ao destacar código', { 
+                            language: lang, 
+                            error: e.message 
+                        });
                     }
                 }
                 return code;
@@ -54,9 +63,17 @@ export function renderMarkdown(text) {
             ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel']
         });
 
+        logger.debug('Markdown renderizado com sucesso', {
+            inputSize: text.length,
+            outputSize: sanitizedHtml.length
+        });
+        
         return sanitizedHtml;
     } catch (error) {
-        console.error('[ERRO] Falha ao renderizar mensagem:', error);
+        logger.error('Falha ao renderizar mensagem', {
+            error: error.message,
+            stack: error.stack
+        });
         return `<p>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
 }
@@ -74,7 +91,10 @@ const accumulatedResponses = new Map();
  */
 export function accumulateChunk(chunk, conversationId) {
     if (!conversationId || !chunk) {
-        console.warn('[DEBUG] Chunk ou conversationId inválido:', { chunk, conversationId });
+        logger.warn('Chunk ou conversationId inválido para acumulação', { 
+            chunkValid: !!chunk, 
+            conversationIdValid: !!conversationId 
+        });
         return;
     }
     
@@ -82,12 +102,21 @@ export function accumulateChunk(chunk, conversationId) {
     
     // Verificar se o chunk é válido e pode ser concatenado
     if (typeof chunk !== 'string') {
-        console.warn('[DEBUG] Chunk inválido recebido:', chunk);
+        logger.warn('Tipo de chunk inválido recebido', { 
+            tipo: typeof chunk,
+            chunk: JSON.stringify(chunk).substring(0, 100)
+        });
         return;
     }
     
     accumulated += chunk;
     accumulatedResponses.set(conversationId, accumulated);
+    
+    logger.debug('Chunk acumulado', { 
+        conversationId,
+        chunkSize: chunk.length,
+        totalAccumulatedSize: accumulated.length
+    });
 
     // Emitir evento de atualização
     const event = new CustomEvent('chunk_accumulated', {
@@ -108,6 +137,10 @@ let currentConversationId = null;
  * @param {string} conversationId - ID da conversa ativa
  */
 export function setCurrentConversation(conversationId) {
+    logger.debug('Conversa atual definida', { 
+        previousId: currentConversationId, 
+        newId: conversationId 
+    });
     currentConversationId = conversationId;
 }
 
@@ -122,15 +155,30 @@ export function setCurrentConversation(conversationId) {
  * @returns {HTMLElement} O elemento da mensagem
  */
 export function renderMessageContainer({ content, conversationId, role = 'assistant', messageId, isStreaming = false }) {
+    logger.debug('Renderizando container de mensagem', { 
+        messageId, 
+        conversationId,
+        role,
+        contentSize: content?.length || 0,
+        isStreaming
+    });
+    
     // Verificar se a conversa corresponde à conversa ativa
     if (conversationId !== currentConversationId && conversationId !== window.conversaAtual?.id) {
+        logger.warn('Tentativa de renderizar mensagem para conversa não ativa', {
+            renderingFor: conversationId,
+            currentActive: currentConversationId || window.conversaAtual?.id
+        });
         return null;
     }
 
     // Identificar o container de chat
     const chatContainer = document.querySelector('.chat-container');
     if (!chatContainer) {
-        console.error('[ERRO] Container de chat não encontrado');
+        logger.error('Container de chat não encontrado para renderização', {
+            messageId, 
+            conversationId
+        });
         return null;
     }
 
@@ -139,6 +187,12 @@ export function renderMessageContainer({ content, conversationId, role = 'assist
     
     // Criar container se não existir
     if (!messageDiv) {
+        logger.debug('Criando novo container para mensagem', { 
+            messageId,
+            conversationId, 
+            role 
+        });
+        
         messageDiv = document.createElement("div");
         messageDiv.id = `message-${messageId}`;
         messageDiv.className = `message ${role} fade-in`; 
@@ -164,12 +218,20 @@ export function renderMessageContainer({ content, conversationId, role = 'assist
         
         // Rolar para o final se estiver próximo do fundo
         scrollToBottomIfNear(chatContainer);
+    } else {
+        logger.debug('Atualizando container de mensagem existente', { 
+            messageId,
+            previousContentSize: messageDiv.querySelector('.message-content')?.innerHTML?.length || 0
+        });
     }
 
     // Localizar o container de conteúdo
     const contentContainer = messageDiv.querySelector('.message-content');
     if (!contentContainer) {
-        console.error('[ERRO] Container de conteúdo não encontrado na mensagem');
+        logger.error('Container de conteúdo não encontrado na mensagem', { 
+            messageId, 
+            messageHtml: messageDiv.outerHTML.substring(0, 100) 
+        });
         return messageDiv;
     }
 
@@ -180,16 +242,17 @@ export function renderMessageContainer({ content, conversationId, role = 'assist
     if (isStreaming) {
         // No modo streaming, adicionamos incrementalmente
         contentContainer.innerHTML = sanitizedHTML;
+        logger.debug('Conteúdo de streaming atualizado', { 
+            messageId, 
+            contentSize: sanitizedHTML.length 
+        });
     } else {
         // Em modo normal, substituímos o conteúdo
         contentContainer.innerHTML = sanitizedHTML;
-    }
-
-    // Melhorar blocos de código se for mensagem do assistente
-    if (role === 'assistant' && typeof window.melhorarBlocosCodigo === 'function') {
-        setTimeout(() => {
-            window.melhorarBlocosCodigo();
-        }, 0);
+        logger.debug('Conteúdo normal atualizado', { 
+            messageId, 
+            contentSize: sanitizedHTML.length 
+        });
     }
 
     return messageDiv;
@@ -281,39 +344,6 @@ export function getAccumulatedState(conversationId) {
         size: accumulated ? accumulated.length : 0
     };
 }
-
-// Sistema de logging
-const logger = {
-    debug: (message, data = {}) => {
-        fetch('/log-frontend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                level: 'debug',
-                message,
-                data,
-                timestamp: new Date().toISOString()
-            })
-        }).catch(() => {
-            // Silenciosamente ignora erros de logging
-        });
-    },
-    error: (message, error = null) => {
-        console.error(`[ERRO] ${message}`, error);
-        fetch('/log-frontend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                level: 'error',
-                message,
-                error: error ? error.toString() : null,
-                timestamp: new Date().toISOString()
-            })
-        }).catch(() => {
-            // Silenciosamente ignora erros de logging
-        });
-    }
-};
 
 // Cache para chunks de código
 const codeChunkCache = new Map();
@@ -417,18 +447,35 @@ export function renderStreamingMessage(chunk) {
 }
 
 // Registro global de mensagens
-const messageRegistry = new Map();
+// Transformando o messageRegistry em uma variável exportada para ser acessível de outros módulos
+export const messageRegistry = window.messageRegistry || new Map();
+
+// Garantir que o messageRegistry esteja disponível globalmente para compatibilidade
+if (!window.messageRegistry) {
+    window.messageRegistry = messageRegistry;
+    console.log('[INFO] messageRegistry inicializado globalmente');
+}
 
 /**
  * Cria um novo container para uma mensagem
  * @param {string} messageId - ID único da mensagem
+ * @param {string} conversationId - ID da conversa
  * @returns {HTMLElement} Container criado
  */
-const createContainer = (messageId) => {
+const createContainer = (messageId, conversationId) => {
     const container = document.createElement('div');
     container.className = 'message assistant streaming';
     container.dataset.messageId = messageId;
-    document.querySelector('.chat-container').appendChild(container);
+    container.dataset.conversationId = conversationId;
+    
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+        chatContainer.appendChild(container);
+    } else {
+        logger.error('Container de chat não encontrado', { messageId });
+        return null;
+    }
+    
     return container;
 };
 
@@ -437,13 +484,26 @@ const createContainer = (messageId) => {
  * @param {Object} entry - Entrada do registro
  */
 const renderContent = (entry) => {
-    const html = DOMPurify.sanitize(marked.parse(entry.content + '<span class="streaming-cursor">█</span>'));
-    entry.container.innerHTML = html;
-    
-    // Rolagem suave para o novo conteúdo
-    requestAnimationFrame(() => {
-        entry.container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    try {
+        const html = DOMPurify.sanitize(marked.parse(entry.content + '<span class="streaming-cursor">█</span>'));
+        entry.container.innerHTML = `<div class="message-content">${html}</div>`;
+        
+        // Rolagem suave para o novo conteúdo
+        requestAnimationFrame(() => {
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer && chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 100) {
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    } catch (error) {
+        logger.error('Erro ao renderizar conteúdo', { 
+            error: error.message,
+            messageId: entry.container.dataset.messageId 
+        });
+    }
 };
 
 /**
@@ -451,9 +511,14 @@ const renderContent = (entry) => {
  * @param {string} messageId - ID da mensagem a ser limpa
  */
 const cleanupOrphan = (messageId) => {
+    logger.debug('Verificando container órfão', { messageId });
     const entry = messageRegistry.get(messageId);
-    if (entry && !entry.container.textContent.trim()) {
-        entry.container.remove();
+    
+    if (entry && (!entry.container.textContent.trim() || !document.body.contains(entry.container))) {
+        logger.info('Removendo container órfão', { messageId });
+        if (document.body.contains(entry.container)) {
+            entry.container.remove();
+        }
         messageRegistry.delete(messageId);
     }
 };
@@ -462,20 +527,49 @@ const cleanupOrphan = (messageId) => {
  * Renderiza um chunk de mensagem
  * @param {string} messageId - ID único da mensagem
  * @param {string} chunk - Conteúdo do chunk
+ * @param {string} conversationId - ID da conversa
  */
-export const renderMessageChunk = (messageId, chunk) => {
+export const renderMessageChunk = (messageId, chunk, conversationId) => {
+    // Verificar se precisamos criar uma nova entrada ou atualizar uma existente
     if (!messageRegistry.has(messageId)) {
-        const container = createContainer(messageId);
-        messageRegistry.set(messageId, {
+        logger.info('Inicializando entrada no messageRegistry', { messageId, conversationId });
+        const container = createContainer(messageId, conversationId);
+        if (!container) return;
+        
+        messageRegistry.set(messageId, { 
+            content: '', 
+            rendered: false,
             container,
-            content: '',
+            conversationId,
             timer: setTimeout(() => cleanupOrphan(messageId), 30000)
         });
     }
     
+    // Acumular o conteúdo e atualizar a renderização
     const entry = messageRegistry.get(messageId);
     entry.content += chunk;
+    
+    logger.debug('Conteúdo acumulado', { 
+        messageId, 
+        totalSize: entry.content.length,
+        conversationId
+    });
+    
     renderContent(entry);
+    
+    // Verificar duplicação no DOM
+    const containers = document.querySelectorAll(`[data-message-id="${messageId}"]`);
+    if (containers.length > 1) {
+        logger.warn('Múltiplos contêineres detectados', { 
+            messageId, 
+            count: containers.length 
+        });
+        
+        // Manter apenas o último container
+        for (let i = 0; i < containers.length - 1; i++) {
+            containers[i].remove();
+        }
+    }
 };
 
 /**
@@ -483,19 +577,54 @@ export const renderMessageChunk = (messageId, chunk) => {
  * @param {string} messageId - ID da mensagem a ser finalizada
  */
 export const completeMessage = (messageId) => {
+    logger.debug('Finalizando mensagem', { messageId });
     const entry = messageRegistry.get(messageId);
+    
     if (entry) {
         clearTimeout(entry.timer);
-        entry.container.querySelector('.streaming-cursor')?.remove();
-        messageRegistry.delete(messageId);
+        const cursor = entry.container.querySelector('.streaming-cursor');
+        if (cursor) cursor.remove();
+        
+        // Marcar como mensagem completa
+        entry.container.classList.remove('streaming');
+        entry.container.classList.add('complete');
+        
+        // Adicionar botões de ação
+        const content = entry.container.querySelector('.message-content');
+        if (content) {
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
+            actions.innerHTML = `
+                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                    <i class="fas fa-redo"></i>
+                </button>
+            `;
+            entry.container.appendChild(actions);
+        }
+        
+        logger.info('Mensagem finalizada com sucesso', { 
+            messageId, 
+            contentSize: entry.content.length 
+        });
+        
+        // Remover do registry depois de um tempo
+        setTimeout(() => {
+            messageRegistry.delete(messageId);
+        }, 1000);
+    } else {
+        logger.warn('Tentativa de finalizar mensagem não registrada', { messageId });
     }
 };
 
 // Sistema de backup para limpeza de containers vazios
 setInterval(() => {
-    document.querySelectorAll('.message-content:empty').forEach(container => {
-        const messageId = container.closest('.message')?.dataset.messageId;
-        if (messageId) {
+    document.querySelectorAll('.message.streaming').forEach(container => {
+        const messageId = container.dataset.messageId;
+        if (messageId && (!container.textContent.trim() || container.querySelector('.message-content:empty'))) {
+            logger.debug('Detectado container vazio', { messageId });
             cleanupOrphan(messageId);
         }
     });

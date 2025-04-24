@@ -1,20 +1,22 @@
 import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
-import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse, renderMessageChunk, completeMessage } from '../messageRenderer.js';
+import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse, renderMessageChunk, completeMessage, messageRegistry } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
 import { handleYoutubeCommand } from '../youtube-system/youtubeHandler.js';
 import { handleYoutubeResumoCommand } from '../youtube-system/youtubeResumoHandler.js';
+import { logger } from '../utils/logger.js';
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
+import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
 
-// Sistema de logging
-const logger = {
-    debug: (message, data = {}) => {
-        console.log(`[DEBUG] ${message}`, data);
-    },
-    error: (message, error = null) => {
-        console.error(`[ERRO] ${message}`, error);
-    }
-};
+// Definindo o messageRegistry como um objeto global se não estiver definido
+// Isso corrige o erro "messageRegistry is not defined" nas linhas 895 e outras
+if (!window.messageRegistry) {
+    logger.info('Inicializando messageRegistry global');
+    window.messageRegistry = new Map();
+}
+// Usando uma referência local ao messageRegistry global
+const messageRegistry = window.messageRegistry;
 
 // Mapa para controlar o estado de streaming por conversa
 const streamingStates = new Map();
@@ -380,167 +382,95 @@ function isDuplicateMessage(conversationId, content) {
 
 // Função para enviar mensagem
 export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, stopBtn) {
-    console.log('[DEBUG-JS] enviarMensagem em chatActions.js chamada');
+    logger.info('Iniciando envio de mensagem', { 
+        mensagemTamanho: mensagem?.length || 0,
+        conversaAtual: window.conversaAtual?.id
+    });
     
-    if (!mensagem || mensagem.trim() === '') {
-        return;
-    }
-    
-    // Log para a conversa atual
-    console.log(`[DEBUG-JS] Enviando mensagem para conversa: ${window.conversaAtual?.id || 'nova conversa'}`);
-    
-    // O código original continua aqui
-    logger.debug('Iniciando envio de mensagem', { mensagem });
-
-    if (!mensagem.trim()) {
-        logger.debug('Mensagem vazia, ignorando');
+    if (!mensagem || !chatContainer) {
+        logger.warn('Parâmetros inválidos para envio de mensagem', { 
+            mensagemValida: !!mensagem, 
+            chatContainerValido: !!chatContainer 
+        });
         return;
     }
 
-    // Verifica se é um comando do YouTube
-    if (mensagem.startsWith('/youtube ')) {
-        logger.debug('Comando do YouTube detectado');
-        
-        // Cria nova conversa se necessário
-        if (!window.conversaAtual) {
-            logger.debug('Criando nova conversa para comando do YouTube');
-            criarNovaConversa();
-        }
-        
-        // Verificar se a mensagem já existe
-        const existingMessage = document.querySelector(`.message[data-content="${mensagem}"]`);
-        if (existingMessage) {
-            logger.debug('Mensagem já existe, ignorando');
-            return;
-        }
-        
-        // Adiciona mensagem do usuário
-        adicionarMensagem(chatContainer, mensagem, 'user');
-        adicionarMensagemAoHistorico(mensagem, 'user');
-        
-        // Adiciona indicador de carregamento
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'message loading';
-        loadingDiv.innerHTML = `
-            <div class="message-content">
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Processando vídeo do YouTube...</span>
-                </div>
-            </div>
-        `;
-        chatContainer.appendChild(loadingDiv);
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        
-        // Processa o comando do YouTube
-        try {
-            await handleYoutubeCommand(mensagem, window.conversaAtual.id);
-            logger.debug('Comando do YouTube processado com sucesso');
-            
-            // Remover o indicador de carregamento
-            if (loadingDiv.parentNode) {
-                loadingDiv.parentNode.removeChild(loadingDiv);
-            }
-        } catch (error) {
-            logger.error('Erro ao processar comando do YouTube', error);
-            // Remove o indicador de carregamento em caso de erro
-            if (loadingDiv.parentNode) {
-                loadingDiv.parentNode.removeChild(loadingDiv);
-            }
-            // Adiciona mensagem de erro
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'message error';
-            errorDiv.innerHTML = `
-                <div class="message-content">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>Erro ao processar vídeo do YouTube: ${error.message}</span>
-                </div>
-            `;
-            chatContainer.appendChild(errorDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        }
-        
-        return;
-    }
-
-    // Processar comando do YouTube Resumo
-    if (mensagem.startsWith('/youtube_resumo')) {
-        console.log("[INFO] Processando comando do YouTube Resumo");
-        
-        // Criar um elemento visual para indicar o processamento
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'message loading';
-        loadingDiv.innerHTML = `
-            <div class="message-content">
-                <div class="loading-indicator">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Processando resumo do vídeo do YouTube...</span>
-                </div>
-            </div>
-        `;
-        chatContainer.appendChild(loadingDiv);
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        
-        // Processa o comando do YouTube Resumo
-        try {
-            await handleYoutubeResumoCommand(mensagem, window.conversaAtual.id);
-            logger.debug('Comando do YouTube Resumo processado com sucesso');
-            
-            // Remover o indicador de carregamento
-            if (loadingDiv.parentNode) {
-                loadingDiv.parentNode.removeChild(loadingDiv);
-            }
-        } catch (error) {
-            logger.error('Erro ao processar comando do YouTube Resumo', error);
-            // Remove o indicador de carregamento em caso de erro
-            if (loadingDiv.parentNode) {
-                loadingDiv.parentNode.removeChild(loadingDiv);
-            }
-            // Adiciona mensagem de erro
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'message error';
-            errorDiv.innerHTML = `
-                <div class="message-content">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>Erro ao processar resumo do vídeo: ${error.message}</span>
-                </div>
-            `;
-            chatContainer.appendChild(errorDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        }
-        
-        return;
-    }
-
-    // Continua com o processamento normal de mensagens...
     if (!window.conversaAtual) {
-        console.warn("Criando nova conversa...");
+        logger.info('Nenhuma conversa ativa, criando nova');
         criarNovaConversa();
     }
 
     const conversationId = window.conversaAtual?.id;
     if (!conversationId) {
-        // console.warn('[DEBUG] ID da conversa não definido ao enviar mensagem');
+        logger.error('ID da conversa não definido após tentativa de criação');
         return;
     }
 
-    const userTimestamp = new Date().toISOString();
-    const userMessageId = userTimestamp;
-    // console.log('[DEBUG] Enviando mensagem:', { mensagem, conversationId, timestamp: userTimestamp });
+    logger.debug('Enviando mensagem', { 
+        conversationId,
+        timestamp: new Date().toISOString()
+    });
+
+    // Verificar se é um comando de YouTube
+    if (mensagem.toLowerCase().startsWith('/youtube')) {
+        logger.info('Comando do YouTube detectado', { mensagem });
+        try {
+            await handleYoutubeCommand(mensagem, conversationId, chatContainer);
+            logger.info('Comando do YouTube processado com sucesso');
+        } catch (error) {
+            logger.error('Erro ao processar comando do YouTube', { 
+                error: error.message,
+                stack: error.stack
+            });
+        }
+        return;
+    }
+    
+    // Verificar se é um comando para resumir YouTube
+    if (mensagem.toLowerCase().startsWith('/resumo')) {
+        logger.info('Comando de resumo do YouTube detectado', { mensagem });
+        try {
+            await handleYoutubeResumoCommand(mensagem, conversationId, chatContainer);
+            logger.info('Comando de resumo do YouTube processado com sucesso');
+        } catch (error) {
+            logger.error('Erro ao processar comando de resumo do YouTube', { 
+                error: error.message,
+                stack: error.stack
+            });
+        }
+        return;
+    }
+
+    // Verificar duplicação de mensagem
+    if (isDuplicateMessage(conversationId, mensagem)) {
+        logger.warn('Mensagem duplicada detectada e ignorada', {
+            conversationId,
+            mensagemPreview: mensagem.substring(0, 30)
+        });
+        return;
+    }
 
     try {
-        if (sendBtn) {
-            sendBtn.disabled = true;
-            sendBtn.style.display = 'none';
-        }
-        if (stopBtn) {
-            stopBtn.style.display = 'flex';
+        logger.debug('Desabilitando interface durante envio', {
+            sendBtnState: sendBtn ? 'disabled' : 'not-found',
+            stopBtnState: stopBtn ? 'visible' : 'not-found'
+        });
+        
+        // Desabilitar a interface durante o envio
+        if (sendBtn) sendBtn.disabled = true;
+        if (stopBtn) stopBtn.style.display = 'flex';
+
+        // Limpar o input
+        if (input) {
+            input.value = '';
+            input.style.height = 'auto';
         }
 
-        input.value = '';
-        input.style.height = 'auto';
-
-        // Adicionar mensagem do usuário ao DOM
+        // Adicionar mensagem do usuário ao chat
+        const userTimestamp = new Date().toISOString();
+        const userMessageId = `user_${conversationId}_${Date.now()}`;
+        logger.debug('Adicionando mensagem do usuário ao DOM', { userMessageId });
+        
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user';
         userMessageDiv.dataset.messageId = userMessageId;
@@ -553,42 +483,45 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 </button>
             </div>
         `;
-        userMessageDiv.style.opacity = '0';
         chatContainer.appendChild(userMessageDiv);
-        forcarRenderizacao(userMessageDiv);
-
-        // Remover qualquer placeholder existente antes de criar um novo
-        // console.log('[DEBUG] Removendo placeholders existentes antes de criar novo');
+        
+        // Remover placeholders existentes para evitar duplicação
+        logger.debug('Removendo placeholders de mensagens existentes');
         const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
-        existingPlaceholders.forEach(placeholder => {
-            // console.log('[DEBUG] Removendo placeholder antigo:', {
-            //     id: placeholder.dataset.conversationId,
-            //     classes: placeholder.className
-            // });
-            placeholder.remove();
-        });
-
-        // Criar mensagem de streaming inicial
-        const messageId = `streaming_${conversationId}`;
+        existingPlaceholders.forEach(placeholder => placeholder.remove());
+        
+        // Gerar um ID único para a mensagem de streaming
+        const messageId = `streaming_${conversationId}_${Date.now()}`;
         streamingMessageIds.set(conversationId, messageId);
-        const streamingMessage = adicionarMensagemStreaming(chatContainer, messageId, conversationId);
-        // console.log('[DEBUG] Placeholder de streaming criado para conversa:', conversationId);
-
+        logger.debug('ID de mensagem para streaming gerado', { messageId });
+        
+        // Adicionar mensagem de loading para o assistente
+        adicionarMensagemStreaming(chatContainer, messageId, conversationId);
+        
+        // Ativar estado de streaming para esta conversa
         streamingStates.set(conversationId, true);
-        // console.log('[DEBUG] Estado de streaming definido:', {
-        //     conversationId,
-        //     isStreaming: streamingStates.has(conversationId)
-        // });
-
-        // Rolar para o final suavemente
+        
+        // Entrar na sala Socket.IO para esta conversa
+        entrarNaSala(conversationId);
+        
+        // Rolar para o final
         chatContainer.scrollTo({
             top: chatContainer.scrollHeight,
             behavior: 'smooth'
         });
-
+        
+        // Salvar a mensagem do usuário no histórico local
         adicionarMensagemAoHistorico(mensagem, 'user', conversationId);
-
-        // Enviar mensagem para o backend
+        
+        // Marcar mensagem como enviada para evitar duplicação
+        sentMessages.set(`${conversationId}-${mensagem}`, Date.now());
+        
+        logger.info('Enviando mensagem para o backend', { 
+            conversationId,
+            endpoint: '/send_message'
+        });
+        
+        // Enviar a mensagem para o servidor
         const response = await fetch('/send_message', {
             method: 'POST',
             headers: {
@@ -600,35 +533,39 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
                 timestamp: userTimestamp
             })
         });
-
+        
         if (!response.ok) {
             throw new Error(`Erro na resposta do servidor: ${response.status}`);
         }
-
-        // console.log('[DEBUG] Mensagem enviada com sucesso para o backend');
+        
+        logger.info('Mensagem enviada com sucesso, aguardando resposta streaming', { conversationId });
+        
+        // Indicar que este stream está ativo
+        activeStreams.add(conversationId);
+        
+        // A resposta é processada assincronamente pelos listeners de Socket.IO
+        
     } catch (error) {
-        // console.error('[ERRO] Falha ao enviar mensagem:', error);
+        logger.error('Falha ao enviar mensagem', { 
+            error: error.message,
+            stack: error.stack,
+            conversationId
+        });
+        
+        // Remover estado de streaming em caso de erro
+        streamingStates.delete(conversationId);
+        
+        // Mostrar mensagem de erro no chat
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant error';
         errorDiv.innerHTML = '<div class="message-content">Erro ao processar a mensagem. Por favor, tente novamente.</div>';
         chatContainer.appendChild(errorDiv);
-        forcarRenderizacao(errorDiv);
-
-        // Remover o placeholder e estado de streaming em caso de erro
-        const streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${conversationId}"]`);
-        if (streamingMessage) {
-            // console.log('[DEBUG] Removendo placeholder devido a erro');
-            streamingMessage.remove();
-        }
-        streamingStates.delete(conversationId);
+        
     } finally {
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.style.display = 'flex';
-        }
-        if (stopBtn) {
-            stopBtn.style.display = 'none';
-        }
+        logger.debug('Restaurando estado da interface após envio');
+        // Restaurar a interface após o envio (bem-sucedido ou não)
+        if (sendBtn) sendBtn.disabled = false;
+        if (stopBtn) stopBtn.style.display = 'none';
     }
 }
 
@@ -798,35 +735,43 @@ socket.on('conversation_updated', (data) => {
 
 // Função para interromper resposta atual
 export function interromperResposta() {
-    console.log('[DEBUG-JS] interromperResposta em chatActions.js chamada');
-    
+    logger.info('Iniciando interrupção de resposta');
     const conversationId = window.conversaAtual?.id;
+    
     if (!conversationId) {
-        console.log('[DEBUG-JS] Nenhuma conversa ativa para interromper');
+        logger.warn('Tentativa de interromper resposta sem conversa ativa');
         return;
     }
     
-    console.log(`[DEBUG-JS] Interrompendo resposta para conversa: ${conversationId}`);
-    
-    if (streamingStates.has(conversationId)) {
-        streamingStates.delete(conversationId);
-        clearAccumulatedResponse(conversationId);
+    if (!streamingStates.has(conversationId)) {
+        logger.warn('Nenhum streaming ativo para interromper', { conversationId });
+        return;
     }
     
+    logger.debug('Removendo estado de streaming', { conversationId });
+    streamingStates.delete(conversationId);
+    
+    // Limpar estado acumulado
+    clearAccumulatedResponse(conversationId);
+    
+    // Remover da lista de streams ativos
+    activeStreams.delete(conversationId);
+    
+    logger.debug('Removendo mensagens de streaming do DOM');
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
-        const streamingMessage = chatContainer.querySelector('.message.assistant.streaming-message');
-        const loadingMessage = chatContainer.querySelector('.message.assistant.loading');
-        if (streamingMessage) streamingMessage.remove();
-        if (loadingMessage) loadingMessage.remove();
+        // Remover mensagens de streaming ou loading
+        chatContainer.querySelectorAll('.message.assistant.streaming-message, .message.assistant.loading')
+            .forEach(msg => {
+                logger.debug('Removendo mensagem streaming', { 
+                    id: msg.dataset.messageId, 
+                    conversationId: msg.dataset.conversationId 
+                });
+                msg.remove();
+            });
     }
     
-    // Atualizar botões após interromper
-    const sendBtn = document.getElementById('send-btn');
-    const stopBtn = document.getElementById('stop-btn');
-    if (sendBtn && stopBtn) {
-        atualizarBotoes(sendBtn, stopBtn);
-    }
+    logger.info('Resposta interrompida com sucesso', { conversationId });
 }
 
 export function carregarConversa(conversationId) {
@@ -920,44 +865,141 @@ class ChatDebugger {
 
 const chatDebugger = new ChatDebugger();
 
-export const handleSocketMessages = (socket) => {
-    socket.on('message_chunk', ({ messageId, content }) => {
-        chatDebugger.log('message_chunk', { messageId, contentLength: content.length });
-        
-        if (!streamingMessages.has(messageId)) {
-            streamingMessages.add(messageId);
+/**
+ * Processa um chunk de mensagem recebido via streaming
+ * @param {Object} data - Dados recebidos do servidor
+ */
+export const handleStreamChunk = (data) => {
+    try {
+        if (!data || !data.chunk || !data.message_id || !data.conversation_id) {
+            chatDebugger.warn('Chunk inválido recebido', { data });
+            return;
         }
-        renderMessageChunk(messageId, content);
-    });
 
-    socket.on('response_complete', ({ messageId }) => {
-        chatDebugger.log('response_complete', { messageId });
-        
-        streamingMessages.delete(messageId);
-        completeMessage(messageId);
-    });
+        const { message_id, chunk, conversation_id } = data;
 
-    socket.on('stream_error', ({ messageId }) => {
-        chatDebugger.log('stream_error', { messageId });
-        
-        streamingMessages.delete(messageId);
-        const entry = messageRegistry.get(messageId);
-        if (entry) {
-            entry.container.innerHTML += '<div class="error">Erro no streaming</div>';
-            messageRegistry.delete(messageId);
+        // Verificar se este é um chunk duplicado
+        if (processedChunks.has(`${message_id}-${chunk}`)) {
+            chatDebugger.warn('Chunk duplicado detectado e ignorado', { 
+                message_id, 
+                chunk_length: chunk.length 
+            });
+            return;
         }
-    });
 
-    // Log de eventos do socket
-    socket.onAny((event, data) => {
-        chatDebugger.log(`socket_${event}`, data);
-    });
+        // Registrar este chunk como processado
+        processedChunks.add(`${message_id}-${chunk}`);
+        
+        // Verificar se a mensagem já está em streaming (já está sendo renderizada)
+        const isStreaming = streamingMessageIds.has(message_id);
+        
+        // Se não estiver em streaming, iniciar a renderização desta mensagem
+        if (!isStreaming) {
+            streamingMessageIds.add(message_id);
+            chatDebugger.info('Iniciando streaming de nova mensagem', { message_id, conversation_id });
+            
+            // Limpar containers órfãos existentes com o mesmo ID
+            const existingContainers = document.querySelectorAll(`[data-message-id="${message_id}"]`);
+            if (existingContainers.length > 0) {
+                chatDebugger.warn('Containers existentes detectados para novo stream', { 
+                    message_id, 
+                    count: existingContainers.length 
+                });
+                
+                // Remover containers antigos
+                existingContainers.forEach(container => container.remove());
+                
+                // Limpar qualquer entrada existente no registry
+                if (messageRegistry.has(message_id)) {
+                    messageRegistry.delete(message_id);
+                }
+            }
+        }
+
+        // Acumular o conteúdo em memória
+        accumulateChunk(chunk, conversation_id);
+        
+        // Renderizar o chunk
+        renderMessageChunk(message_id, chunk, conversation_id);
+        
+        chatDebugger.debug('Chunk processado com sucesso', { 
+            message_id,
+            chunk_length: chunk.length, 
+            streaming_count: streamingMessageIds.size 
+        });
+        
+    } catch (error) {
+        chatDebugger.error('Erro ao processar chunk de mensagem', { 
+            error: error.message, 
+            stack: error.stack 
+        });
+    }
 };
+
+// Processar evento de mensagem completa
+socket.on('response_complete', (data) => {
+    try {
+        const { message_id, conversation_id } = data;
+        
+        chatDebugger.info('Resposta completa recebida', { message_id, conversation_id });
+        
+        // Finalizar a mensagem no renderer
+        completeMessage(message_id);
+        
+        // Remover da lista de mensagens em streaming
+        streamingMessageIds.delete(message_id);
+        
+        // Processar resposta completa para o estado da conversa
+        renderCompleteResponse(conversation_id);
+        
+        // Limpar chunks processados para esta mensagem 
+        // (otimização de memória para conversas longas)
+        for (const key of processedChunks.keys()) {
+            if (key.startsWith(`${message_id}-`)) {
+                processedChunks.delete(key);
+            }
+        }
+        
+        chatDebugger.debug('Processamento de resposta completa finalizado', { 
+            message_id, 
+            streaming_count: streamingMessageIds.size 
+        });
+        
+    } catch (error) {
+        chatDebugger.error('Erro ao processar resposta completa', { 
+            error: error.message, 
+            stack: error.stack 
+        });
+    }
+});
 
 // Monitoramento periódico de streams ativos
 setInterval(() => {
-    chatDebugger.log('active_streams', {
-        streamingMessages: Array.from(streamingMessages),
-        messageRegistry: Array.from(messageRegistry.keys())
-    });
+    try {
+        chatDebugger.log('active_streams', {
+            streamingMessages: Array.from(streamingMessages),
+            messageRegistry: Array.from(messageRegistry.keys())
+        });
+        
+        // Verificar mensagens órfãs
+        document.querySelectorAll('.message-content:empty').forEach(container => {
+            const messageElement = container.closest('.message');
+            if (messageElement) {
+                const messageId = messageElement.dataset.messageId;
+                if (messageId) {
+                    cleanupOrphan(messageId);
+                }
+            }
+        });
+        
+        logger.debug('Monitoramento de streams concluído', {
+            activeStreams: streamingMessages.size,
+            registrySize: messageRegistry.size
+        });
+    } catch (error) {
+        logger.error('Erro no monitoramento de streams', { 
+            error: error.message,
+            stack: error.stack
+        });
+    }
 }, 10000);
