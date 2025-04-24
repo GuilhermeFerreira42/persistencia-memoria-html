@@ -1,5 +1,5 @@
-
 export function toggleSidebar() {
+    console.log('[DEBUG] Função toggleSidebar chamada');
     const sidebar = document.querySelector('.sidebar');
     const mainContent = document.querySelector('.main-content');
     

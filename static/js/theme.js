@@ -1,9 +1,9 @@
-
 // Estado do tema
 let currentTheme = 'light';
 
 // Função para alternar o tema
 export function toggleTheme() {
+    console.log('[DEBUG] Função toggleTheme chamada');
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
     applyTheme(currentTheme);
     localStorage.setItem('theme', currentTheme);

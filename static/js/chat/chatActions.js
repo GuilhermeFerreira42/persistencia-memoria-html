@@ -9,14 +9,12 @@ import { logger } from '../utils/logger.js';
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
 
-// Definindo o messageRegistry como um objeto global se não estiver definido
-// Isso corrige o erro "messageRegistry is not defined" nas linhas 895 e outras
+// Garantir que o messageRegistry global está disponível
+// usando o que foi importado de messageRenderer.js
 if (!window.messageRegistry) {
-    logger.info('Inicializando messageRegistry global');
-    window.messageRegistry = new Map();
+    logger.info('Sincronizando messageRegistry com a janela global');
+    window.messageRegistry = messageRegistry;
 }
-// Usando uma referência local ao messageRegistry global
-const messageRegistry = window.messageRegistry;
 
 // Mapa para controlar o estado de streaming por conversa
 const streamingStates = new Map();

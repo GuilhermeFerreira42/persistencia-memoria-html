@@ -1,13 +1,21 @@
-
 // Importações necessárias
 import { toggleTheme } from './theme.js';
 import { toggleSidebar, initSidebar } from './sidebar.js';
 import { configureTextarea } from './textarea.js';
 
 export function configureEventListeners() {
+    console.log('[DEBUG] Configurando event listeners para botões de tema e sidebar');
+    
     const themeToggle = document.querySelector('.theme-toggle');
     const modelSelect = document.querySelector('.model-select');
     const headerSidebarToggle = document.querySelector('.header-sidebar-toggle');
+
+    // Verifica se os elementos foram encontrados
+    console.log('[DEBUG] Elementos encontrados:', {
+        themeToggle: !!themeToggle,
+        modelSelect: !!modelSelect,
+        headerSidebarToggle: !!headerSidebarToggle
+    });
 
     // Event Listeners
     themeToggle?.addEventListener('click', toggleTheme);

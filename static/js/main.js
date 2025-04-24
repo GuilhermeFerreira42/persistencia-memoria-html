@@ -24,6 +24,7 @@ import { streamingManager } from './modules/streamingManager.js';
 import { initializeTheme } from './theme.js';
 import { initSidebar } from './sidebar.js';
 import { initCommandMenu } from './commandMenu.js';
+import { configureEventListeners } from './events.js';
 
 // Estado global
 window.currentModel = 'gemma2:2b';
@@ -74,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar componentes
     initializeTheme();
     initSidebar();
+    configureEventListeners();
     
     // Configurar Socket.IO
     socket.on('connect', () => {
