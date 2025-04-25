@@ -1,7 +1,8 @@
 import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
 import { adicionarMensagem } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
-import { renderMessage, accumulateChunk, renderCompleteResponse, clearAccumulatedResponse, renderMessageChunk, completeMessage, messageRegistry } from '../messageRenderer.js';
+import { renderMessage, renderMessageChunk, completeMessage } from '../messageRenderer.js';
+import { messageRegistry } from '../modules/messageRegistry.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
 import { handleYoutubeCommand } from '../youtube-system/youtubeHandler.js';
 import { handleYoutubeResumoCommand } from '../youtube-system/youtubeResumoHandler.js';
@@ -9,11 +10,12 @@ import { logger } from '../utils/logger.js';
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
 
-// Garantir que o messageRegistry global está disponível
-// usando o que foi importado de messageRenderer.js
+// Verificar se o messageRegistry global está disponível
 if (!window.messageRegistry) {
-    logger.info('Sincronizando messageRegistry com a janela global');
-    window.messageRegistry = messageRegistry;
+    logger.info('Definindo messageRegistry global a partir do módulo importado');
+    window.messageRegistry = messageRegistry.messages || new Map();
+} else {
+    logger.debug('messageRegistry global já estava disponível');
 }
 
 // Mapa para controlar o estado de streaming por conversa
@@ -75,6 +77,7 @@ if (!window.socket) {
         
         logger.debug('Recebido chunk', { 
             conversationId: conversation_id,
+            messageId: message_id,
             chunkNumber: chunk_number,
             chunkSize: content?.length,
             timestamp: Date.now()
@@ -137,33 +140,20 @@ if (!window.socket) {
         // Atualizar o ID da mensagem em streaming para esta conversa
         streamingMessageIds.set(conversation_id, messageId);
 
-        // Usar o novo sistema de renderização com containers individuais
-        import('../messageRenderer.js').then(({ renderMessageContainer, accumulateChunk }) => {
-            // Renderizar ou atualizar o container da mensagem
-            renderMessageContainer({
-                content: streamingChunks.get(conversation_id),
-                conversationId: conversation_id,
-                role: 'assistant',
-                messageId: messageId,
-                isStreaming: true
-            });
-            
-            // Também acumular o chunk para referência
-            accumulateChunk(content, conversation_id);
-        }).catch(error => {
-            logger.error('Erro ao importar módulo de renderização', error);
-        });
+        // Usar o sistema unificado de renderização com messageRegistry
+        renderMessageChunk(messageId, content, conversation_id);
     });
 
     // Listener para resposta completa
     socket.on('response_complete', (data) => {
         logger.debug('Evento response_complete recebido', {
-            data,
+            messageId: data.message_id,
             conversaAtual: window.conversaAtual?.id,
-            streamingStates: Array.from(streamingStates.entries())
+            conversationId: data.conversation_id,
+            finalMessageId: streamingMessageIds.get(data.conversation_id) 
         });
 
-        const { conversation_id, total_chunks, message_id } = data;
+        const { conversation_id, total_chunks, message_id, complete_response } = data;
         if (!conversation_id) {
             logger.error('ID da conversa não fornecido na resposta completa');
             return;
@@ -175,59 +165,91 @@ if (!window.socket) {
                 atual: window.conversaAtual?.id,
                 recebido: conversation_id
             });
-            import('../messageRenderer.js').then(({ clearAccumulatedResponse }) => {
-                clearAccumulatedResponse(conversation_id);
-            }).catch(error => {
-                logger.error('Erro ao importar módulo de renderização', error);
-            });
-            
-            streamingStates.delete(conversation_id);
-            streamingChunks.delete(conversation_id);
-            streamingMessageIds.delete(conversation_id);
-            processedChunks.delete(conversation_id);
-            lastReceivedChunks.delete(conversation_id);
             return;
         }
 
+        // ID da mensagem de streaming que foi gerado no enviarMensagem
+        const streamingId = streamingMessageIds.get(conversation_id);
+        
+        // ID da mensagem recebido do servidor
+        const serverId = message_id;
+        
+        // Usar o ID consistente durante todo o ciclo
+        const finalMessageId = streamingId || serverId;
+        
+        logger.info('IDs de mensagem envolvidos na conclusão:', {
+            streamingId: streamingId,
+            serverId: serverId,
+            finalMessageId: finalMessageId
+        });
+        
+        // Verificar se existem elementos com esses IDs
+        const streamingElement = document.querySelector(`[data-message-id="${streamingId}"]`);
+        const serverElement = document.querySelector(`[data-message-id="${serverId}"]`);
+        
+        logger.debug('Elementos existentes:', {
+            streamingElement: streamingElement ? true : false,
+            serverElement: serverElement ? true : false
+        });
+
         // Remove estado de streaming
         const wasStreaming = streamingStates.delete(conversation_id);
-        const finalMessageId = message_id || streamingMessageIds.get(conversation_id) || `complete_${conversation_id}_${Date.now()}`;
         streamingMessageIds.delete(conversation_id);
         processedChunks.delete(conversation_id);
         lastReceivedChunks.delete(conversation_id);
         
         logger.debug('Estado de streaming removido', {
             conversationId: conversation_id,
-            wasStreaming,
-            totalChunks: total_chunks,
-            processedChunks: processedChunks.get(conversation_id)?.size || 0
+            messageId: finalMessageId,
+            wasStreaming: wasStreaming
         });
-
-        import('../messageRenderer.js').then(({ renderMessageContainer, clearAccumulatedResponse }) => {
-            // Usar o conteúdo acumulado como o conteúdo final
-            const finalContent = streamingChunks.get(conversation_id) || '';
-            
-            // Renderizar a mensagem final usando o mesmo ID para garantir continuidade
-            renderMessageContainer({
-                content: finalContent,
-                conversationId: conversation_id,
-                role: 'assistant',
-                messageId: finalMessageId,
-                isStreaming: false
+        
+        // Verificar se já existe uma mensagem completa para evitar duplicação
+        const existingCompleteMessage = document.querySelector(`.message.assistant:not(.streaming)[data-conversation-id="${conversation_id}"]:last-child`);
+        
+        if (existingCompleteMessage && existingCompleteMessage.dataset.messageId !== finalMessageId) {
+            logger.warn('Mensagem completa já existe, evitando duplicação', {
+                existingId: existingCompleteMessage.dataset.messageId,
+                finalMessageId: finalMessageId
             });
-
-            // Limpar a resposta acumulada
-            clearAccumulatedResponse(conversation_id);
-            streamingChunks.delete(conversation_id);
             
-            // Rolar para o final da conversa se estiver próximo do fundo
-            const chatContainer = document.querySelector('.chat-container');
-            if (chatContainer) {
-                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            // Se temos um elemento de streaming, vamos removê-lo para evitar duplicação
+            if (streamingElement) {
+                logger.info('Removendo elemento de streaming redundante', {
+                    streamingId: streamingId
+                });
+                streamingElement.remove();
             }
-        }).catch(error => {
-            logger.error('Erro ao importar módulo de renderização', error);
-        });
+            
+            return;
+        }
+        
+        // Finalizar a mensagem usando o messageRegistry
+        if (finalMessageId) {
+            // Obter o conteúdo completo acumulado para esta conversa
+            const completeContent = complete_response || streamingChunks.get(conversation_id) || '';
+            
+            logger.debug('Completando mensagem com conteúdo final', {
+                messageId: finalMessageId,
+                contentLength: completeContent.length,
+                hasCompleteResponse: !!complete_response
+            });
+            
+            // Finalizar a mensagem transformando o container de streaming em um container completo
+            try {
+                // Finalizar a mensagem passando os parâmetros corretos
+                completeMessage(finalMessageId, conversation_id, completeContent);
+                
+                // Limpar o conteúdo acumulado
+                streamingChunks.delete(conversation_id);
+            } catch (error) {
+                logger.error('Erro ao completar mensagem', {
+                    error: error.message,
+                    stack: error.stack,
+                    messageId: finalMessageId
+                });
+            }
+        }
     });
 } else {
     socket = window.socket;
@@ -488,10 +510,19 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
         existingPlaceholders.forEach(placeholder => placeholder.remove());
         
-        // Gerar um ID único para a mensagem de streaming
-        const messageId = `streaming_${conversationId}_${Date.now()}`;
+        // Gerar um ID único para a mensagem de streaming - FORMATO UUID V4
+        const messageId = 'msg_' + crypto.randomUUID();
         streamingMessageIds.set(conversationId, messageId);
-        logger.debug('ID de mensagem para streaming gerado', { messageId });
+        logger.debug('ID de mensagem para streaming gerado (UUID v4)', { messageId });
+        
+        // Verificar se já existe alguma mensagem com este ID
+        const existingElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (existingElement) {
+            logger.warn('Detectado elemento existente com mesmo ID (improvável)', {
+                messageId,
+                element: existingElement.outerHTML.substring(0, 100)
+            });
+        }
         
         // Adicionar mensagem de loading para o assistente
         adicionarMensagemStreaming(chatContainer, messageId, conversationId);
@@ -854,6 +885,26 @@ class ChatDebugger {
         console.debug(`[ChatDebug] ${eventType}:`, data);
     }
 
+    info(eventType, data) {
+        this.log(`INFO:${eventType}`, data);
+        console.info(`[ChatDebug-INFO] ${eventType}:`, data);
+    }
+    
+    debug(eventType, data) {
+        this.log(`DEBUG:${eventType}`, data);
+        console.debug(`[ChatDebug-DEBUG] ${eventType}:`, data);
+    }
+    
+    warn(eventType, data) {
+        this.log(`WARN:${eventType}`, data);
+        console.warn(`[ChatDebug-WARN] ${eventType}:`, data);
+    }
+    
+    error(eventType, data) {
+        this.log(`ERROR:${eventType}`, data);
+        console.error(`[ChatDebug-ERROR] ${eventType}:`, data);
+    }
+
     exportLogs() {
         const data = JSON.stringify(this.logs, null, 2);
         const blob = new Blob([data], { type: 'application/json' });
@@ -976,7 +1027,7 @@ setInterval(() => {
     try {
         chatDebugger.log('active_streams', {
             streamingMessages: Array.from(streamingMessages),
-            messageRegistry: Array.from(messageRegistry.keys())
+            messageRegistry: Array.from(messageRegistry.messages.keys())
         });
         
         // Verificar mensagens órfãs
@@ -990,12 +1041,12 @@ setInterval(() => {
             }
         });
         
-        logger.debug('Monitoramento de streams concluído', {
+        chatDebugger.debug('Monitoramento de streams concluído', {
             activeStreams: streamingMessages.size,
-            registrySize: messageRegistry.size
+            registrySize: messageRegistry.messages.size
         });
     } catch (error) {
-        logger.error('Erro no monitoramento de streams', { 
+        chatDebugger.error('Erro no monitoramento de streams', { 
             error: error.message,
             stack: error.stack
         });

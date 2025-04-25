@@ -1,6 +1,10 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
 import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
 import { logger } from './utils/logger.js';
+import { messageRegistry } from './modules/messageRegistry.js';
+
+// Exportar o messageRegistry para retrocompatibilidade
+export { messageRegistry };
 
 /**
  * Renderiza uma mensagem formatada com Markdown usando marked.js e highlight.js
@@ -389,94 +393,172 @@ function processCodeChunk(chunk) {
 }
 
 /**
- * Renderiza um chunk de mensagem em streaming
- * @param {string} chunk - Chunk de texto para renderizar
- * @returns {string} HTML formatado
- */
-export function renderStreamingMessage(chunk) {
-    if (!chunk) {
-        logger.debug('Chunk vazio recebido para renderização');
-        return '';
-    }
-
-    logger.debug('Renderizando chunk de streaming', {
-        tamanho: chunk.length,
-        preview: chunk.substring(0, 50) + '...'
-    });
-
-    try {
-        // Configurar marked para streaming
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            tables: true,
-            headerIds: false,
-            mangle: false,
-            sanitize: false,
-            highlight: (code, lang) => {
-                if (lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, { language: lang }).value;
-                    } catch (e) {
-                        logger.debug('Erro ao destacar código:', e);
-                    }
-                }
-                return code;
-            }
-        });
-
-        // Renderizar o chunk com marked
-        const htmlContent = marked.parse(chunk);
-
-        // Sanitizar o HTML mantendo apenas tags necessárias
-        const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
-            ALLOWED_TAGS: [
-                'pre', 'code', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                'ul', 'ol', 'li', 'blockquote', 'a', 'strong', 'em', 'del', 'br',
-                'table', 'thead', 'tbody', 'tr', 'th', 'td'
-            ],
-            ALLOWED_ATTR: ['class', 'href', 'target', 'data-language']
-        });
-
-        // Adicionar classes para animação
-        return `<div class="streaming-content">${sanitizedHtml}</div>`;
-    } catch (error) {
-        logger.error('Erro ao renderizar chunk:', error);
-        return `<p>${escapeHTML(chunk)}</p>`;
-    }
-}
-
-// Registro global de mensagens
-// Transformando o messageRegistry em uma variável exportada para ser acessível de outros módulos
-export const messageRegistry = window.messageRegistry || new Map();
-
-// Garantir que o messageRegistry esteja disponível globalmente para compatibilidade
-if (!window.messageRegistry) {
-    window.messageRegistry = messageRegistry;
-    console.log('[INFO] messageRegistry inicializado globalmente');
-}
-
-/**
- * Cria um novo container para uma mensagem
- * @param {string} messageId - ID único da mensagem
+ * Cria um novo container para mensagem
+ * @param {string} messageId - ID da mensagem
  * @param {string} conversationId - ID da conversa
  * @returns {HTMLElement} Container criado
  */
 const createContainer = (messageId, conversationId) => {
-    const container = document.createElement('div');
-    container.className = 'message assistant streaming';
-    container.dataset.messageId = messageId;
-    container.dataset.conversationId = conversationId;
-    
     const chatContainer = document.querySelector('.chat-container');
-    if (chatContainer) {
-        chatContainer.appendChild(container);
-    } else {
-        logger.error('Container de chat não encontrado', { messageId });
+    if (!chatContainer) {
+        logger.error('Container de chat não encontrado');
         return null;
     }
     
+    // Verificar se já existe um container para essa mensagem
+    let container = document.querySelector(`[data-message-id="${messageId}"]`);
+    
+    if (container) {
+        logger.debug(`Container existente encontrado para mensagem ${messageId}`);
+        return container;
+    }
+    
+    // Criar novo container
+    container = document.createElement('div');
+    container.className = 'message assistant streaming';
+    container.dataset.messageId = messageId;
+    container.dataset.conversationId = conversationId;
+    container.dataset.createdAt = Date.now().toString();
+    
+    // Adicionar estrutura interna completa
+    container.innerHTML = `
+        <div class="message-content"></div>
+        <div class="message-actions">
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                <i class="fas fa-copy"></i>
+            </button>
+            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+    `;
+    
+    chatContainer.appendChild(container);
+    
+    logger.debug(`Novo container criado para mensagem ${messageId}`);
+    
     return container;
+};
+
+/**
+ * Renderiza um chunk de mensagem em streaming
+ * @param {string} messageId - ID único da mensagem
+ * @param {string} chunk - Chunk de texto a ser renderizado
+ * @param {string} conversationId - ID da conversa
+ */
+export const renderMessageChunk = (messageId, chunk, conversationId) => {
+    if (!messageId) {
+        logger.error('Tentativa de renderizar chunk sem messageId');
+        return;
+    }
+    
+    logger.debug('Renderizando chunk', { 
+        messageId, 
+        conversationId,
+        chunkSize: chunk?.length || 0
+    });
+    
+    // Verificar se a conversa é a atual
+    if (conversationId && conversationId !== window.conversaAtual?.id) {
+        logger.debug('Ignorando chunk de outra conversa', {
+            atual: window.conversaAtual?.id,
+            recebido: conversationId
+        });
+        return;
+    }
+    
+    // Verificar se já existe uma mensagem completa recente para evitar duplo rendering
+    const existingCompleteMessages = document.querySelectorAll(`.message.assistant.complete[data-conversation-id="${conversationId}"], .message.assistant:not(.streaming)[data-conversation-id="${conversationId}"]`);
+    if (existingCompleteMessages.length > 0) {
+        const lastMessage = existingCompleteMessages[existingCompleteMessages.length - 1];
+        const lastMessageTimestamp = lastMessage.dataset.createdAt || '0';
+        const now = Date.now();
+        const age = now - parseInt(lastMessageTimestamp, 10);
+        
+        // Se existe uma mensagem completa criada nos últimos 2 segundos
+        if (age < 2000) {
+            logger.warn('Ignorando chunk para evitar duplicação - mensagem completa recente detectada', { 
+                messageId,
+                completeMessageId: lastMessage.dataset.messageId,
+                age: age + 'ms'
+            });
+            return;
+        }
+    }
+    
+    // Verificar se já existem múltiplos containers com o mesmo ID de mensagem
+    const duplicateContainers = document.querySelectorAll(`[data-message-id="${messageId}"]`);
+    if (duplicateContainers.length > 1) {
+        logger.warn('Detectados múltiplos containers com mesmo messageId', {
+            messageId,
+            count: duplicateContainers.length
+        });
+        
+        // Manter apenas o mais recente, remover os outros
+        const containersArray = Array.from(duplicateContainers);
+        containersArray.sort((a, b) => {
+            const aTime = parseInt(a.dataset.createdAt || '0', 10);
+            const bTime = parseInt(b.dataset.createdAt || '0', 10);
+            return bTime - aTime; // Ordenar do mais recente para o mais antigo
+        });
+        
+        // Manter o primeiro (mais recente) e remover os outros
+        for (let i = 1; i < containersArray.length; i++) {
+            logger.info('Removendo container duplicado', {
+                messageId,
+                index: i,
+                createdAt: containersArray[i].dataset.createdAt
+            });
+            containersArray[i].remove();
+        }
+    }
+    
+    // Verificar e registrar a mensagem no messageRegistry
+    let entry = messageRegistry.getMessage(messageId);
+    
+    if (!entry) {
+        entry = messageRegistry.registerMessage(messageId, {
+            conversationId,
+            content: ''
+        });
+        logger.debug('Nova entrada criada no registro para mensagem', { messageId });
+    }
+    
+    // Adicionar o chunk ao conteúdo acumulado
+    messageRegistry.addChunk(messageId, chunk);
+    
+    // Obter o container da mensagem
+    let container = entry.container;
+    
+    if (!container) {
+        // Verificar se já existe um container para esta mensagem no DOM
+        container = document.querySelector(`[data-message-id="${messageId}"]`);
+        
+        if (container) {
+            logger.debug('Container existente encontrado no DOM', { messageId });
+            entry.container = container;
+        } else {
+            // Criar novo container se não existir
+            logger.debug('Criando novo container para mensagem', { messageId });
+            container = createContainer(messageId, conversationId);
+            entry.container = container;
+        }
+    } else if (!document.body.contains(container)) {
+        // Se o container existe no registro mas não está no DOM
+        logger.warn('Container existe no registro mas não no DOM, recriando', { messageId });
+        container = createContainer(messageId, conversationId);
+        entry.container = container;
+    }
+    
+    // Renderizar o conteúdo acumulado
+    renderContent(entry);
+    
+    // Configurar limpeza automática
+    if (!entry.cleanupTimer) {
+        entry.cleanupTimer = setTimeout(() => {
+            cleanupOrphan(messageId);
+        }, 10000);
+    }
 };
 
 /**
@@ -485,8 +567,34 @@ const createContainer = (messageId, conversationId) => {
  */
 const renderContent = (entry) => {
     try {
-        const html = DOMPurify.sanitize(marked.parse(entry.content + '<span class="streaming-cursor">█</span>'));
-        entry.container.innerHTML = `<div class="message-content">${html}</div>`;
+        // Preparar o conteúdo com marcador de cursor para streaming
+        const htmlContent = marked.parse(entry.content + '<span class="streaming-cursor">█</span>');
+        const sanitizedHtml = DOMPurify.sanitize(htmlContent);
+        
+        // Obter o elemento de conteúdo
+        const contentElement = entry.container.querySelector('.message-content');
+        
+        if (contentElement) {
+            // Apenas atualizar o conteúdo, mantendo a estrutura
+            contentElement.innerHTML = sanitizedHtml;
+        } else {
+            // Se não houver elemento de conteúdo, criar a estrutura completa
+            logger.warn('Elemento message-content não encontrado, recriando estrutura', { 
+                messageId: entry.id || entry.container.dataset.messageId 
+            });
+            
+            entry.container.innerHTML = `
+                <div class="message-content">${sanitizedHtml}</div>
+                <div class="message-actions">
+                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            `;
+        }
         
         // Rolagem suave para o novo conteúdo
         requestAnimationFrame(() => {
@@ -512,110 +620,142 @@ const renderContent = (entry) => {
  */
 const cleanupOrphan = (messageId) => {
     logger.debug('Verificando container órfão', { messageId });
-    const entry = messageRegistry.get(messageId);
+    const entry = messageRegistry.getMessage(messageId);
     
-    if (entry && (!entry.container.textContent.trim() || !document.body.contains(entry.container))) {
+    if (entry && (!entry.container || !entry.container.textContent.trim() || !document.body.contains(entry.container))) {
         logger.info('Removendo container órfão', { messageId });
-        if (document.body.contains(entry.container)) {
+        if (entry.container && document.body.contains(entry.container)) {
             entry.container.remove();
         }
-        messageRegistry.delete(messageId);
+        messageRegistry.removeMessage(messageId);
     }
 };
 
 /**
- * Renderiza um chunk de mensagem
+ * Finaliza a mensagem após conclusão do streaming
  * @param {string} messageId - ID único da mensagem
- * @param {string} chunk - Conteúdo do chunk
  * @param {string} conversationId - ID da conversa
+ * @param {string} content - Conteúdo final da mensagem
  */
-export const renderMessageChunk = (messageId, chunk, conversationId) => {
-    // Verificar se precisamos criar uma nova entrada ou atualizar uma existente
-    if (!messageRegistry.has(messageId)) {
-        logger.info('Inicializando entrada no messageRegistry', { messageId, conversationId });
-        const container = createContainer(messageId, conversationId);
-        if (!container) return;
+export const completeMessage = (messageId, conversationId, content) => {
+    try {
+        logger.debug('Completando mensagem', { messageId, conversationId });
         
-        messageRegistry.set(messageId, { 
-            content: '', 
-            rendered: false,
-            container,
-            conversationId,
-            timer: setTimeout(() => cleanupOrphan(messageId), 30000)
-        });
-    }
-    
-    // Acumular o conteúdo e atualizar a renderização
-    const entry = messageRegistry.get(messageId);
-    entry.content += chunk;
-    
-    logger.debug('Conteúdo acumulado', { 
-        messageId, 
-        totalSize: entry.content.length,
-        conversationId
-    });
-    
-    renderContent(entry);
-    
-    // Verificar duplicação no DOM
-    const containers = document.querySelectorAll(`[data-message-id="${messageId}"]`);
-    if (containers.length > 1) {
-        logger.warn('Múltiplos contêineres detectados', { 
-            messageId, 
-            count: containers.length 
-        });
-        
-        // Manter apenas o último container
-        for (let i = 0; i < containers.length - 1; i++) {
-            containers[i].remove();
+        // Verificar se já existe uma mensagem completa recente para evitar duplicação
+        const existingCompleteMessages = document.querySelectorAll(`.message.assistant.complete[data-conversation-id="${conversationId}"], .message.assistant:not(.streaming)[data-conversation-id="${conversationId}"]`);
+        if (existingCompleteMessages.length > 0) {
+            const lastMessage = existingCompleteMessages[existingCompleteMessages.length - 1];
+            
+            // Não completar se o conteúdo for muito similar
+            if (lastMessage.dataset.messageId !== messageId) {
+                const lastContent = lastMessage.querySelector('.message-content')?.textContent || '';
+                
+                // Se o início do conteúdo é similar, pode ser duplicação
+                if (content && lastContent && 
+                    content.substring(0, 50).trim() === lastContent.substring(0, 50).trim()) {
+                    
+                    logger.warn('Evitando completar mensagem duplicada', {
+                        messageId,
+                        existingId: lastMessage.dataset.messageId,
+                        similarity: 'primeiros 50 caracteres iguais'
+                    });
+                    
+                    // Remover o container de streaming para não deixar duplicado
+                    const streamingContainer = document.querySelector(`[data-message-id="${messageId}"]`);
+                    if (streamingContainer) {
+                        logger.info('Removendo container de streaming redundante', { messageId });
+                        streamingContainer.remove();
+                    }
+                    
+                    return;
+                }
+            }
         }
-    }
-};
-
-/**
- * Finaliza uma mensagem
- * @param {string} messageId - ID da mensagem a ser finalizada
- */
-export const completeMessage = (messageId) => {
-    logger.debug('Finalizando mensagem', { messageId });
-    const entry = messageRegistry.get(messageId);
-    
-    if (entry) {
-        clearTimeout(entry.timer);
-        const cursor = entry.container.querySelector('.streaming-cursor');
-        if (cursor) cursor.remove();
         
-        // Marcar como mensagem completa
+        // Usar messageRegistry para obter a entrada da mensagem
+        const entry = messageRegistry.getMessage(messageId);
+        
+        if (!entry || !entry.container) {
+            logger.error('Container não encontrado para completar mensagem', { messageId, conversationId });
+            return;
+        }
+        
+        // Verificar duplicação com base no conteúdo
+        const existingEntries = Array.from(messageRegistry.messages.values())
+            .filter(msg => msg.id !== messageId && msg.complete && msg.conversationId === conversationId);
+        
+        for (const existingEntry of existingEntries) {
+            // Comparar primeiros 50 caracteres
+            if (existingEntry.content && content &&
+                existingEntry.content.substring(0, 50).trim() === content.substring(0, 50).trim()) {
+                
+                logger.warn('Conteúdo similar detectado em mensagem existente', {
+                    messageId,
+                    existingId: existingEntry.id
+                });
+                
+                // Apenas logamos, pois pode ser uma resposta legitimamente similar
+                break;
+            }
+        }
+        
+        // Remover a classe de streaming
         entry.container.classList.remove('streaming');
         entry.container.classList.add('complete');
+        entry.container.dataset.completedAt = Date.now().toString();
         
-        // Adicionar botões de ação
-        const content = entry.container.querySelector('.message-content');
-        if (content) {
-            const actions = document.createElement('div');
-            actions.className = 'message-actions';
-            actions.innerHTML = `
-                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                    <i class="fas fa-copy"></i>
-                </button>
-                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                    <i class="fas fa-redo"></i>
-                </button>
-            `;
-            entry.container.appendChild(actions);
+        // Preservar os botões de ação
+        const actionsElement = entry.container.querySelector('.message-actions');
+        
+        // Atualizar o conteúdo da mensagem no registro
+        entry.content = content;
+        
+        // Obter o elemento de conteúdo
+        const contentElement = entry.container.querySelector('.message-content');
+        
+        if (contentElement) {
+            // Atualizar apenas o conteúdo sem a cursor de streaming
+            contentElement.innerHTML = DOMPurify.sanitize(marked.parse(content));
+            logger.debug('Conteúdo atualizado mantendo estrutura', { messageId });
+        } else {
+            // Se não existir, criar a estrutura completa
+            logger.warn('Elemento message-content não encontrado ao completar mensagem', { messageId });
+            
+            // Preservar a estrutura original com o conteúdo atualizado
+            entry.container.innerHTML = `<div class="message-content">${DOMPurify.sanitize(marked.parse(content))}</div>`;
+            
+            // Re-adicionar os botões de ação se já existiam
+            if (actionsElement) {
+                entry.container.appendChild(actionsElement);
+                logger.debug('Botões de ação readicionados', { messageId });
+            } else {
+                // Criar botões de ação padrão
+                const newActions = document.createElement('div');
+                newActions.className = 'message-actions';
+                newActions.innerHTML = `
+                    <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                `;
+                entry.container.appendChild(newActions);
+                logger.debug('Novos botões de ação adicionados', { messageId });
+            }
         }
         
-        logger.info('Mensagem finalizada com sucesso', { 
-            messageId, 
-            contentSize: entry.content.length 
-        });
+        // Marcar como completa no messageRegistry
+        messageRegistry.completeMessage(messageId);
         
-        // Remover do registry depois de um tempo
-        setTimeout(() => {
-            messageRegistry.delete(messageId);
-        }, 1000);
-    } else {
-        logger.warn('Tentativa de finalizar mensagem não registrada', { messageId });
+        logger.info('Mensagem completada com sucesso', { messageId, conversationId });
+    } catch (error) {
+        logger.error('Erro ao completar mensagem', { 
+            error: error.message, 
+            stack: error.stack,
+            messageId, 
+            conversationId 
+        });
     }
 };
 

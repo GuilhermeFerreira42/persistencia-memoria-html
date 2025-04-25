@@ -1,37 +1,7 @@
 import { escapeHTML } from './chatUtils.js';
-import { renderMessage, renderStreamingMessage } from '../messageRenderer.js';
+import { renderMessage, renderMessageChunk, messageRegistry } from '../messageRenderer.js';
 import { melhorarBlocosCodigo } from './chatUtils.js';
-
-// Sistema de logging
-const logger = {
-    debug: (message, data = {}) => {
-        //console.log(`[DEBUG] ${message}`, data);
-        // Enviar log para o backend
-        fetch('/log-frontend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                level: 'debug',
-                message,
-                data,
-                timestamp: new Date().toISOString()
-            })
-        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
-    },
-    error: (message, error = null) => {
-        console.error(`[ERRO] ${message}`, error);
-        fetch('/log-frontend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                level: 'error',
-                message,
-                error: error ? error.toString() : null,
-                timestamp: new Date().toISOString()
-            })
-        }).catch(err => console.error('[ERRO] Falha ao salvar log:', err));
-    }
-};
+import { logger } from '../utils/logger.js';
 
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     welcomeScreen.style.display = 'none';
@@ -243,43 +213,70 @@ export function adicionarMensagemStreaming(chatContainer, messageId, conversatio
         logger.error('Container de chat não encontrado');
         return null;
     }
-
-    // Verificar se já existe uma mensagem de streaming para esta conversa
-    const existingStreaming = chatContainer.querySelector(`.message.streaming-message[data-conversation-id="${conversationId}"]`);
-    if (existingStreaming) {
-        logger.debug('Mensagem de streaming já existe, reutilizando', {
-            existingId: existingStreaming.dataset.messageId,
-            newId: messageId
-        });
-        return existingStreaming;
+    
+    // Verificar se já existe um container com este ID
+    let existingContainer = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (existingContainer) {
+        logger.debug('Container com mesmo ID já existe, reutilizando', { messageId });
+        return existingContainer;
     }
 
+    // Verificar se já existe uma mensagem completa recente desta conversa
+    const existingCompleteMessages = document.querySelectorAll(`.message.assistant.complete[data-conversation-id="${conversationId}"], .message.assistant:not(.streaming)[data-conversation-id="${conversationId}"]`);
+    if (existingCompleteMessages.length > 0) {
+        const lastMessage = existingCompleteMessages[existingCompleteMessages.length - 1];
+        const lastCompletedAt = parseInt(lastMessage.dataset.completedAt || '0', 10);
+        const now = Date.now();
+        
+        // Se a mensagem foi completada nos últimos 2 segundos
+        if (now - lastCompletedAt < 2000) {
+            logger.warn('Mensagem completa recente detectada, evitando criar nova mensagem de streaming', {
+                messageId,
+                existingId: lastMessage.dataset.messageId,
+                age: now - lastCompletedAt + 'ms'
+            });
+            return lastMessage;
+        }
+    }
+
+    // Verificar se já existe uma mensagem com este ID no registry
+    if (messageRegistry.hasMessage(messageId)) {
+        const entry = messageRegistry.getMessage(messageId);
+        if (entry.container && document.body.contains(entry.container)) {
+            logger.debug('Mensagem já existe no registry, reutilizando container', { messageId });
+            return entry.container;
+        }
+    }
+
+    // Criar novo container de mensagem
     const mensagemDiv = document.createElement('div');
-    mensagemDiv.className = 'message assistant streaming-message fade-in';
+    mensagemDiv.className = 'message assistant streaming fade-in';
     mensagemDiv.dataset.messageId = messageId;
     mensagemDiv.dataset.conversationId = conversationId;
-    mensagemDiv.dataset.streamingStartTime = Date.now();
+    mensagemDiv.dataset.createdAt = Date.now().toString();
     
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
-    messageContent.dataset.rawContent = '';
-    messageContent.dataset.lastUpdateTime = Date.now();
-    
-    const messageActions = document.createElement('div');
-    messageActions.className = 'message-actions';
-    messageActions.innerHTML = `
-        <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-            <i class="fas fa-copy"></i>
-        </button>
-        <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-            <i class="fas fa-redo"></i>
-        </button>
+    // Estrutura interna da mensagem
+    mensagemDiv.innerHTML = `
+        <div class="message-content"></div>
+        <div class="message-actions">
+            <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
+                <i class="fas fa-copy"></i>
+            </button>
+            <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
     `;
 
-    mensagemDiv.appendChild(messageContent);
-    mensagemDiv.appendChild(messageActions);
-
     chatContainer.appendChild(mensagemDiv);
+    
+    // Registrar no messageRegistry
+    messageRegistry.registerMessage(messageId, {
+        conversationId,
+        content: '',
+        container: mensagemDiv,
+        created: Date.now()
+    });
     
     // Forçar reflow e aplicar transição
     void mensagemDiv.offsetHeight;
@@ -295,58 +292,83 @@ export function adicionarMensagemStreaming(chatContainer, messageId, conversatio
 }
 
 export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = true) {
-    logger.debug('Atualizando mensagem de streaming', { messageId, chunkSize: chunk?.length });
-
-    const mensagemDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
-    if (!mensagemDiv) {
-        logger.error('Elemento de mensagem não encontrado', { messageId });
-        return;
-    }
-
-    const messageContent = mensagemDiv.querySelector('.message-content');
-    if (!messageContent) {
-        logger.error('Conteúdo da mensagem não encontrado', { messageId });
-        return;
-    }
-
-    // Acumular o chunk no dataset
-    const currentContent = messageContent.dataset.rawContent || '';
-    const newContent = currentContent + chunk;
-    messageContent.dataset.rawContent = newContent;
-    messageContent.dataset.lastUpdateTime = Date.now();
-
-    // Renderizar o novo conteúdo
-    if (renderMarkdown) {
-        // Remover classe visible temporariamente para forçar reflow
-        messageContent.classList.remove('visible');
-        
-        // Renderizar o novo conteúdo
-        messageContent.innerHTML = renderStreamingMessage(newContent);
-        
-        // Forçar reflow
-        void messageContent.offsetHeight;
-        
-        // Adicionar classe visible com requestAnimationFrame para garantir animação
-        requestAnimationFrame(() => {
-            messageContent.classList.add('visible');
-        });
-    } else {
-        messageContent.innerHTML = `<p>${escapeHTML(newContent)}</p>`;
-    }
-
-    // Rolar para o final se necessário
-    const chatContainer = mensagemDiv.closest('.chat-container');
-    if (chatContainer && isNearBottom(chatContainer)) {
-        chatContainer.scrollTo({
-            top: chatContainer.scrollHeight,
-            behavior: 'smooth'
-        });
-    }
-
-    // Melhorar blocos de código após a atualização
-    requestAnimationFrame(() => {
-        melhorarBlocosCodigo(mensagemDiv);
+    console.log('[DEBUG] Atualizando mensagem em streaming:', {
+        messageId,
+        chunkSize: chunk?.length,
+        useMarkdown: renderMarkdown
     });
+    
+    if (!messageId || !chunk) {
+        console.error('[ERRO] ID de mensagem ou chunk inválido');
+        return false;
+    }
+    
+    // Obter conversa atual
+    const conversationId = window.conversaAtual?.id;
+    if (!conversationId) {
+        console.warn('[AVISO] Tentando atualizar streaming sem conversa ativa');
+        return false;
+    }
+    
+    // Verificar se a mensagem existe
+    const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+    if (!messageDiv) {
+        console.error('[ERRO] Mensagem não encontrada para atualização:', messageId);
+        return false;
+    }
+    
+    // Verificar se pertence à conversa atual
+    const messageConversationId = messageDiv.dataset.conversationId;
+    if (messageConversationId && messageConversationId !== conversationId) {
+        console.warn('[AVISO] Tentativa de atualizar mensagem de outra conversa', {
+            messageConversationId,
+            currentConversationId: conversationId
+        });
+        return false;
+    }
+    
+    try {
+        // Obter container de conteúdo
+        const messageContent = messageDiv.querySelector('.message-content');
+        if (!messageContent) {
+            console.error('[ERRO] Container de conteúdo não encontrado');
+            return false;
+        }
+        
+        // Acumular conteúdo no registro
+        const entry = messageRegistry.getMessage(messageId);
+        if (!entry) {
+            // Registrar no messageRegistry se ainda não estiver lá
+            messageRegistry.registerMessage(messageId, {
+                conversationId,
+                content: chunk,
+                container: messageDiv
+            });
+        } else {
+            // Adicionar o novo chunk
+            messageRegistry.addChunk(messageId, chunk);
+        }
+        
+        // Obter conteúdo acumulado
+        const newContent = messageRegistry.getMessage(messageId)?.content || '';
+        
+        // Renderizar com Markdown se necessário
+        if (renderMarkdown) {
+            // Usar diretamente renderMessageChunk para atualizar o conteúdo
+            renderMessageChunk(messageId, chunk, conversationId);
+        } else {
+            // Atualização simples sem Markdown
+            messageContent.textContent += chunk;
+        }
+        
+        // Verificar scroll
+        updateStreamingScroll(messageDiv);
+        
+        return true;
+    } catch (error) {
+        console.error('[ERRO] Falha ao atualizar mensagem streaming:', error);
+        return false;
+    }
 }
 
 // Adicionar CSS para os novos elementos
@@ -446,5 +468,39 @@ function updateStreamingMessage(messageId, content) {
     if (contentElement) {
         contentElement.innerHTML = content;
         scrollToBottom();
+    }
+}
+
+// Função para gerenciar o scroll durante o streaming
+export function updateStreamingScroll(messageElement) {
+    if (!messageElement) return;
+    
+    // Verificar se o container de chat existe
+    const chatContainer = document.querySelector('.chat-container');
+    if (!chatContainer) return;
+    
+    // Calcular se o usuário está próximo do final
+    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+    
+    // Se estiver próximo do final (200px), scroll automático
+    if (distanceToBottom < 200) {
+        // Usar scrollIntoView para scroll suave
+        messageElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'end'
+        });
+        
+        // Log para debug
+        logger.debug('Rolagem automática aplicada', {
+            messageId: messageElement.dataset?.messageId,
+            distanceToBottom
+        });
+    } else {
+        // Se o usuário está longe do final, podemos mostrar um indicador
+        // de novas mensagens que o usuário pode clicar para rolar
+        logger.debug('Usuário está longe do final, não rolando automaticamente', {
+            distanceToBottom
+        });
     }
 }

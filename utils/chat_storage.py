@@ -183,7 +183,7 @@ def get_conversation_history():
         print(f"[ERRO-PYTHON] Erro ao carregar histórico: {str(e)}")
         return []
 
-def add_message_to_conversation(conversation_id, content, role):
+def add_message_to_conversation(conversation_id, content, role, message_id=None):
     """
     Adiciona uma mensagem a uma conversa existente.
     Se a conversa não existir, cria uma nova.
@@ -192,6 +192,7 @@ def add_message_to_conversation(conversation_id, content, role):
         conversation_id (str): ID da conversa
         content (str): Conteúdo da mensagem
         role (str): Papel do autor da mensagem ('user' ou 'assistant')
+        message_id (str, optional): ID único da mensagem. Se não fornecido, gera um novo.
         
     Returns:
         str: ID único da mensagem adicionada
@@ -209,7 +210,10 @@ def add_message_to_conversation(conversation_id, content, role):
             "messages": []
         }
     
-    message_id = str(uuid.uuid4())  # Gera um ID único no formato de string
+    # Usar o message_id fornecido ou gerar um novo
+    if message_id is None:
+        message_id = str(uuid.uuid4())  # Gera um ID único no formato de string
+    
     message = {
         "message_id": message_id,
         "role": role,

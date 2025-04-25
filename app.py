@@ -155,166 +155,121 @@ def get_conversation_batch(conversation_id, offset, limit):
 @app.route('/stream')
 def stream():
     """
-    Endpoint para streaming de respostas usando Server-Sent Events (SSE).
-    Permite enviar respostas da IA em tempo real para o cliente, 
-    pedaço por pedaço, sem esperar a resposta completa.
+    [DEPRECATED] Endpoint para streaming de respostas usando Server-Sent Events (SSE).
+    Esta funcionalidade foi substituída pelo Socket.IO para melhor gerenciamento de eventos.
     """
-    conversation_id = request.args.get('conversation_id')
-    message = request.args.get('message', '')
-    
-    if not conversation_id:
-        return jsonify({'error': 'ID de conversa não fornecido'}), 400
+    return jsonify({'error': 'Este endpoint foi desativado. Use Socket.IO para streaming.'}), 410
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    """Endpoint para enviar mensagens para a IA e receber respostas"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '')
+        conversation_id = data.get('conversation_id')
+        message_id = data.get('message_id', str(uuid4()))  # Usar o messageId enviado ou gerar um novo UUID
         
-    # print(f"[DEBUG] Iniciando streaming para conversa: {conversation_id}")
+        if not message:
+            return jsonify({'error': 'Mensagem vazia'}), 400
+            
+        if not conversation_id:
+            conversation_id = create_new_conversation()
+            
+        logger.info(f"Processando mensagem para conversa: {conversation_id}, message_id: {message_id}")
+        
+        # Adicionar a mensagem do usuário ao histórico com o message_id explícito
+        user_message_id = add_message_to_conversation(conversation_id, message, "user", message_id=f"user_{message_id}")
+        
+        # Verificar se é um comando especial
+        if message.lower().startswith('/youtube '):
+            # Comando para processar vídeo do YouTube
+            url = message[9:].strip()
+            logger.info(f"Processando comando YouTube para URL: {url}")
+            process_youtube_background(url, conversation_id)
+            return jsonify({'status': 'processing_youtube', 'conversation_id': conversation_id})
+            
+        elif message.lower().startswith('/youtube_resumo '):
+            # Comando para resumir vídeo do YouTube
+            url = message[16:].strip()
+            logger.info(f"Processando comando YouTube Resumo para URL: {url}")
+            process_youtube_resumo_background(url, conversation_id)
+            return jsonify({'status': 'processing_youtube_resumo', 'conversation_id': conversation_id})
+        
+        # É uma mensagem normal - processa com Socket.IO para streaming
+        process_streaming_response(message, conversation_id, message_id)
+        
+        return jsonify({
+            'status': 'streaming',
+            'conversation_id': conversation_id,
+            'message_id': message_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar mensagem: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+# Nova função para processar respostas em streaming via Socket.IO
+def process_streaming_response(message, conversation_id, message_id):
+    """
+    Processa uma mensagem e envia a resposta em streaming via Socket.IO
     
-    def event_stream():
+    Args:
+        message: Texto da mensagem do usuário
+        conversation_id: ID da conversa
+        message_id: ID único da mensagem
+    """
+    logger.info(f"Iniciando streaming via Socket.IO para conversa {conversation_id}, mensagem {message_id}")
+    
+    # Inicia o processamento em background
+    def background_task():
         accumulated_response = ""
+        chunk_number = 0
+        
         try:
             for part in process_with_ai_stream(message, conversation_id):
                 if part:
                     accumulated_response += part
-                    # Emitir apenas para a conversa atual
-                    socketio.emit('message_chunk', {
-                        'content': part,
-                        'conversation_id': conversation_id
-                    }, room=conversation_id)
-                    yield f"data: {part}\n\n"
-            
-            # Salvar apenas a resposta final
-            if accumulated_response:
-                add_message_to_conversation(conversation_id, accumulated_response, "assistant")
-                # Notificar que a resposta está completa
-                socketio.emit('response_complete', {
-                    'conversation_id': conversation_id
-                }, room=conversation_id)
-                # Notificar que a conversa foi atualizada
-                # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
-                socketio.emit('conversation_updated', {
-                    'conversation_id': conversation_id
-                })
-                # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
-        except Exception as e:
-            print(f"[ERRO] Erro durante streaming: {str(e)}")
-            # Em caso de erro, notificar o cliente
-            socketio.emit('stream_error', {
-                'conversation_id': conversation_id,
-                'error': str(e)
-            }, room=conversation_id)
-                
-    response = Response(event_stream(), content_type="text/event-stream")
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'  # Para Nginx
-    return response
-
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    """
-    Endpoint para enviar uma mensagem para a IA.
-    Cria uma nova conversa se necessário, salva a mensagem do usuário
-    e processa a resposta da IA em streaming.
-    """
-    data = request.json
-    message = data.get('message', '')
-    conversation_id = data.get('conversation_id')
-    
-    logger.info(f"Mensagem recebida para envio - conversação: {conversation_id}")
-    logger.debug(f"Conteúdo da mensagem: {message[:50]}{'...' if len(message) > 50 else ''}")
-
-    if not conversation_id:
-        logger.warning("ID da conversa não fornecido, criando nova conversa")
-        conversation_id = create_new_conversation()
-        logger.info(f"Nova conversa criada com ID: {conversation_id}")
-
-    # Gerar um ID único para a mensagem da IA
-    message_id = str(uuid4())
-    logger.debug(f"ID de mensagem gerado: {message_id}")
-    
-    # Inicializar cache para esta mensagem
-    if conversation_id not in streaming_messages:
-        streaming_messages[conversation_id] = {}
-    streaming_messages[conversation_id][message_id] = ""
-
-    # Salvar mensagem do usuário
-    add_message_to_conversation(conversation_id, message, "user")
-    logger.debug(f"Mensagem do usuário salva para conversa: {conversation_id}")
-    
-    def generate_streamed_response():
-        chunks_sent = 0
-        total_length = 0
-        
-        try:
-            logger.debug(f"Iniciando streaming para conversa: {conversation_id}")
-            
-            for part in process_with_ai_stream(message, conversation_id):
-                chunks_sent += 1
-                if part:
-                    # Acumular no cache
-                    streaming_messages[conversation_id][message_id] += part
-                    total_length += len(part)
-                    
-                    # Emitir via Socket.IO para cliente específico
+                    # Emitir apenas para a conversa atual com messageId consistente
                     socketio.emit('message_chunk', {
                         'content': part,
                         'conversation_id': conversation_id,
-                        'chunk_number': chunks_sent,
-                        'message_id': message_id
+                        'message_id': message_id,
+                        'chunk_number': chunk_number
                     }, room=conversation_id)
-                    
-                    logger.debug(f"Chunk {chunks_sent} enviado: {len(part)} caracteres")
-                    
-                    # Enviar via SSE também
-                    yield f"data: {json.dumps({'content': part, 'conversation_id': conversation_id, 'chunk_number': chunks_sent})}\n\n"
+                    chunk_number += 1
             
-            # Resposta completa
-            full_response = streaming_messages[conversation_id][message_id]
-            
-            if full_response:
-                logger.info(f"Streaming concluído: {chunks_sent} chunks, {total_length} caracteres totais")
-                
-                # Salvar a resposta completa
-                add_message_to_conversation(conversation_id, full_response, "assistant")
-                logger.debug(f"Resposta completa salva no histórico da conversa: {conversation_id}")
-                
+            # Salvar apenas a resposta final
+            if accumulated_response:
+                # Passar explicitamente o message_id para a função
+                add_message_to_conversation(
+                    conversation_id, 
+                    accumulated_response, 
+                    "assistant", 
+                    message_id=message_id
+                )
                 # Notificar que a resposta está completa
                 socketio.emit('response_complete', {
                     'conversation_id': conversation_id,
                     'message_id': message_id,
-                    'total_chunks': chunks_sent
+                    'total_chunks': chunk_number,
+                    'complete_response': accumulated_response
                 }, room=conversation_id)
-                
                 # Notificar que a conversa foi atualizada
                 socketio.emit('conversation_updated', {
                     'conversation_id': conversation_id
                 })
-                
-                # Limpar cache dessa mensagem
-                if conversation_id in streaming_messages and message_id in streaming_messages[conversation_id]:
-                    del streaming_messages[conversation_id][message_id]
-                    if not streaming_messages[conversation_id]:
-                        del streaming_messages[conversation_id]
-                
-                logger.debug(f"Cache de streaming limpo para mensagem: {message_id}")
-                
         except Exception as e:
-            logger.error(f"Erro durante streaming: {str(e)}")
+            logger.error(f"Erro durante streaming Socket.IO: {str(e)}")
             logger.error(traceback.format_exc())
-            
-            # Notificar cliente sobre o erro
+            # Em caso de erro, notificar o cliente
             socketio.emit('stream_error', {
                 'conversation_id': conversation_id,
-                'error': str(e),
-                'message_id': message_id
+                'message_id': message_id,
+                'error': str(e)
             }, room=conversation_id)
-            
-            # Limpar cache em caso de erro
-            if conversation_id in streaming_messages and message_id in streaming_messages[conversation_id]:
-                del streaming_messages[conversation_id][message_id]
     
-    logger.debug(f"Iniciando resposta em stream para requisição")
-    response = Response(generate_streamed_response(), content_type="text/event-stream")
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'  # Para Nginx
-    return response
+    socketio.start_background_task(background_task)
 
 @app.route('/save_message', methods=['POST'])
 def save_message():
