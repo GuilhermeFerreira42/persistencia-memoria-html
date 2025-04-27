@@ -1,10 +1,9 @@
-
 # Documentação do Projeto - Sistema de Chat com IA
 
 ## 1. Visão Geral do Projeto
 
 ### Descrição Geral
-O projeto é um sistema de chat interativo que utiliza inteligência artificial para gerar respostas contextualizadas. É baseado em uma arquitetura cliente-servidor usando Flask como backend e uma interface web responsiva.
+O projeto é um sistema de chat interativo que utiliza inteligência artificial para gerar respostas contextualizadas. É baseado em uma arquitetura cliente-servidor usando Flask como backend e uma interface web responsiva.'
 
 ### Objetivo e Funcionalidades Principais
 - Fornecer uma interface de chat intuitiva para interação com IA

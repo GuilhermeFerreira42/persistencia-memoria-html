@@ -301,5 +301,3 @@ Este documento descreve o estado atual do sistema de chat com streaming de respo
 * `static/js/modules/streamingManager.js` - Controle do ciclo de vida das mensagens
 * `static/css/streaming.css` - Animações e estilos para feedback visual
 * `app.py` - Backend Flask com handlers de Socket.IO
-
-## Referências de Implementação

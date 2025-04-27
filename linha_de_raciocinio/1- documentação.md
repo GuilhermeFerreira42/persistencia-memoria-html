@@ -465,5 +465,3 @@ flowchart TD
 A documentação apresentada reflete o estado atual do sistema, destacando as funcionalidades já consolidadas e os pontos onde melhorias ainda são necessárias. A abordagem modular e o isolamento por `conversation_id` garantem que as integrações entre os diversos módulos — transcrição, resumo e IA — operem de maneira coesa e sem interferências.  
 
 Com estes ajustes e refinamentos, o sistema se torna mais robusto, escalável e de fácil manutenção, proporcionando uma experiência de usuário consistente e segura. A continuidade do monitoramento e dos testes garantirá que futuras atualizações sejam incorporadas sem comprometer o funcionamento das funcionalidades essenciais.
-
-
