@@ -245,4 +245,61 @@ Os problemas enfrentados destacam a importância de uma abordagem defensiva na p
 
 O atual sistema está utilizando uma abordagem muito orientada a eventos com manipulação direta do DOM, o que torna o fluxo de dados difícil de rastrear e propenso a erros. Uma arquitetura mais declarativa com fluxo de dados unidirecional ajudaria a resolver muitos dos problemas encontrados.
 
-**Recomendação final**: Considerar uma reescrita gradual dos componentes mais problemáticos, começando pelo sistema de mensagens e cursor, usando uma abordagem mais moderna e declarativa. 
+**Recomendação final**: Considerar uma reescrita gradual dos componentes mais problemáticos, começando pelo sistema de mensagens e cursor, usando uma abordagem mais moderna e declarativa.
+
+
+----------------------
+
+# Sistema de Chat com Streaming - Linha de Raciocínio Visão Geral
+
+Este documento descreve o estado atual do sistema de chat com streaming de respostas em tempo real, apresentando o que foi implementado e os próximos passos do desenvolvimento.
+
+## Status Atual (Abril 2025)
+
+* Streaming de respostas em tempo real via Socket.IO
+* Persistência de conversas
+* Integração com processamento de vídeos do YouTube
+* Renderização de markdown nas mensagens
+
+## Últimas Implementações (27/04/2025)
+
+* Correções no sistema de Socket.IO
+* Implementado fluxo que entra na nova sala imediatamente
+* Saída da sala anterior adiada até receber o evento response_complete
+* Adicionadas variáveis globais para rastreamento de mensagens ativas
+* Aprimoramento do messageRegistry:
+	+ Adicionadas flags isCursor, isComplete e isStreaming
+	+ Lógica refinada para preservar apenas mensagens relevantes
+	+ Sistema de limpeza automatizada que preserva mensagens completas
+
+## Melhorias Visuais
+
+* Implementada animação de "três pontinhos" para feedback durante carregamento – isso aqui precisa ser revisado pois não está funcionando
+* Corrigida importação do módulo marked usando CDN
+
+## Próximos Passos Prioritários
+
+### Sistema de IDs Unificado
+
+* Implementar geração consistente de IDs entre backend e frontend
+* Garantir que não ocorram duplicações ou conflitos
+
+### Integração com YouTube
+
+* Finalizar integração do sistema de streaming com processamento de YouTube
+* Testar casos específicos de resumo e transcrição
+
+### Testes de Integração
+
+* Testar troca de conversas durante streaming ativo
+* Verificar comportamento com mensagens longas e formatação complexa
+* Validar interação entre YouTube e streaming
+
+## Arquivos Principais
+
+* `static/js/chat/chatActions.js` - Gerenciamento da comunicação via Socket.IO
+* `static/js/modules/streamingManager.js` - Controle do ciclo de vida das mensagens
+* `static/css/streaming.css` - Animações e estilos para feedback visual
+* `app.py` - Backend Flask com handlers de Socket.IO
+
+## Referências de Implementação

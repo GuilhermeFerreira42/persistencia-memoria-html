@@ -19,9 +19,13 @@
 }
 
 /* 
+ * CÓDIGO PARA REVISÃO FUTURA [INÍCIO] 
+ * ----------------------------------------
  * Animação de carregamento de três pontinhos 
- * Esta animação é exibida enquanto aguardamos os primeiros chunks do streaming
- * Cada pontinho pisca em sequência com um pequeno atraso entre eles
+ * Esta implementação apresenta problemas e não funciona corretamente
+ * Precisa ser revisada ou substituída em uma implementação futura
+ * Issue #XX: Revisar feedback visual durante carregamento
+ * ----------------------------------------
  */
 .loading-dots {
     display: inline-block;
@@ -41,6 +45,10 @@
 .loading-dots span:nth-child(3) {
     animation-delay: 0.4s;
 }
+/* 
+ * CÓDIGO PARA REVISÃO FUTURA [FIM]
+ * ----------------------------------------
+ */
 
 /* Placeholder para mensagens em carregamento */
 .placeholder {

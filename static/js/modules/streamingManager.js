@@ -92,10 +92,15 @@ class StreamingManager {
                 entry.content += content;
                 entry.isStreaming = true;
                 
-                // Remover animação de carregamento quando os primeiros chunks chegarem
+                // INÍCIO: CÓDIGO PARA REVISÃO FUTURA
+                // ---------------------------------------------
+                // Remoção da animação de carregamento que apresenta problemas
+                // Precisa ser revisada ou substituída em uma implementação futura
                 const contentDiv = entry.container.querySelector('.message-content');
                 const loadingDots = contentDiv.querySelector('.loading-dots');
                 if (loadingDots) loadingDots.remove();
+                // FIM: CÓDIGO PARA REVISÃO FUTURA
+                // ---------------------------------------------
                 
                 // Renderizar o conteúdo atual para mostrar os novos chunks
                 contentDiv.innerHTML = marked.parse(entry.content);
@@ -278,9 +283,18 @@ class StreamingManager {
         messageDiv.dataset.messageId = messageId;
         messageDiv.dataset.conversationId = conversationId;
         
+        // INÍCIO: CÓDIGO PARA REVISÃO FUTURA
+        // ---------------------------------------------
+        // Esta implementação da animação de "três pontinhos" apresenta problemas
+        // e precisa ser revisada ou substituída em uma implementação futura
+        // Issue #XX: Revisar feedback visual durante carregamento
+        
         // Adicionar a animação de carregamento de três pontinhos
         // Esta animação será exibida enquanto aguardamos os primeiros chunks
         messageDiv.innerHTML = `<div class="message-content"><div class="loading-dots"><span>.</span><span>.</span><span>.</span></div></div>`;
+        
+        // FIM: CÓDIGO PARA REVISÃO FUTURA
+        // ---------------------------------------------
         
         // Adicionar antes do final do chat
         chatContainer.appendChild(messageDiv);
