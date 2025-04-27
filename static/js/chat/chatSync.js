@@ -90,21 +90,19 @@ function setupEventListeners() {
             if (!conversation.currentResponse) conversation.currentResponse = '';
             conversation.currentResponse += data.content;
             
-            // Garantir que o placeholder existe
-            const chatContainer = document.querySelector('.chat-container');
-            if (!chatContainer) return;
+            // Não precisa mais criar o placeholder, usar a animação centralizada
+            const loadingAnimation = document.getElementById('loading-animation');
             
-            let streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${data.conversation_id}"]`);
-            if (!streamingMessage) {
-                // console.log('[DEBUG] Recriando placeholder para conversa em streaming:', data.conversation_id);
-                streamingMessage = document.createElement('div');
-                streamingMessage.className = 'message assistant streaming-message';
-                streamingMessage.dataset.conversationId = data.conversation_id;
-                streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-                chatContainer.appendChild(streamingMessage);
+            // Se este é o primeiro chunk, esconder a animação
+            if (loadingAnimation && loadingAnimation.style.display === 'block') {
+                loadingAnimation.style.display = 'none';
+                console.log('[DEBUG] Animação de carregamento ocultada após receber chunk');
             }
             
             // Rolar para o final se o usuário estiver próximo
+            const chatContainer = document.querySelector('.chat-container');
+            if (!chatContainer) return;
+            
             const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 100;
             if (isNearBottom) {
                 chatContainer.scrollTo({

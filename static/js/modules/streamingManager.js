@@ -77,6 +77,13 @@ class StreamingManager {
             return;
         }
         
+        // Ocultar a animação de carregamento ao receber o primeiro chunk
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation && loadingAnimation.style.display === 'block') {
+            loadingAnimation.style.display = 'none';
+            logger.debug('Animação de carregamento ocultada após receber chunk');
+        }
+        
         // Verificar se a mensagem já existe no registry
         if (!messageRegistry.has(message_id)) {
             logger.debug(`Registrando nova mensagem de streaming: ${message_id}`);
@@ -92,15 +99,10 @@ class StreamingManager {
                 entry.content += content;
                 entry.isStreaming = true;
                 
-                // INÍCIO: CÓDIGO PARA REVISÃO FUTURA
-                // ---------------------------------------------
-                // Remoção da animação de carregamento que apresenta problemas
-                // Precisa ser revisada ou substituída em uma implementação futura
+                // Remover qualquer loading-dots remanescente
                 const contentDiv = entry.container.querySelector('.message-content');
                 const loadingDots = contentDiv.querySelector('.loading-dots');
                 if (loadingDots) loadingDots.remove();
-                // FIM: CÓDIGO PARA REVISÃO FUTURA
-                // ---------------------------------------------
                 
                 // Renderizar o conteúdo atual para mostrar os novos chunks
                 contentDiv.innerHTML = marked.parse(entry.content);
@@ -136,6 +138,13 @@ class StreamingManager {
                 recebido: conversation_id
             });
             return;
+        }
+        
+        // Ocultar a animação de carregamento ao completar a resposta
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation && loadingAnimation.style.display === 'block') {
+            loadingAnimation.style.display = 'none';
+            logger.debug('Animação de carregamento ocultada após completar resposta');
         }
         
         // Verificar se a mensagem existe no registry
@@ -198,6 +207,13 @@ class StreamingManager {
             conversationId: conversation_id,
             error
         });
+        
+        // Ocultar a animação de carregamento em caso de erro
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation && loadingAnimation.style.display === 'block') {
+            loadingAnimation.style.display = 'none';
+            logger.debug('Animação de carregamento ocultada após erro no streaming');
+        }
         
         const entry = messageRegistry.get(message_id);
         if (entry && entry.container) {
@@ -283,21 +299,20 @@ class StreamingManager {
         messageDiv.dataset.messageId = messageId;
         messageDiv.dataset.conversationId = conversationId;
         
-        // INÍCIO: CÓDIGO PARA REVISÃO FUTURA
-        // ---------------------------------------------
-        // Esta implementação da animação de "três pontinhos" apresenta problemas
-        // e precisa ser revisada ou substituída em uma implementação futura
-        // Issue #XX: Revisar feedback visual durante carregamento
-        
-        // Adicionar a animação de carregamento de três pontinhos
-        // Esta animação será exibida enquanto aguardamos os primeiros chunks
-        messageDiv.innerHTML = `<div class="message-content"><div class="loading-dots"><span>.</span><span>.</span><span>.</span></div></div>`;
-        
-        // FIM: CÓDIGO PARA REVISÃO FUTURA
-        // ---------------------------------------------
+        // Criar container de conteúdo vazio que será preenchido com o conteúdo real
+        // Não usamos mais os "três pontinhos" ou qualquer placeholder
+        messageDiv.innerHTML = `<div class="message-content"></div>`;
         
         // Adicionar antes do final do chat
         chatContainer.appendChild(messageDiv);
+        
+        // Verificar se a animação centralizada está visível
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation && loadingAnimation.style.display !== 'block') {
+            // Se não estiver visível e estamos criando uma mensagem, mostrar
+            loadingAnimation.style.display = 'block';
+            logger.debug('Animação de carregamento exibida ao criar container de mensagem');
+        }
         
         // Registrar no messageRegistry como uma mensagem real (não cursor)
         this.registerMessage(messageId, messageDiv, false);
@@ -508,7 +523,8 @@ class StreamingManager {
             return;
         }
         
-        messageRegistry.forEach((entry, messageId) => {
+        // Usar .entries() para iterar sobre o Map em vez de .forEach
+        for (const [messageId, entry] of messageRegistry.entries()) {
             if (entry.isCursor && !entry.isStreaming) {
                 // Remover containers de cursor sem streaming ativo
                 // Isto evita cursores "fantasmas" que não estão mais em uso
@@ -528,7 +544,7 @@ class StreamingManager {
             }
             // Não remover NUNCA containers com isComplete=true
             // Isto garante que mensagens finalizadas permaneçam visíveis
-        });
+        }
     }
 }
 

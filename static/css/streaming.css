@@ -50,6 +50,38 @@
  * ----------------------------------------
  */
 
+/* 
+ * Nova implementação de animação de carregamento centralizada
+ * Esta solução substitui a abordagem anterior dos "três pontinhos"
+ */
+#loading-animation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px 25px;
+    border-radius: 8px;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.loading-spinner i {
+    font-size: 1.5rem;
+}
+
+.loading-spinner span {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+}
+
 /* Placeholder para mensagens em carregamento */
 .placeholder {
     color: #666;

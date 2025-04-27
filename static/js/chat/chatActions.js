@@ -106,6 +106,13 @@ if (!window.socket) {
             return;
         }
 
+        // Ocultar a animação de carregamento ao receber o primeiro chunk
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation && loadingAnimation.style.display === 'block') {
+            loadingAnimation.style.display = 'none';
+            logger.debug('Animação de carregamento ocultada após receber o primeiro chunk');
+        }
+
         // Verificar duplicação de chunks
         const lastChunk = lastReceivedChunks.get(conversation_id);
         if (lastChunk === content) {
@@ -576,9 +583,16 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         `;
         chatContainer.appendChild(userMessageDiv);
         
+        // Mostrar animação de carregamento centralizada
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'block';
+            logger.debug('Animação de carregamento exibida');
+        }
+        
         // Remover placeholders existentes para evitar duplicação
         logger.debug('Removendo placeholders de mensagens existentes');
-        const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+        const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id])');
         existingPlaceholders.forEach(placeholder => placeholder.remove());
         
         // Gerar ID único para a mensagem e registrar como mensagem em streaming atual
@@ -651,6 +665,13 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             stack: error.stack,
             conversationId
         });
+        
+        // Ocultar a animação de carregamento em caso de erro
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'none';
+            logger.debug('Animação de carregamento ocultada após erro');
+        }
         
         // Remover estado de streaming em caso de erro
         streamingStates.delete(conversationId);
@@ -739,13 +760,15 @@ socket.on('conversation_updated', (data) => {
                         // Se for uma nova mensagem do assistente, remover o placeholder de carregamento
                         if (msg.role === 'assistant' && !existingMsg) {
                             // console.log('[DEBUG] Nova mensagem do assistente detectada, removendo placeholder');
-                            const streamingMessage = chatContainer.querySelector(`.message.assistant.streaming-message[data-conversation-id="${conversation_id}"]`);
-                            if (streamingMessage) {
-                                // console.log('[DEBUG] Removendo placeholder de carregamento para conversa:', conversation_id);
-                                streamingMessage.remove();
-                                // Remover estado de streaming
-                                streamingStates.delete(conversation_id);
+                            // Ao receber uma nova mensagem do assistente, esconder a animação centralizada
+                            const loadingAnimation = document.getElementById('loading-animation');
+                            if (loadingAnimation && loadingAnimation.style.display === 'block') {
+                                loadingAnimation.style.display = 'none';
+                                logger.debug('Animação de carregamento ocultada após receber nova mensagem');
                             }
+                            
+                            // Remover estado de streaming
+                            streamingStates.delete(conversation_id);
                         }
 
                         if (!existingMsg) {
@@ -806,7 +829,7 @@ socket.on('conversation_updated', (data) => {
                     });
 
                     // Verifica se ainda há placeholders após atualizar
-                    const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
+                    const remainingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id])');
                     if (remainingPlaceholders.length > 0) {
                         // console.warn('[DEBUG] Placeholders encontrados após atualização:', {
                         //     quantidade: remainingPlaceholders.length,
@@ -821,6 +844,15 @@ socket.on('conversation_updated', (data) => {
                         if (!streamingStates.has(conversation_id)) {
                             // console.log('[DEBUG] Removendo placeholders pois conversa não está mais em streaming');
                             remainingPlaceholders.forEach(p => p.remove());
+                        }
+                    }
+                    
+                    // Esconder animação centralizada se a conversa não estiver mais em streaming
+                    if (!streamingStates.has(conversation_id)) {
+                        const loadingAnimation = document.getElementById('loading-animation');
+                        if (loadingAnimation && loadingAnimation.style.display === 'block') {
+                            loadingAnimation.style.display = 'none';
+                            logger.debug('Animação de carregamento ocultada após atualização da conversa');
                         }
                     }
                 }
@@ -848,6 +880,13 @@ export function interromperResposta() {
         return;
     }
     
+    // Ocultar a animação de carregamento
+    const loadingAnimation = document.getElementById('loading-animation');
+    if (loadingAnimation) {
+        loadingAnimation.style.display = 'none';
+        logger.debug('Animação de carregamento ocultada após interrupção');
+    }
+    
     logger.debug('Removendo estado de streaming', { conversationId });
     streamingStates.delete(conversationId);
     
@@ -860,10 +899,10 @@ export function interromperResposta() {
     logger.debug('Removendo mensagens de streaming do DOM');
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
-        // Remover mensagens de streaming ou loading
-        chatContainer.querySelectorAll('.message.assistant.streaming-message, .message.assistant.loading')
+        // Remover apenas mensagens de loading antigas (se houver)
+        chatContainer.querySelectorAll('.message.assistant.loading')
             .forEach(msg => {
-                logger.debug('Removendo mensagem streaming', { 
+                logger.debug('Removendo mensagem loading', { 
                     id: msg.dataset.messageId, 
                     conversationId: msg.dataset.conversationId 
                 });
@@ -924,11 +963,12 @@ export function carregarConversa(conversationId) {
 
             if (isStreaming) {
                 // console.log('[DEBUG] Conversa em streaming detectada, recriando placeholder');
-                const streamingMessage = document.createElement('div');
-                streamingMessage.className = 'message assistant streaming-message';
-                streamingMessage.dataset.conversationId = conversationId;
-                streamingMessage.innerHTML = '<div class="message-content">Gerando resposta...</div>';
-                chatContainer.appendChild(streamingMessage);
+                // Mostrar a animação de carregamento centralizada em vez do placeholder antigo
+                const loadingAnimation = document.getElementById('loading-animation');
+                if (loadingAnimation) {
+                    loadingAnimation.style.display = 'block';
+                    logger.debug('Animação de carregamento exibida ao carregar conversa em streaming');
+                }
                 
                 // Rolar para o final suavemente
                 chatContainer.scrollTo({
