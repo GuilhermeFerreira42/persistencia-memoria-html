@@ -42,6 +42,15 @@ const streamingMessages = new Set();
 // Monitoramento de streams ativos
 let activeStreams = new Set();
 
+/**
+ * Variáveis globais para controle do fluxo de troca de conversas
+ * Estas variáveis garantem que não percamos chunks durante a transição entre conversas
+ */
+// Armazena o ID da conversa atual para controle de fluxo
+let currentConversationId = null;
+// Armazena o ID da mensagem em streaming para controle de saída da sala
+let currentStreamingMessageId = null;
+
 // Inicializa o socket apenas uma vez
 let socket;
 if (!window.socket) {
@@ -255,26 +264,88 @@ if (!window.socket) {
     socket = window.socket;
 }
 
-// Função para entrar em uma sala de conversa
+/**
+ * Entra na sala de uma conversa específica
+ * Esta função implementa um comportamento crucial:
+ * 1. Entra imediatamente na nova sala
+ * 2. Só sai da sala anterior APÓS o evento response_complete, se houver streaming ativo
+ * 3. Sai imediatamente da sala anterior se não houver streaming
+ * 
+ * Este comportamento impede a perda de chunks durante a troca de conversas
+ * 
+ * @param {string} conversationId - ID da conversa
+ * @return {Promise} Promessa resolvida após entrar na sala
+ */
 export function entrarNaSala(conversationId) {
-    if (!conversationId) {
-        logger.error('ID da conversa não fornecido para entrar na sala');
-        return;
-    }
+    // Armazenar conversa anterior para controle de fluxo
+    const previousConversationId = currentConversationId;
+    currentConversationId = conversationId;
     
-    logger.debug('Entrando na sala da conversa', { conversationId });
-    socket.emit('join_conversation', { conversation_id: conversationId });
+    return new Promise((resolve, reject) => {
+        if (!socket) {
+            logger.error('Socket não disponível para entrar na sala');
+            reject(new Error('Socket não disponível'));
+            return;
+        }
+
+        // PASSO 1: Entrar na nova sala imediatamente
+        socket.emit('join_conversation', { conversation_id: conversationId });
+        logger.info(`Entrou na sala da nova conversa: ${conversationId}`);
+        
+        // PASSO 2: Processar saída da sala anterior dependendo se há streaming
+        if (previousConversationId && currentStreamingMessageId) {
+            // Se há streaming ativo, adiar a saída até resposta estar completa
+            socket.once('response_complete', (data) => {
+                if (data.conversation_id === previousConversationId && 
+                    data.message_id === currentStreamingMessageId) {
+                    socket.emit('leave_conversation', { conversation_id: previousConversationId });
+                    logger.info(`Saiu da sala anterior: ${previousConversationId} após response_complete`);
+                    currentStreamingMessageId = null; // Resetar o ID da mensagem
+                }
+            });
+        } else if (previousConversationId) {
+            // Se não houver mensagem em andamento, sair imediatamente
+            socket.emit('leave_conversation', { conversation_id: previousConversationId });
+            logger.info(`Saiu da sala anterior: ${previousConversationId} imediatamente`);
+        }
+        
+        resolve();
+    });
 }
 
-// Função para sair de uma sala de conversa
+/**
+ * Sai da sala de uma conversa específica
+ * Implementa comportamento complementar à função entrarNaSala:
+ * - Se houver streaming ativo, adia a saída para evitar perda de dados
+ * - Se não houver streaming, sai imediatamente
+ * 
+ * @param {string} conversationId - ID da conversa
+ * @return {Promise} Promessa resolvida após sair da sala
+ */
 export function sairDaSala(conversationId) {
-    if (!conversationId) {
-        logger.error('ID da conversa não fornecido para sair da sala');
-        return;
+    // Se for a conversa atual com streaming, não sair ainda
+    if (conversationId === currentConversationId && currentStreamingMessageId) {
+        logger.info(`Adiando saída da sala: ${conversationId} devido a streaming ativo`);
+        return Promise.resolve(); // Não sai agora, será tratado no response_complete
     }
-    
-    logger.debug('Saindo da sala da conversa', { conversationId });
-    socket.emit('leave_conversation', { conversation_id: conversationId });
+
+    return new Promise((resolve, reject) => {
+        if (!socket) {
+            logger.error('Socket não disponível para sair da sala');
+            reject(new Error('Socket não disponível'));
+            return;
+        }
+
+        socket.emit('leave_conversation', { conversation_id: conversationId });
+        logger.info(`Saiu da sala: ${conversationId}`);
+        
+        // Limpar currentConversationId se estiver saindo da conversa atual
+        if (conversationId === currentConversationId) {
+            currentConversationId = null;
+        }
+        
+        resolve();
+    });
 }
 
 function inicializarConversa(conversationId) {
@@ -510,10 +581,10 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         const existingPlaceholders = chatContainer.querySelectorAll('.message.assistant:not([data-message-id]), .message.assistant.streaming-message');
         existingPlaceholders.forEach(placeholder => placeholder.remove());
         
-        // Gerar um ID único para a mensagem de streaming - FORMATO UUID V4
-        const messageId = 'msg_' + crypto.randomUUID();
-        streamingMessageIds.set(conversationId, messageId);
-        logger.debug('ID de mensagem para streaming gerado (UUID v4)', { messageId });
+        // Gerar ID único para a mensagem e registrar como mensagem em streaming atual
+        // Isso permite que o sistema saiba qual mensagem está sendo processada
+        const messageId = `msg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        currentStreamingMessageId = messageId;
         
         // Verificar se já existe alguma mensagem com este ID
         const existingElement = document.querySelector(`[data-message-id="${messageId}"]`);

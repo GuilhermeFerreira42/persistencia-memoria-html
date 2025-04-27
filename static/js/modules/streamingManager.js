@@ -2,6 +2,12 @@ import { socket } from '../main.js';
 import { messageRegistry } from './messageRegistry.js';
 import { renderMarkdown } from '../messageRenderer.js';
 import { logger } from '../utils/logger.js';
+/**
+ * Importação do módulo marked via CDN
+ * Esta importação corrige o erro: "Failed to resolve module specifier 'marked'"
+ * Usa a mesma fonte CDN que já é utilizada em outros arquivos do projeto
+ */
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
 
 /**
  * Gerenciador de streaming e cache para mensagens da IA
@@ -11,6 +17,10 @@ class StreamingManager {
         this.streamingCache = {};
         this.activeContainers = new Map();
         this.initializeSocketListeners();
+        
+        // Configurar o cleanupOrphan para executar periodicamente (a cada 5 segundos)
+        // Isto evita acúmulo de containers vazios ou órfãos na interface
+        setInterval(() => this.cleanupOrphan(), 5000);
         
         // Log de inicialização
         logger.info('StreamingManager inicializado');
@@ -68,26 +78,32 @@ class StreamingManager {
         }
         
         // Verificar se a mensagem já existe no registry
-        if (!messageRegistry.hasMessage(message_id)) {
-            logger.debug(`Registrando nova mensagem: ${message_id}`);
-            messageRegistry.registerMessage(message_id, {
-                conversationId: conversation_id,
-                content: '',
-                chunkCount: 0
-            });
+        if (!messageRegistry.has(message_id)) {
+            logger.debug(`Registrando nova mensagem de streaming: ${message_id}`);
+            const container = this.createMessageContainer(message_id, conversation_id);
+            // Registrar a mensagem com isStreaming=true para indicar streaming ativo
+            const entry = this.registerMessage(message_id, container, false);
+            entry.isStreaming = true;
+            entry.content = content;
+        } else {
+            // Adicionar o chunk ao conteúdo da mensagem
+            const entry = messageRegistry.get(message_id);
+            if (entry) {
+                entry.content += content;
+                entry.isStreaming = true;
+                
+                // Remover animação de carregamento quando os primeiros chunks chegarem
+                const contentDiv = entry.container.querySelector('.message-content');
+                const loadingDots = contentDiv.querySelector('.loading-dots');
+                if (loadingDots) loadingDots.remove();
+                
+                // Renderizar o conteúdo atual para mostrar os novos chunks
+                contentDiv.innerHTML = marked.parse(entry.content);
+                
+                // Rolar para a mensagem para manter visibilidade
+                this.manageScroll(entry.container);
+            }
         }
-        
-        // Adicionar o chunk ao conteúdo da mensagem
-        messageRegistry.addChunk(message_id, content);
-        
-        // Incrementar contador de chunks
-        const entry = messageRegistry.getMessage(message_id);
-        if (entry) {
-            entry.chunkCount = (entry.chunkCount || 0) + 1;
-        }
-        
-        // Atualizar a interface
-        this.updateMessageUI(message_id, conversation_id);
     }
 
     /**
@@ -118,33 +134,42 @@ class StreamingManager {
         }
         
         // Verificar se a mensagem existe no registry
-        if (!messageRegistry.hasMessage(message_id)) {
+        if (!messageRegistry.has(message_id)) {
             logger.warn(`Mensagem não encontrada no registry: ${message_id}`);
             
             // Se temos o complete_response, podemos criar agora
             if (complete_response) {
-                messageRegistry.registerMessage(message_id, {
-                    conversationId: conversation_id,
-                    content: complete_response,
-                    complete: true
-                });
+                const container = this.createMessageContainer(message_id, conversation_id);
+                const entry = this.registerMessage(message_id, container, false);
+                entry.content = complete_response;
+                entry.isComplete = true;
+                entry.isStreaming = false;
+                
+                this.renderCompleteMessage(message_id, conversation_id);
             } else {
                 return;
             }
-        }
-        
-        // Marcar como completa (e usar complete_response se disponível)
-        const entry = messageRegistry.getMessage(message_id);
-        if (entry) {
-            if (complete_response && complete_response !== entry.content) {
-                entry.content = complete_response;
+        } else {
+            // Marcar como completa
+            const entry = messageRegistry.get(message_id);
+            if (entry) {
+                if (complete_response && complete_response !== entry.content) {
+                    entry.content = complete_response;
+                }
+                
+                // Atualizar flags para indicar que a mensagem está completa e o streaming terminou
+                // Isto é essencial para evitar que o cleanupOrphan remova esta mensagem
+                entry.isComplete = true;
+                entry.isStreaming = false;
+                
+                // Atualizar a interface
+                this.renderCompleteMessage(message_id, conversation_id);
+                
+                // Remover loading dots se existirem
+                const contentDiv = entry.container.querySelector('.message-content');
+                const loadingDots = contentDiv.querySelector('.loading-dots');
+                if (loadingDots) loadingDots.remove();
             }
-            
-            // Finalizar a mensagem
-            messageRegistry.completeMessage(message_id);
-            
-            // Atualizar a interface
-            this.renderCompleteMessage(message_id, conversation_id);
         }
         
         // Limpar do streamingCache
@@ -169,11 +194,10 @@ class StreamingManager {
             error
         });
         
-        const entry = messageRegistry.getMessage(message_id);
+        const entry = messageRegistry.get(message_id);
         if (entry && entry.container) {
             entry.container.innerHTML = `<div class="error-message">Erro: ${error}</div>`;
             entry.container.classList.add('error');
-            messageRegistry.updateMessage(message_id, { error: true, errorMessage: error });
         }
         
         // Limpar do streamingCache
@@ -248,34 +272,23 @@ class StreamingManager {
             }
         }
         
-        // Criar novo container
-        container = document.createElement('div');
-        container.className = 'message assistant streaming';
-        container.dataset.messageId = messageId;
-        container.dataset.conversationId = conversationId;
-        container.dataset.createdAt = Date.now().toString();
+        // Criar e adicionar ao DOM
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant';
+        messageDiv.dataset.messageId = messageId;
+        messageDiv.dataset.conversationId = conversationId;
         
-        // Criar estrutura interna padrão
-        container.innerHTML = `
-            <div class="message-content"></div>
-            <div class="message-actions">
-                <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
-                    <i class="fas fa-copy"></i>
-                </button>
-                <button class="action-btn regenerate-btn" onclick="window.regenerarResposta(this)" title="Regenerar resposta">
-                    <i class="fas fa-redo"></i>
-                </button>
-            </div>
-        `;
+        // Adicionar a animação de carregamento de três pontinhos
+        // Esta animação será exibida enquanto aguardamos os primeiros chunks
+        messageDiv.innerHTML = `<div class="message-content"><div class="loading-dots"><span>.</span><span>.</span><span>.</span></div></div>`;
         
-        chatContainer.appendChild(container);
+        // Adicionar antes do final do chat
+        chatContainer.appendChild(messageDiv);
         
-        // Registrar no activeContainers
-        this.activeContainers.set(messageId, container);
+        // Registrar no messageRegistry como uma mensagem real (não cursor)
+        this.registerMessage(messageId, messageDiv, false);
         
-        logger.debug(`Novo container criado para mensagem ${messageId}`);
-        
-        return container;
+        return messageDiv;
     }
 
     /**
@@ -401,9 +414,12 @@ class StreamingManager {
      * Adiciona botões de ação à mensagem
      */
     addActionButtons(container, messageId) {
-        // Verificar se já tem botões
-        if (container.querySelector('.message-actions')) return;
+        // Verificar se já existem botões
+        if (container.querySelector('.message-actions')) {
+            return;
+        }
         
+        // Adicionar botões
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         actions.innerHTML = `
@@ -433,29 +449,74 @@ class StreamingManager {
     }
 
     /**
-     * Restaura o estado do streaming ao mudar de chat
+     * Registra uma nova mensagem no messageRegistry com flags adicionais
+     * As flags isCursor e isComplete são essenciais para o gerenciamento do ciclo de vida das mensagens
+     * 
+     * @param {string} messageId - ID da mensagem
+     * @param {HTMLElement} container - Elemento DOM do container da mensagem
+     * @param {boolean} isCursor - Se é apenas um cursor de digitação
+     * @returns {Object} Entrada criada no registry
      */
-    restoreStreamingState(conversationId) {
-        if (!conversationId) return;
+    registerMessage(messageId, container, isCursor = false) {
+        if (!messageRegistry) {
+            logger.error('MessageRegistry não está disponível');
+            return null;
+        }
         
-        logger.debug(`Restaurando estado de streaming para conversa ${conversationId}`);
+        // Criar objeto com as flags necessárias para controle dos containers
+        const entry = {
+            content: '',
+            rendered: false,
+            container: container,
+            timer: null,
+            isCursor: isCursor,        // true se for apenas um cursor de digitação
+            isComplete: false,         // true após response_complete (mensagem finalizada)
+            isStreaming: !isCursor     // false se for apenas cursor, true se estiver recebendo chunks
+        };
         
-        // Encontrar mensagens desta conversa no registry
-        const messages = messageRegistry.getMessagesByConversation(conversationId);
+        messageRegistry.set(messageId, entry);
+        logger.info(`Registrada entrada para messageId: ${messageId}, isCursor: ${isCursor}`);
         
-        messages.forEach(entry => {
-            if (!entry.complete && entry.content) {
-                // Recriar container se necessário
-                if (!entry.container || !entry.container.isConnected) {
-                    entry.container = this.createMessageContainer(entry.id, conversationId);
+        return entry;
+    }
+    
+    /**
+     * Limpa containers órfãos ou incompletos
+     * Esta função é crítica para evitar containers vazios ou desnecessários na interface
+     * A lógica implementada garante que:
+     * 1. Containers com isCursor=true e isStreaming=false sejam removidos
+     * 2. Containers com isStreaming=false e isComplete=false sejam removidos
+     * 3. Containers com isComplete=true sejam SEMPRE preservados
+     */
+    cleanupOrphan() {
+        if (!messageRegistry) {
+            logger.warn('MessageRegistry não disponível para limpeza');
+            return;
+        }
+        
+        messageRegistry.forEach((entry, messageId) => {
+            if (entry.isCursor && !entry.isStreaming) {
+                // Remover containers de cursor sem streaming ativo
+                // Isto evita cursores "fantasmas" que não estão mais em uso
+                if (entry.container && entry.container.isConnected) {
+                    entry.container.remove();
                 }
-                
-                // Renderizar conteúdo
-                this.renderStreamingContent(entry.id, conversationId);
+                messageRegistry.delete(messageId);
+                logger.debug(`Removido container de cursor órfão: ${messageId}`);
+            } else if (!entry.isStreaming && !entry.isComplete) {
+                // Remover mensagens incompletas sem streaming
+                // Isto evita mensagens "abandonadas" que nunca foram finalizadas
+                if (entry.container && entry.container.isConnected) {
+                    entry.container.remove();
+                }
+                messageRegistry.delete(messageId);
+                logger.debug(`Removido container de mensagem incompleta: ${messageId}`);
             }
+            // Não remover NUNCA containers com isComplete=true
+            // Isto garante que mensagens finalizadas permaneçam visíveis
         });
     }
 }
 
 // Exportar instância única
-export const streamingManager = new StreamingManager(); 
+export const streamingManager = new StreamingManager();
