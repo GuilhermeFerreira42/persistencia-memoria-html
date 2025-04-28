@@ -334,12 +334,18 @@ def process_youtube_background(url, conversation_id):
     youtube_handler = YoutubeHandler()
     
     try:
-        # Notificar início do processamento
+        # Gerar message_id único para a resposta
+        message_id = str(uuid4())
+        logger.info(f"[BACKEND] Gerado message_id para YouTube: {message_id}")
+
+        # Notificar início do processamento com animação de carregamento
         socketio.emit('youtube_response', {
             'status': 'processing',
             'conversation_id': conversation_id,
-            'content': "Processando vídeo..."
+            'content': "Processando vídeo...",
+            'message_id': message_id
         }, room=conversation_id)
+        logger.debug(f"[BACKEND] Emitido 'youtube_response' com status 'processing' para {conversation_id}")
         
         # Garantir que o cliente está na sala correta
         socketio.emit('join_conversation', {
@@ -355,8 +361,10 @@ def process_youtube_background(url, conversation_id):
             socketio.emit('youtube_response', {
                 'status': 'error',
                 'conversation_id': conversation_id,
-                'error': error_msg
+                'error': error_msg,
+                'message_id': message_id
             }, room=conversation_id)
+            logger.error(f"[BACKEND] Erro no processamento do YouTube: {error_msg}")
             return
             
         print(f"[INFO] Legendas encontradas e processadas para o vídeo: {video_title}")
@@ -364,8 +372,9 @@ def process_youtube_background(url, conversation_id):
         # Formata a resposta com o título e as legendas
         response_content = f"**Legendas do vídeo '{video_title}':**\n\n{cleaned_subtitles}"
         
-        # Salva a mensagem no histórico
-        message_id = add_message_to_conversation(conversation_id, response_content, "assistant")
+        # Salva a mensagem no histórico com o message_id explícito
+        add_message_to_conversation(conversation_id, response_content, "assistant", message_id=message_id)
+        logger.info(f"[BACKEND] Mensagem salva com message_id: {message_id}")
         
         # Envia a resposta para o frontend
         socketio.emit('youtube_response', {
@@ -374,13 +383,13 @@ def process_youtube_background(url, conversation_id):
             'content': response_content,
             'message_id': message_id
         }, room=conversation_id)
+        logger.debug(f"[BACKEND] Emitido 'youtube_response' com status 'success' para {conversation_id}")
         
         # Notifica que a conversa foi atualizada
-        # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
         socketio.emit('conversation_updated', {
             'conversation_id': conversation_id
         })
-        # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
+        logger.debug(f"[BACKEND] Emitido 'conversation_updated' para {conversation_id}")
         
         print(f"[INFO] Processamento do vídeo concluído com sucesso")
         
@@ -390,8 +399,10 @@ def process_youtube_background(url, conversation_id):
         socketio.emit('youtube_response', {
             'status': 'error',
             'conversation_id': conversation_id,
-            'error': error_msg
+            'error': error_msg,
+            'message_id': message_id
         }, room=conversation_id)
+        logger.error(f"[BACKEND] Exceção no processamento do YouTube: {error_msg}")
 
 @app.route('/save_youtube_message', methods=['POST'])
 def save_youtube_message():
@@ -469,12 +480,18 @@ def process_youtube_resumo_background(url, conversation_id):
     youtube_handler = YoutubeHandler()
     
     try:
-        # Notificar início do processamento
-        socketio.emit('youtube_resumo_response', {
-            'status': 'processing',
+        # Gerar message_id único para a resposta
+        message_id = str(uuid4())
+        logger.info(f"[BACKEND] Gerado message_id para YouTube Resumo: {message_id}")
+
+        # Notificar início do processamento com animação de carregamento
+        socketio.emit('message_chunk', {
+            'content': "Processando vídeo para resumo...",
             'conversation_id': conversation_id,
-            'content': "Processando vídeo para resumo..."
+            'message_id': message_id,
+            'chunk_number': 0
         }, room=conversation_id)
+        logger.debug(f"[BACKEND] Emitido chunk inicial para {conversation_id}")
         
         # Garantir que o cliente está na sala correta
         socketio.emit('join_conversation', {
@@ -487,22 +504,19 @@ def process_youtube_resumo_background(url, conversation_id):
         if not transcript:
             error_msg = f"Não foi possível processar as legendas do vídeo '{video_title or 'desconhecido'}' em PT-BR, PT ou EN."
             print(f"[ERRO] {error_msg}")
-            socketio.emit('youtube_resumo_error', {
-                'status': 'error',
-                'conversation_id': conversation_id,
-                'error': error_msg
-            }, room=conversation_id)
             
-            # Também exibir o erro como uma mensagem normal
-            error_response = f"**Erro:** {error_msg}"
-            message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+            # Enviar erro como message_chunk e response_complete para manter consistência
             socketio.emit('message_chunk', {
-                'content': error_response,
-                'conversation_id': conversation_id
+                'content': f"**Erro:** {error_msg}",
+                'conversation_id': conversation_id,
+                'message_id': message_id,
+                'chunk_number': 1
             }, room=conversation_id)
             socketio.emit('response_complete', {
-                'conversation_id': conversation_id
+                'conversation_id': conversation_id,
+                'message_id': message_id
             }, room=conversation_id)
+            logger.error(f"[BACKEND] Erro no YouTube Resumo: {error_msg}")
             return
             
         print(f"[INFO] Legendas encontradas e processadas para o vídeo: {video_title}")
@@ -513,22 +527,19 @@ def process_youtube_resumo_background(url, conversation_id):
         if not transcript_chunks:
             error_msg = f"Falha ao dividir a transcrição do vídeo '{video_title}' em blocos."
             print(f"[ERRO] {error_msg}")
-            socketio.emit('youtube_resumo_error', {
-                'status': 'error',
-                'conversation_id': conversation_id,
-                'error': error_msg
-            }, room=conversation_id)
             
-            # Também exibir o erro como uma mensagem normal
-            error_response = f"**Erro:** {error_msg}"
-            message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+            # Enviar erro como message_chunk e response_complete
             socketio.emit('message_chunk', {
-                'content': error_response,
-                'conversation_id': conversation_id
+                'content': f"**Erro:** {error_msg}",
+                'conversation_id': conversation_id,
+                'message_id': message_id,
+                'chunk_number': 1
             }, room=conversation_id)
             socketio.emit('response_complete', {
-                'conversation_id': conversation_id
+                'conversation_id': conversation_id,
+                'message_id': message_id
             }, room=conversation_id)
+            logger.error(f"[BACKEND] Erro no YouTube Resumo: {error_msg}")
             return
         
         # Cria a resposta inicial com o título do vídeo
@@ -537,17 +548,22 @@ def process_youtube_resumo_background(url, conversation_id):
         # Adiciona a informação sobre os blocos
         full_response += f"*O vídeo foi dividido em {len(transcript_chunks)} blocos para resumo detalhado.*\n\n"
         
-        # Salva a mensagem inicial no histórico
-        message_id = add_message_to_conversation(conversation_id, full_response, "assistant")
+        # Salva a mensagem inicial no histórico com o message_id específico
+        add_message_to_conversation(conversation_id, full_response, "assistant", message_id=message_id)
         
         # Envia a resposta inicial para o frontend
         socketio.emit('message_chunk', {
             'content': full_response,
-            'conversation_id': conversation_id
+            'conversation_id': conversation_id,
+            'message_id': message_id,
+            'chunk_number': 1
         }, room=conversation_id)
+        logger.debug(f"[BACKEND] Emitido cabeçalho do resumo para {conversation_id}")
         
         # Processa cada bloco com a IA para gerar resumos
         response_content = full_response
+        chunk_number = 2
+        
         for i, chunk in enumerate(transcript_chunks):
             # Formata o número do bloco
             block_number = i + 1
@@ -556,17 +572,19 @@ def process_youtube_resumo_background(url, conversation_id):
             block_header = f"\n\n### Bloco {block_number}/{len(transcript_chunks)}\n\n"
             socketio.emit('message_chunk', {
                 'content': block_header,
-                'conversation_id': conversation_id
+                'conversation_id': conversation_id,
+                'message_id': message_id,
+                'chunk_number': chunk_number
             }, room=conversation_id)
             response_content += block_header
+            chunk_number += 1
             
             # Prepara o prompt para a IA
-            prompt = f"""Resumir o seguinte trecho de uma transcrição de vídeo do YouTube em um parágrafo conciso, 
-            mas mantendo todos os pontos importantes:
+            prompt = f"""Resumir o seguinte trecho em um parágrafo conciso, mantendo os pontos importantes:
 
-            "{chunk}"
-            
-            Resumo detalhado:"""
+"{chunk}"
+
+Resumo detalhado:"""
             
             # Gera o resumo com a IA e envia em streaming
             try:
@@ -575,55 +593,59 @@ def process_youtube_resumo_background(url, conversation_id):
                         # Enviar chunk via socket para streaming em tempo real
                         socketio.emit('message_chunk', {
                             'content': resumo_chunk,
-                            'conversation_id': conversation_id
+                            'conversation_id': conversation_id,
+                            'message_id': message_id,
+                            'chunk_number': chunk_number
                         }, room=conversation_id)
                         response_content += resumo_chunk
+                        chunk_number += 1
             except Exception as e:
                 error_msg = f"Falha ao gerar resumo para o bloco {block_number}: {str(e)}"
                 print(f"[ERRO] {error_msg}")
                 error_response = f"*Erro ao gerar resumo para este bloco*\n\n**Trecho original:**\n\n{chunk[:150]}..."
                 socketio.emit('message_chunk', {
                     'content': error_response,
-                    'conversation_id': conversation_id
+                    'conversation_id': conversation_id,
+                    'message_id': message_id,
+                    'chunk_number': chunk_number
                 }, room=conversation_id)
                 response_content += error_response
         
         # Notificar que a resposta está completa
         socketio.emit('response_complete', {
-            'conversation_id': conversation_id
+            'conversation_id': conversation_id,
+            'message_id': message_id,
+            'total_chunks': chunk_number,
+            'complete_response': response_content
         }, room=conversation_id)
+        logger.info(f"[BACKEND] Resumo concluído para {conversation_id}, total de chunks: {chunk_number}")
         
         # Atualiza a mensagem no histórico
         update_message_in_conversation(conversation_id, message_id, response_content)
         
         # Notifica que a conversa foi atualizada
-        # print(f"[DEBUG] Emitindo evento conversation_updated para conversation_id: {conversation_id}")
         socketio.emit('conversation_updated', {
             'conversation_id': conversation_id
         })
-        # print(f"[DEBUG] Evento conversation_updated emitido com sucesso")
         
         print(f"[INFO] Processamento do resumo do vídeo concluído com sucesso")
         
     except Exception as e:
         error_msg = f"Erro ao processar o resumo do vídeo: {str(e)}"
         print(f"[ERRO] {error_msg}")
-        socketio.emit('youtube_resumo_error', {
-            'status': 'error',
-            'conversation_id': conversation_id,
-            'error': error_msg
-        }, room=conversation_id)
         
-        # Também exibir o erro como uma mensagem normal
-        error_response = f"**Erro:** {error_msg}"
-        message_id = add_message_to_conversation(conversation_id, error_response, "assistant")
+        # Em caso de erro, enviar message_chunk e response_complete
         socketio.emit('message_chunk', {
-            'content': error_response,
-            'conversation_id': conversation_id
+            'content': f"**Erro:** {error_msg}",
+            'conversation_id': conversation_id,
+            'message_id': message_id,
+            'chunk_number': chunk_number if 'chunk_number' in locals() else 1
         }, room=conversation_id)
         socketio.emit('response_complete', {
-            'conversation_id': conversation_id
+            'conversation_id': conversation_id,
+            'message_id': message_id
         }, room=conversation_id)
+        logger.error(f"[BACKEND] Erro no YouTube Resumo: {str(e)}")
 
 @app.route('/rename_conversation/<conversation_id>', methods=['POST'])
 def handle_rename_conversation(conversation_id):

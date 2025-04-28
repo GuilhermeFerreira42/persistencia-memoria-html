@@ -62,26 +62,42 @@ class MessageRegistry {
             logger.debug(`Mensagem ${messageId} já registrada, atualizando`);
             const entry = this.messages.get(messageId);
             
-            // Atualizar dados existentes
-            Object.assign(entry, data);
-            return entry;
+            // Atualizar dados existentes preservando flags importantes
+            const updatedEntry = {
+                ...entry,
+                ...data,
+                isComplete: entry.isComplete || false,
+                isStreaming: entry.isStreaming || false,
+                timestamp: entry.timestamp || Date.now()
+            };
+            
+            this.messages.set(messageId, updatedEntry);
+            return updatedEntry;
         }
         
-        // Criar nova entrada
+        // Criar nova entrada com flags padrão
         const entry = {
             id: messageId,
             content: data.content || '',
             container: data.container || null,
             timestamp: Date.now(),
             conversationId: data.conversationId || null,
-            complete: false,
+            isComplete: false,
+            isStreaming: false,
+            rendered: false,
             ...data
         };
         
         this.messages.set(messageId, entry);
-        logger.info(`Mensagem registrada: ${messageId}`, { 
-            conversationId: entry.conversationId 
+        logger.info(`Nova mensagem registrada: ${messageId}`, { 
+            conversationId: entry.conversationId,
+            hasContainer: !!entry.container
         });
+        
+        // Emitir evento de nova mensagem
+        document.dispatchEvent(new CustomEvent('message:registered', {
+            detail: { messageId, entry }
+        }));
         
         return entry;
     }

@@ -84,32 +84,42 @@ class StreamingManager {
             logger.debug('Animação de carregamento ocultada após receber chunk');
         }
         
-        // Verificar se a mensagem já existe no registry
-        if (!messageRegistry.has(message_id)) {
-            logger.debug(`Registrando nova mensagem de streaming: ${message_id}`);
-            const container = this.createMessageContainer(message_id, conversation_id);
-            // Registrar a mensagem com isStreaming=true para indicar streaming ativo
-            const entry = this.registerMessage(message_id, container, false);
+        // Criar ou obter o container da mensagem
+        let container;
+        let entry = messageRegistry.getMessage(message_id);
+        
+        if (!entry) {
+            // Criar novo container e registrar a mensagem
+            container = this.createMessageContainer(message_id, conversation_id);
+            entry = this.registerMessage(message_id, container, false);
             entry.isStreaming = true;
             entry.content = content;
-        } else {
-            // Adicionar o chunk ao conteúdo da mensagem
-            const entry = messageRegistry.get(message_id);
-            if (entry) {
-                entry.content += content;
-                entry.isStreaming = true;
-                
-                // Remover qualquer loading-dots remanescente
-                const contentDiv = entry.container.querySelector('.message-content');
-                const loadingDots = contentDiv.querySelector('.loading-dots');
-                if (loadingDots) loadingDots.remove();
-                
-                // Renderizar o conteúdo atual para mostrar os novos chunks
-                contentDiv.innerHTML = marked.parse(entry.content);
-                
-                // Rolar para a mensagem para manter visibilidade
-                this.manageScroll(entry.container);
+            
+            // Renderizar o conteúdo inicial imediatamente
+            const contentDiv = container.querySelector('.message-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = marked.parse(content);
+                this.manageScroll(container);
             }
+        } else {
+            container = entry.container;
+            if (!container || !container.isConnected) {
+                container = this.createMessageContainer(message_id, conversation_id);
+                entry.container = container;
+            }
+            
+            // Adicionar o chunk ao conteúdo existente
+            entry.content += content;
+            entry.isStreaming = true;
+            
+            // Remover qualquer loading-dots remanescente
+            const contentDiv = container.querySelector('.message-content');
+            const loadingDots = contentDiv.querySelector('.loading-dots');
+            if (loadingDots) loadingDots.remove();
+            
+            // Renderizar o conteúdo atualizado
+            contentDiv.innerHTML = marked.parse(entry.content);
+            this.manageScroll(container);
         }
     }
 

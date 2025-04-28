@@ -30,6 +30,13 @@ export async function handleYoutubeResumoCommand(command, conversationId) {
         const sendBtn = document.querySelector('#send-btn');
         if (sendBtn) sendBtn.disabled = true;
 
+        // Exibir animação de carregamento centralizada
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'block';
+            console.log('[DEBUG] Animação de carregamento exibida para YouTube Resumo');
+        }
+
         // Enviar requisição para processar o vídeo
         const response = await fetch('/process_youtube_resumo', {
             method: 'POST',
@@ -61,6 +68,14 @@ export async function handleYoutubeResumoCommand(command, conversationId) {
         return data;
     } catch (error) {
         console.error('[ERRO] Falha ao processar resumo do vídeo:', error);
+        
+        // Esconder animação em caso de erro
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'none';
+            console.log('[DEBUG] Animação de carregamento escondida após erro');
+        }
+        
         throw error;
     } finally {
         setTimeout(() => {
@@ -71,39 +86,6 @@ export async function handleYoutubeResumoCommand(command, conversationId) {
     }
 }
 
-// Configuração dos listeners de socket.io já é feita pelo sistema principal
-// Não precisamos mais configurar listeners específicos para o YouTube Resumo,
-// pois usaremos os eventos padrão message_chunk e response_complete
-
-export function setupYoutubeResumoSocketListeners(socket) {
-    console.log('[DEBUG] O YouTube Resumo agora usa o sistema de streaming padrão');
-    
-    // Listener de erro ainda é útil para erros específicos do YouTube
-    socket.on('youtube_resumo_error', (error) => {
-        console.error('[ERRO] Erro no processamento do resumo do YouTube:', error);
-        
-        // Remover todas as animações de carregamento
-        const loadingDivs = document.querySelectorAll('.message.loading');
-        loadingDivs.forEach(div => div.remove());
-        
-        // Exibir mensagem de erro
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'message error';
-            errorDiv.innerHTML = `
-                <div class="message-content">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>Erro ao processar resumo do vídeo: ${error.message || error.error}</span>
-                </div>
-            `;
-            chatContainer.appendChild(errorDiv);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        }
-        
-        // Resetar estado
-        isProcessingYoutubeResumo = false;
-        const sendBtn = document.querySelector('#send-btn');
-        if (sendBtn) sendBtn.disabled = false;
-    });
-} 
+// O YouTube Resumo agora usa os eventos padrão message_chunk e response_complete
+// Não é mais necessário configurar listeners específicos
+console.log('[DEBUG] O YouTube Resumo usa o sistema de streaming padrão de message_chunk e response_complete'); 

@@ -1,6 +1,6 @@
 import './init.js';
 import { handleYoutubeCommand, setupYoutubeSocketListeners } from './youtube-system/youtubeHandler.js';
-import { handleYoutubeResumoCommand, setupYoutubeResumoSocketListeners } from './youtube-system/youtubeResumoHandler.js';
+import { handleYoutubeResumoCommand } from './youtube-system/youtubeResumoHandler.js';
 import { setupYoutubeEvents } from './youtube-system/youtubeEvents.js';
 import { 
     iniciarChat,
@@ -103,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Configurar listeners do Socket.IO para o YouTube
     setupYoutubeSocketListeners(socket);
-    setupYoutubeResumoSocketListeners(socket);
     setupYoutubeEvents(socket);
     
     const welcomeForm = document.getElementById('welcome-form');

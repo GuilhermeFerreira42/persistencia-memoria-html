@@ -29,6 +29,13 @@ export async function handleYoutubeCommand(command, conversationId) {
         const sendBtn = document.querySelector('#send-btn');
         if (sendBtn) sendBtn.disabled = true;
 
+        // Exibir animação de carregamento centralizada
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'block';
+            console.log('[DEBUG] Animação de carregamento exibida');
+        }
+
         // Enviar requisição para processar o vídeo
         const response = await fetch('/process_youtube', {
             method: 'POST',
@@ -47,7 +54,7 @@ export async function handleYoutubeCommand(command, conversationId) {
         }
 
         const data = await response.json();
-        console.log('[DEBUG] Processamento iniciado:', data.status);
+        console.log('[DEBUG] Processamento do vídeo iniciado:', data.status);
         
         // Entrar na sala da conversa para receber eventos
         if (window.socket) {
@@ -60,11 +67,21 @@ export async function handleYoutubeCommand(command, conversationId) {
         return data;
     } catch (error) {
         console.error('[ERRO] Falha ao processar vídeo:', error);
+        
+        // Esconder animação em caso de erro
+        const loadingAnimation = document.getElementById('loading-animation');
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'none';
+            console.log('[DEBUG] Animação de carregamento escondida após erro');
+        }
+        
         throw error;
     } finally {
-        isProcessingYoutube = false;
-        const sendBtn = document.querySelector('#send-btn');
-        if (sendBtn) sendBtn.disabled = false;
+        setTimeout(() => {
+            isProcessingYoutube = false;
+            const sendBtn = document.querySelector('#send-btn');
+            if (sendBtn) sendBtn.disabled = false;
+        }, 2000); // Um pequeno atraso para garantir que o streaming comece
     }
 }
 
@@ -74,24 +91,38 @@ export function setupYoutubeSocketListeners(socket) {
     
     socket.on('youtube_response', (response) => {
         console.log('[DEBUG] Recebida resposta do YouTube:', response);
-        
-        // Remover todas as animações de carregamento
-        const loadingDivs = document.querySelectorAll('.message.loading');
-        loadingDivs.forEach(div => div.remove());
-        
-        // Verificar se a mensagem já existe
-        const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
-        if (existingMessage) {
-            console.log('[DEBUG] Mensagem já existe, ignorando');
+        const chatContainer = document.querySelector('.chat-container');
+        const loadingAnimation = document.getElementById('loading-animation');
+
+        if (response.status === 'processing') {
+            // Manter animação visível
+            if (loadingAnimation) {
+                loadingAnimation.style.display = 'block';
+            }
             return;
         }
-        
-        // Adicionar nova mensagem
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
+
+        // Esconder animação ao receber resposta final ou erro
+        if (loadingAnimation) {
+            loadingAnimation.style.display = 'none';
+            console.log('[DEBUG] Animação de carregamento escondida');
+        }
+
+        // Verificar se a mensagem já existe no DOM
+        if (response.message_id) {
+            const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
+            if (existingMessage) {
+                console.log('[DEBUG] Mensagem já existe, ignorando duplicata');
+                return;
+            }
+        }
+
+        if (response.status === 'success' && response.content) {
+            // Criar a nova mensagem
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message assistant youtube';
             messageDiv.setAttribute('data-message-id', response.message_id);
+            messageDiv.setAttribute('data-conversation-id', response.conversation_id);
             messageDiv.innerHTML = `
                 <div class="message-content">
                     ${marked.parse(response.content)}
@@ -104,6 +135,22 @@ export function setupYoutubeSocketListeners(socket) {
             `;
             chatContainer.appendChild(messageDiv);
             messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            console.log('[DEBUG] Resposta do YouTube renderizada com sucesso');
+        } else if (response.status === 'error') {
+            // Criar mensagem de erro
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message error';
+            errorDiv.setAttribute('data-message-id', response.message_id);
+            errorDiv.setAttribute('data-conversation-id', response.conversation_id);
+            errorDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${response.error}</span>
+                </div>
+            `;
+            chatContainer.appendChild(errorDiv);
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            console.log('[DEBUG] Erro do YouTube renderizado');
         }
     });
     

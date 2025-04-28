@@ -509,6 +509,21 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         timestamp: new Date().toISOString()
     });
 
+    // Verificar se é um comando para resumir YouTube
+    if (mensagem.toLowerCase().startsWith('/youtube_resumo')) {
+        logger.info('Comando de resumo do YouTube detectado', { mensagem });
+        try {
+            await handleYoutubeResumoCommand(mensagem, conversationId, chatContainer);
+            logger.info('Comando de resumo do YouTube processado com sucesso');
+        } catch (error) {
+            logger.error('Erro ao processar comando de resumo do YouTube', { 
+                error: error.message,
+                stack: error.stack
+            });
+        }
+        return;
+    }
+    
     // Verificar se é um comando de YouTube
     if (mensagem.toLowerCase().startsWith('/youtube')) {
         logger.info('Comando do YouTube detectado', { mensagem });
@@ -517,21 +532,6 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             logger.info('Comando do YouTube processado com sucesso');
         } catch (error) {
             logger.error('Erro ao processar comando do YouTube', { 
-                error: error.message,
-                stack: error.stack
-            });
-        }
-        return;
-    }
-    
-    // Verificar se é um comando para resumir YouTube
-    if (mensagem.toLowerCase().startsWith('/resumo')) {
-        logger.info('Comando de resumo do YouTube detectado', { mensagem });
-        try {
-            await handleYoutubeResumoCommand(mensagem, conversationId, chatContainer);
-            logger.info('Comando de resumo do YouTube processado com sucesso');
-        } catch (error) {
-            logger.error('Erro ao processar comando de resumo do YouTube', { 
                 error: error.message,
                 stack: error.stack
             });
