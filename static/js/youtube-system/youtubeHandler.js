@@ -1,40 +1,58 @@
 // youtubeHandler.js
-// Este arquivo lidará com o envio do comando /youtube ao backend.
+import { logger } from '../utils/logger.js';
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked@5.1.1/lib/marked.esm.js';
+import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.es.js';
 
 let isProcessingYoutube = false;
 
 export async function handleYoutubeCommand(command, conversationId) {
+    logger.info('Iniciando processamento de comando YouTube', {
+        conversationId,
+        isProcessing: isProcessingYoutube
+    });
+
     if (isProcessingYoutube) {
-        console.log('[DEBUG] Já existe um processamento de YouTube em andamento');
+        logger.warn('Processamento de YouTube já em andamento, ignorando comando');
         return;
     }
 
-    console.log('[DEBUG] Iniciando processamento do comando do YouTube');
-    
     // Extrair a URL do vídeo do comando
     const videoUrl = command.split(' ')[1];
     if (!videoUrl) {
+        logger.error('URL do vídeo não fornecida no comando');
         throw new Error('URL do vídeo não fornecida');
     }
 
     // Validar se a URL é do YouTube
     if (!videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be')) {
+        logger.error('URL inválida fornecida', { url: videoUrl });
         throw new Error('URL inválida. Use um link do YouTube válido.');
     }
 
-    console.log(`[DEBUG] Enviando requisição para processar vídeo: ${videoUrl}`);
+    logger.debug('Iniciando processamento de vídeo', {
+        url: videoUrl,
+        conversationId
+    });
     
     try {
         isProcessingYoutube = true;
         const sendBtn = document.querySelector('#send-btn');
-        if (sendBtn) sendBtn.disabled = true;
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            logger.debug('Botão de envio desabilitado');
+        }
 
         // Exibir animação de carregamento centralizada
         const loadingAnimation = document.getElementById('loading-animation');
         if (loadingAnimation) {
             loadingAnimation.style.display = 'block';
-            console.log('[DEBUG] Animação de carregamento exibida');
+            logger.debug('Animação de carregamento exibida');
         }
+
+        logger.info('Enviando requisição para processar vídeo', {
+            url: videoUrl,
+            conversationId
+        });
 
         // Enviar requisição para processar o vídeo
         const response = await fetch('/process_youtube', {
@@ -50,29 +68,40 @@ export async function handleYoutubeCommand(command, conversationId) {
 
         if (!response.ok) {
             const errorData = await response.json();
+            logger.error('Falha na resposta do servidor', {
+                status: response.status,
+                error: errorData.error
+            });
             throw new Error(errorData.error || 'Erro ao processar vídeo');
         }
 
         const data = await response.json();
-        console.log('[DEBUG] Processamento do vídeo iniciado:', data.status);
+        logger.info('Processamento do vídeo iniciado pelo backend', {
+            status: data.status,
+            conversationId
+        });
         
         // Entrar na sala da conversa para receber eventos
         if (window.socket) {
             window.socket.emit('join_conversation', { conversation_id: conversationId });
-            console.log(`[DEBUG] Entrou na sala da conversa: ${conversationId}`);
+            logger.debug('Entrou na sala da conversa para eventos', { conversationId });
         } else {
-            console.error('[ERRO] Socket não inicializado');
+            logger.error('Socket não inicializado');
         }
         
         return data;
     } catch (error) {
-        console.error('[ERRO] Falha ao processar vídeo:', error);
+        logger.error('Erro no processamento do vídeo', {
+            error: error.message,
+            stack: error.stack,
+            conversationId
+        });
         
         // Esconder animação em caso de erro
         const loadingAnimation = document.getElementById('loading-animation');
         if (loadingAnimation) {
             loadingAnimation.style.display = 'none';
-            console.log('[DEBUG] Animação de carregamento escondida após erro');
+            logger.debug('Animação de carregamento ocultada após erro');
         }
         
         throw error;
@@ -80,17 +109,25 @@ export async function handleYoutubeCommand(command, conversationId) {
         setTimeout(() => {
             isProcessingYoutube = false;
             const sendBtn = document.querySelector('#send-btn');
-            if (sendBtn) sendBtn.disabled = false;
-        }, 2000); // Um pequeno atraso para garantir que o streaming comece
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                logger.debug('Botão de envio reabilitado');
+            }
+        }, 2000);
     }
 }
 
 // Função para configurar os listeners de eventos do Socket.IO
 export function setupYoutubeSocketListeners(socket) {
-    console.log('[DEBUG] Configurando listeners do YouTube');
+    logger.info('Configurando listeners do YouTube');
     
     socket.on('youtube_response', (response) => {
-        console.log('[DEBUG] Recebida resposta do YouTube:', response);
+        logger.debug('Resposta do YouTube recebida', {
+            status: response.status,
+            conversationId: response.conversation_id,
+            messageId: response.message_id
+        });
+
         const chatContainer = document.querySelector('.chat-container');
         const loadingAnimation = document.getElementById('loading-animation');
 
@@ -98,6 +135,7 @@ export function setupYoutubeSocketListeners(socket) {
             // Manter animação visível
             if (loadingAnimation) {
                 loadingAnimation.style.display = 'block';
+                logger.debug('Mantendo animação de carregamento');
             }
             return;
         }
@@ -105,19 +143,28 @@ export function setupYoutubeSocketListeners(socket) {
         // Esconder animação ao receber resposta final ou erro
         if (loadingAnimation) {
             loadingAnimation.style.display = 'none';
-            console.log('[DEBUG] Animação de carregamento escondida');
+            logger.debug('Animação de carregamento ocultada');
         }
 
         // Verificar se a mensagem já existe no DOM
         if (response.message_id) {
             const existingMessage = document.querySelector(`.message[data-message-id="${response.message_id}"]`);
             if (existingMessage) {
-                console.log('[DEBUG] Mensagem já existe, ignorando duplicata');
+                logger.warn('Detectada tentativa de mensagem duplicada', {
+                    messageId: response.message_id,
+                    status: response.status
+                });
                 return;
             }
         }
 
         if (response.status === 'success' && response.content) {
+            logger.info('Renderizando resposta do YouTube', {
+                messageId: response.message_id,
+                conversationId: response.conversation_id,
+                contentLength: response.content.length
+            });
+
             // Criar a nova mensagem
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message assistant youtube';
@@ -125,7 +172,7 @@ export function setupYoutubeSocketListeners(socket) {
             messageDiv.setAttribute('data-conversation-id', response.conversation_id);
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    ${marked.parse(response.content)}
+                    ${DOMPurify.sanitize(marked.parse(response.content))}
                 </div>
                 <div class="message-actions">
                     <button class="action-btn copy-btn" onclick="window.copiarMensagem(this)" title="Copiar mensagem">
@@ -135,8 +182,14 @@ export function setupYoutubeSocketListeners(socket) {
             `;
             chatContainer.appendChild(messageDiv);
             messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            console.log('[DEBUG] Resposta do YouTube renderizada com sucesso');
+            logger.debug('Resposta do YouTube renderizada com sucesso');
         } else if (response.status === 'error') {
+            logger.error('Erro na resposta do YouTube', {
+                error: response.error,
+                messageId: response.message_id,
+                conversationId: response.conversation_id
+            });
+
             // Criar mensagem de erro
             const errorDiv = document.createElement('div');
             errorDiv.className = 'message error';
@@ -145,21 +198,30 @@ export function setupYoutubeSocketListeners(socket) {
             errorDiv.innerHTML = `
                 <div class="message-content">
                     <i class="fas fa-exclamation-circle"></i>
-                    <span>${response.error}</span>
+                    <span>${DOMPurify.sanitize(response.error)}</span>
                 </div>
             `;
             chatContainer.appendChild(errorDiv);
             errorDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            console.log('[DEBUG] Erro do YouTube renderizado');
+            logger.debug('Mensagem de erro do YouTube renderizada');
         }
     });
     
     socket.on('youtube_error', (error) => {
-        console.error('[DEBUG] Erro no processamento do YouTube:', error);
+        logger.error('Erro no processamento do YouTube', {
+            error: error.message,
+            stack: error.stack
+        });
         
         // Remover todas as animações de carregamento
         const loadingDivs = document.querySelectorAll('.message.loading');
-        loadingDivs.forEach(div => div.remove());
+        loadingDivs.forEach(div => {
+            logger.debug('Removendo div de carregamento', {
+                messageId: div.dataset.messageId,
+                conversationId: div.dataset.conversationId
+            });
+            div.remove();
+        });
         
         // Exibir mensagem de erro
         const chatContainer = document.querySelector('.chat-container');
@@ -169,17 +231,21 @@ export function setupYoutubeSocketListeners(socket) {
             errorDiv.innerHTML = `
                 <div class="message-content">
                     <i class="fas fa-exclamation-circle"></i>
-                    <span>Erro ao processar vídeo do YouTube: ${error.message}</span>
+                    <span>Erro ao processar vídeo do YouTube: ${DOMPurify.sanitize(error.message)}</span>
                 </div>
             `;
             chatContainer.appendChild(errorDiv);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            logger.debug('Mensagem de erro renderizada no chat');
         }
         
         // Resetar estado
         isProcessingYoutube = false;
         const sendBtn = document.querySelector('#send-btn');
-        if (sendBtn) sendBtn.disabled = false;
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            logger.debug('Botão de envio reabilitado após erro');
+        }
     });
 }
 
@@ -202,4 +268,4 @@ function displaySubtitles(formattedSubtitles) {
     const subtitlesContainer = document.getElementById('subtitles-container');
     subtitlesContainer.innerHTML = formattedSubtitles;
     subtitlesContainer.style.display = 'block';
-} 
+}

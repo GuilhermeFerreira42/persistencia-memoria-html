@@ -88,6 +88,15 @@ class StreamingManager {
         let container;
         let entry = messageRegistry.getMessage(message_id);
         
+        logger.debug('Processando chunk', {
+            messageId: message_id,
+            conversationId: conversation_id,
+            chunkNumber: chunk_number,
+            contentSize: content?.length,
+            processedChunks: messageRegistry.getMessage(message_id)?.processedChunks || [],
+            timestamp: Date.now()
+        });
+
         if (!entry) {
             // Criar novo container e registrar a mensagem
             container = this.createMessageContainer(message_id, conversation_id);
@@ -108,6 +117,37 @@ class StreamingManager {
                 entry.container = container;
             }
             
+            // Verificar se este chunk já foi processado
+            if (!entry.processedChunks) {
+                entry.processedChunks = [];
+            }
+            
+            if (entry.processedChunks.includes(chunk_number)) {
+                logger.warn('Chunk duplicado detectado e ignorado', {
+                    messageId: message_id,
+                    chunkNumber: chunk_number,
+                    processedChunks: entry.processedChunks
+                });
+                return;
+            }
+
+            // Verificar ordem dos chunks
+            if (entry.processedChunks.length > 0) {
+                const lastChunk = Math.max(...entry.processedChunks);
+                if (chunk_number < lastChunk) {
+                    logger.warn('Chunk fora de ordem detectado', {
+                        messageId: message_id,
+                        chunkNumber: chunk_number,
+                        lastProcessedChunk: lastChunk,
+                        processedChunks: entry.processedChunks
+                    });
+                }
+            }
+
+            // Registrar o chunk como processado
+            entry.processedChunks.push(chunk_number);
+            entry.lastChunkTime = Date.now();
+
             // Adicionar o chunk ao conteúdo existente
             entry.content += content;
             entry.isStreaming = true;
@@ -120,6 +160,17 @@ class StreamingManager {
             // Renderizar o conteúdo atualizado
             contentDiv.innerHTML = marked.parse(entry.content);
             this.manageScroll(container);
+        }
+
+        // Registrar timestamp do último chunk
+        if (entry) {
+            entry.lastChunkTime = Date.now();
+            logger.debug('Estado após processamento do chunk', {
+                messageId: message_id,
+                processedChunks: entry.processedChunks,
+                contentLength: entry.content?.length,
+                timeSinceLastChunk: entry.lastChunkTime - (entry.firstChunkTime || entry.lastChunkTime)
+            });
         }
     }
 
@@ -206,6 +257,39 @@ class StreamingManager {
         
         // Remover do activeContainers
         this.activeContainers.delete(message_id);
+
+        logger.info('Finalizando processamento de mensagem', {
+            messageId: message_id,
+            conversationId: conversation_id,
+            totalChunksProcessed: messageRegistry.getMessage(message_id)?.processedChunks?.length || 0,
+            expectedTotalChunks: total_chunks,
+            timingInfo: this.getMessageTimingInfo(message_id),
+            contentMatch: this.validateContentMatch(message_id, complete_response)
+        });
+
+        const entry = messageRegistry.getMessage(message_id);
+        if (entry) {
+            // Verificar se todos os chunks foram recebidos
+            const processedCount = entry.processedChunks?.length || 0;
+            if (processedCount !== total_chunks) {
+                logger.warn('Discrepância no número de chunks', {
+                    messageId: message_id,
+                    processedChunks: processedCount,
+                    expectedChunks: total_chunks,
+                    missingChunks: this.findMissingChunks(entry.processedChunks, total_chunks)
+                });
+            }
+
+            // Verificar por possíveis duplicações
+            const duplicateCheck = this.checkForDuplicates(conversation_id, complete_response);
+            if (duplicateCheck.hasDuplicates) {
+                logger.warn('Possível duplicação de conteúdo detectada', {
+                    messageId: message_id,
+                    similarMessageIds: duplicateCheck.similarMessageIds,
+                    similarityScore: duplicateCheck.similarityScore
+                });
+            }
+        }
     }
 
     /**
@@ -555,6 +639,131 @@ class StreamingManager {
             // Não remover NUNCA containers com isComplete=true
             // Isto garante que mensagens finalizadas permaneçam visíveis
         }
+    }
+
+    /**
+     * Encontra chunks faltantes na sequência
+     * @private
+     */
+    findMissingChunks(processedChunks = [], totalExpected) {
+        const missing = [];
+        if (!processedChunks.length) return Array.from({length: totalExpected}, (_, i) => i);
+        
+        for (let i = 0; i < totalExpected; i++) {
+            if (!processedChunks.includes(i)) {
+                missing.push(i);
+            }
+        }
+        return missing;
+    }
+
+    /**
+     * Obtém informações de timing da mensagem
+     * @private
+     */
+    getMessageTimingInfo(messageId) {
+        const entry = messageRegistry.getMessage(messageId);
+        if (!entry) return null;
+
+        return {
+            firstChunkTime: entry.firstChunkTime,
+            lastChunkTime: entry.lastChunkTime,
+            totalProcessingTime: entry.lastChunkTime - entry.firstChunkTime,
+            averageTimeBetweenChunks: this.calculateAverageChunkTiming(entry)
+        };
+    }
+
+    /**
+     * Calcula tempo médio entre chunks
+     * @private
+     */
+    calculateAverageChunkTiming(entry) {
+        if (!entry.chunkTimings || entry.chunkTimings.length < 2) return null;
+        
+        let totalDiff = 0;
+        for (let i = 1; i < entry.chunkTimings.length; i++) {
+            totalDiff += entry.chunkTimings[i] - entry.chunkTimings[i-1];
+        }
+        return totalDiff / (entry.chunkTimings.length - 1);
+    }
+
+    /**
+     * Verifica correspondência entre conteúdo acumulado e resposta completa
+     * @private
+     */
+    validateContentMatch(messageId, completeResponse) {
+        const entry = messageRegistry.getMessage(messageId);
+        if (!entry || !completeResponse) return { matches: true };  // assume match if can't verify
+
+        const accumulated = entry.content || '';
+        if (accumulated === completeResponse) return { matches: true };
+
+        // Se não corresponder exatamente, calcular diferença
+        return {
+            matches: false,
+            accumulatedLength: accumulated.length,
+            completeLength: completeResponse.length,
+            firstDifferenceAt: this.findFirstDifference(accumulated, completeResponse)
+        };
+    }
+
+    /**
+     * Encontra a primeira diferença entre duas strings
+     * @private
+     */
+    findFirstDifference(str1, str2) {
+        const minLength = Math.min(str1.length, str2.length);
+        for (let i = 0; i < minLength; i++) {
+            if (str1[i] !== str2[i]) return i;
+        }
+        return str1.length === str2.length ? -1 : minLength;
+    }
+
+    /**
+     * Verifica duplicações de conteúdo
+     * @private
+     */
+    checkForDuplicates(conversationId, content) {
+        const messages = Array.from(messageRegistry.messages.values())
+            .filter(m => m.conversationId === conversationId && m.isComplete);
+        
+        const duplicates = {
+            hasDuplicates: false,
+            similarMessageIds: [],
+            similarityScore: 0
+        };
+
+        for (const message of messages) {
+            if (!message.content || message.content === content) continue;
+            
+            const similarity = this.calculateSimilarity(content, message.content);
+            if (similarity > 0.9) {  // 90% similar
+                duplicates.hasDuplicates = true;
+                duplicates.similarMessageIds.push(message.id);
+                duplicates.similarityScore = Math.max(duplicates.similarityScore, similarity);
+            }
+        }
+
+        return duplicates;
+    }
+
+    /**
+     * Calcula similaridade entre duas strings (0-1)
+     * @private
+     */
+    calculateSimilarity(str1, str2) {
+        // Simplificação para comparação rápida
+        const sample1 = str1.substring(0, 100).toLowerCase();
+        const sample2 = str2.substring(0, 100).toLowerCase();
+        
+        let matches = 0;
+        const minLength = Math.min(sample1.length, sample2.length);
+        
+        for (let i = 0; i < minLength; i++) {
+            if (sample1[i] === sample2[i]) matches++;
+        }
+        
+        return matches / minLength;
     }
 }
 
