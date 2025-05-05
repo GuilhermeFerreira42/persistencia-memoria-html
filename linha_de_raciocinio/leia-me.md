@@ -359,8 +359,7 @@ Este problema parece ser um desafio comum em sistemas de chat em tempo real, esp
 
 ````
 
-Com certeza! Com base na estrutura de arquivos e no código completo que você forneceu, posso gerar um "dicionário" explicando a função de cada arquivo e das principais funções dentro deles.
-Como não consigo salvar diretamente no Google Docs, vou fornecer o texto formatado em Markdown. Você pode copiar e colar facilmente em um novo Google Doc.
+
 Observação Importante: Como mencionado anteriormente e confirmado pela análise do código, existem alguns arquivos duplicados (chatUI.js, messageRegistry.js) e funções com nomes semelhantes em arquivos diferentes (escapeHTML, mostrarCarregamento, várias funções de chat.js que parecem estar implementadas em chatActions.js e chatStorage.js). A documentação abaixo tenta descrever a intenção ou a implementação mais provável (geralmente a que está dentro de pastas mais específicas como chat/ ou modules/), mas você precisará revisar seu projeto para eliminar essas redundâncias e garantir que está usando as versões corretas dos arquivos e funções.
 
 Dicionário de Funções do Projeto de Chat
@@ -577,3 +576,171 @@ handleYoutubeResumoCommand(): Envia a requisição para o endpoint /process_yout
 Espero que este dicionário detalhado ajude você a entender melhor a estrutura e a função de cada parte do seu código JavaScript! Lembre-se de revisar as duplicações e redundâncias para organizar melhor seu projeto.
 Fontes e conteúdo relacionado
 
+-------------
+
+**Contexto Atual:**
+
+Olá! Nós trabalhamos anteriormente na implementação de logs detalhados (Fase 1) no sistema de chat (arquivos como `chatActions.js`, `streamingManager.js`, `messageRenderer.js`, `app.py`, etc.). O objetivo foi mapear o fluxo, identificar gargalos e preparar o terreno para correções. Os logs foram adicionados com sucesso e nos ajudaram a diagnosticar os problemas com mais clareza.
+
+**Próximo Objetivo (Fase 2):**
+
+Agora, estamos iniciando a **Fase 2**, que consiste em **alinhar os comandos `/youtube` e `/youtube_resumo` com a lógica funcional do chat com IA**. Os problemas específicos que precisamos resolver nesta fase, identificados com ajuda dos logs e análises anteriores, são:
+
+1.  **`/youtube`**:
+    * A mensagem do usuário (`/youtube URL`) não aparece na interface do chat quando enviada.
+    * A transcrição completa do vídeo só é exibida após todo o processamento no backend, sem streaming.
+2.  **`/youtube_resumo`**:
+    * Ocorre duplicação da mensagem final do resumo na interface.
+    * A ordem de renderização dos blocos do resumo pode apresentar problemas visuais temporários (embora o conteúdo final pareça correto após a conclusão).
+
+**Estratégia Acordada:**
+
+Concluímos que a melhor abordagem é **replicar o padrão de funcionamento do chat com IA** para os comandos do YouTube. Isso envolve principalmente:
+
+* **Gerenciamento de ID:** O Frontend deve gerar um `messageId` único para cada comando `/youtube` ou `/youtube_resumo` e enviá-lo ao Backend.
+* **Consistência no Backend:** O Backend (`app.py`) deve receber e **usar** esse `messageId` do frontend para todos os eventos Socket.IO (`message_chunk`, `response_complete`) relacionados àquela resposta específica.
+* **Lógica de Armazenamento Unificada:** O Backend deve salvar a resposta completa (transcrição ou resumo) no `chat_storage.py` **apenas uma vez**, no final do processamento, antes de emitir `response_complete`, espelhando o comportamento da IA e evitando o padrão problemático de "salvar parcial e depois atualizar".
+* **Correções Adicionais:** Resolver bugs pendentes identificados na Fase 1, como o erro `messageRegistry.entries` e a lógica de limpeza `cleanupOrphan`, além de garantir a renderização imediata da mensagem do usuário para o comando `/youtube`.
+
+**Plano Detalhado (Fase 2):**
+
+A seguir está o plano estruturado que desenvolvemos para executar a Fase 2. Peço que siga estes passos para me ajudar a implementar as correções e melhorias necessárias no código.
+
+**(---
+
+# 🔥 Fase 2: Alinhamento dos Comandos YouTube (Em Andamento)
+
+**Contexto:** A Fase 1 estabeleceu um fluxo de streaming funcional para a IA, com IDs consistentes e gerenciamento de estado via `messageRegistry`. Agora, aplicaremos esses mesmos princípios aos comandos `/youtube` e `/youtube_resumo` para corrigir os problemas atuais.
+
+**Problemas Atuais a Resolver:**
+
+* `/youtube`: Mensagem do usuário não aparece na UI; transcrição só é renderizada no final.
+* `/youtube_resumo`: Duplicação da mensagem final; ordem de renderização dos blocos incorreta (embora se corrija visualmente com novos chunks).
+* (Correção Pendente da Fase 1): Possíveis erros remanescentes de limpeza (`cleanupOrphan`) ou renderização (`marked()`) que podem impactar a estabilidade geral.
+
+**Objetivo da Fase 2:** Garantir que ambos os comandos do YouTube sigam o fluxo padrão `Frontend gera ID -> Backend usa ID -> Chunks/Resposta via Socket.IO -> Frontend renderiza com ID conhecido -> Backend salva UMA VEZ no final`, eliminando inconsistências e bugs.
+
+## Plano Estruturado - Fase 2
+
+### Passo 2.1: Verificação Rigorosa do Fluxo de IDs (YouTube e Resumo)
+
+*(Objetivo: Confirmar que a geração e o uso de `messageId` estão corretos ponta a ponta, como planejado)*
+
+1.  **Frontend - Geração e Envio:**
+    * **Verificar:** Código em `static/js/chat/chatActions.js` (ou handlers específicos como `youtubeHandler.js`, `youtubeResumoHandler.js`).
+    * **Confirmar:** Se um `messageId` único é gerado **ANTES** da chamada `Workspace` para `/process_youtube` e `/process_youtube_resumo`.
+    * **Confirmar:** Se este `messageId` gerado está sendo incluído corretamente no `body` da requisição enviada ao backend.
+    * **Log:** Usar `logger.debug` no JS para registrar o `messageId` gerado e o corpo da requisição.
+2.  **Backend - Recepção:**
+    * **Verificar:** Código em `app.py`, nas rotas `/process_youtube` e `/process_youtube_resumo`.
+    * **Confirmar:** Se o `messageId` está sendo extraído corretamente do `request.json`.
+    * **Confirmar:** Se este `messageId` recebido está sendo passado como argumento para as funções `process_youtube_background` e `process_youtube_resumo_background`.
+    * **Log:** Usar `logger.info` no Python para registrar o `messageId` recebido do frontend.
+3.  **Backend - Uso Consistente:**
+    * **Verificar:** Código em `app.py`, nas funções `process_youtube_background` e `process_youtube_resumo_background`.
+    * **Confirmar:** Se o `messageId` recebido (e NÃO um novo UUID) está sendo usado em **TODAS** as chamadas `socketio.emit()` (`message_chunk`, `response_complete`, `stream_error`, etc.) relacionadas a essa resposta.
+    * **Log:** Usar `logger.debug` no Python dentro dessas funções para mostrar o `messageId` sendo usado em cada `emit`.
+4.  **Rastreamento Completo:**
+    * **Ação:** Executar um comando `/youtube_resumo` e um `/youtube`.
+    * **Analisar:** Logs do frontend e backend para seguir o *mesmo* `messageId` desde a geração no JS até a recepção dos eventos (`message_chunk`, `response_complete`) no JS. Qualquer troca ou novo ID gerado indica um erro na implementação.
+
+### Passo 2.2: Verificação da Lógica de Armazenamento (`/youtube_resumo`)
+
+*(Objetivo: Garantir que o resumo só seja salvo no histórico UMA VEZ, no final do processo)*
+
+1.  **Backend - Ponto de Salvamento:**
+    * **Verificar:** Código em `app.py` na função `process_youtube_resumo_background`.
+    * **Confirmar:** Se a chamada `add_message_to_conversation` ocorre **APENAS UMA VEZ**, logo antes de `socketio.emit('response_complete')`.
+    * **Confirmar:** Se a chamada `update_message_in_conversation` **NÃO está sendo usada** para a mensagem do resumo.
+    * **Confirmar:** Se o `messageId` passado para `add_message_to_conversation` é o mesmo ID recebido do frontend.
+    * **Log:** Usar `logger.info` para registrar o momento exato do salvamento e o `messageId` associado.
+2.  **Backend - Tratamento de Conteúdo:**
+    * **Verificar:** Código em `utils/chat_storage.py`.
+    * **Confirmar:** Se a função `add_message_to_conversation` (e `save_conversation` chamada por ela) consegue lidar com conteúdos potencialmente grandes do resumo completo sem erros ou truncamentos.
+
+### Passo 2.3: Diagnóstico e Correção da Duplicação (`/youtube_resumo`)
+
+*(Objetivo: Eliminar a renderização duplicada da resposta final)*
+
+1.  **Frontend - Análise de Eventos Concorrentes:**
+    * **Analisar:** Logs do frontend (`streamingManager.js`, `messageRenderer.js`, `chatActions.js`) no momento em que os eventos `response_complete` e `conversation_updated` chegam para o *mesmo* `conversation_id` após um `/youtube_resumo`.
+    * **Investigar:** A lógica de `atualizarListaConversas` e `carregarConversa` (em `chatStorage.js` ou `chatActions.js`). Ela está causando uma re-renderização completa do chat que ignora a mensagem já finalizada pelo `response_complete`?
+    * **Log:** Adicionar logs específicos em `messageRenderer.js` (ex: `renderCompleteResponse`, `renderMessageContainer`) para identificar se a mesma mensagem (`messageId`) está sendo renderizada/atualizada por gatilhos diferentes (streaming vs. recarga de histórico).
+2.  **Frontend - Lógica de Prevenção:**
+    * **Verificar:** Código que renderiza mensagens do histórico (`carregarConversa` ou similar).
+    * **Implementar/Confirmar:** Se existe uma verificação **robusta** para **NÃO** adicionar um elemento ao DOM se outro elemento com o **mesmo `data-message-id`** já existir, independentemente das classes (`streaming`, `complete`). O `messageRegistry` pode ser consultado aqui.
+
+### Passo 2.4: Correção da Mensagem de Usuário Ausente (`/youtube`)
+
+*(Objetivo: Garantir que o comando `/youtube URL` apareça na UI)*
+
+1.  **Frontend - Verificação da Renderização:**
+    * **Verificar:** Código em `static/js/chat/chatActions.js` (ou `youtubeHandler.js`) onde o comando `/youtube` é tratado.
+    * **Confirmar:** Se o bloco de código que adiciona o `div` da mensagem do usuário (como sugerido na correção anterior) está presente e sendo executado.
+    * **Log:** Adicionar `logger.debug` *imediatamente antes* e *imediatamente depois* do código que deveria adicionar a mensagem do usuário ao DOM.
+2.  **Inspeção do DOM:**
+    * **Ação:** Usar as ferramentas de desenvolvedor do navegador.
+    * **Verificar:** Inspecionar o `div.chat-container` logo após enviar o comando `/youtube URL`. O `div.message.user` correspondente foi adicionado?
+
+### Passo 2.5: Alinhamento da Resposta (`/youtube`)
+
+*(Objetivo: Fazer a transcrição usar o fluxo padrão de eventos Socket.IO)*
+
+1.  **Backend - Emissão de Eventos:**
+    * **Verificar:** Código em `app.py`, função `process_youtube_background`.
+    * **Confirmar:** Se está usando o `messageId` recebido do frontend.
+    * **Implementar (Opção A - Recomendada):**
+        * Remover o evento customizado `youtube_response`.
+        * Acumular toda a `response_content` (transcrição).
+        * Salvar uma única vez com `add_message_to_conversation` usando o `messageId` do frontend.
+        * Emitir **apenas `response_complete`** com o `messageId` e o `complete_response` contendo toda a transcrição.
+    * **Implementar (Opção B - Opcional/Futuro):**
+        * Quebrar `cleaned_subtitles` em chunks razoáveis.
+        * Emitir múltiplos `message_chunk` com o `messageId` do frontend.
+        * Salvar uma única vez com `add_message_to_conversation` no final.
+        * Emitir `response_complete` no final.
+    * **Log:** Adicionar logs para confirmar qual fluxo de eventos (`response_complete` ou `message_chunk`/`response_complete`) está sendo usado e com qual `messageId`.
+2.  **Frontend - Recepção de Eventos:**
+    * **Verificar:** Código em `static/js/youtube-system/youtubeEvents.js` ou onde os listeners para respostas do YouTube estão.
+    * **Ajustar:** Se optou pela Opção A no backend, garantir que o listener de `response_complete` (provavelmente em `streamingManager.js`) consiga tratar essa resposta completa corretamente (usando o `messageId`).
+    * **Ajustar:** Se optou pela Opção B, garantir que os listeners de `message_chunk` e `response_complete` estejam configurados para tratar a resposta do `/youtube` usando o `messageId`. Remover listeners de `youtube_response`.
+
+### Passo 2.6: Diagnóstico e Correção da Ordem (`/youtube_resumo`)
+
+*(Objetivo: Garantir que os blocos do resumo apareçam na ordem correta)*
+
+1.  **Análise de Chunks:**
+    * **Verificar:** Logs do frontend para o evento `message_chunk` durante um `/youtube_resumo`.
+    * **Confirmar:** Se o `chunk_number` recebido está sequencial e correto para cada parte (cabeçalho, bloco 1, resumo 1, bloco 2, resumo 2...).
+2.  **Frontend - Lógica de Renderização:**
+    * **Verificar:** Código em `messageRenderer.js` e `streamingManager.js`.
+    * **Investigar:** Se a forma como os chunks são adicionados ao `messageRegistry` ou atualizados no DOM (`renderContent` / `renderMessageChunk`) pode estar causando a reordenação visual temporária. A renderização é puramente sequencial ou há alguma lógica assíncrona que pode embaralhar a ordem visual?
+    * **Log:** Adicionar logs detalhados mostrando a ordem exata em que `renderContent` é chamado e o conteúdo que está sendo renderizado para um `messageId` específico.
+
+### Passo 2.7: Testes Integrados (Foco YouTube)
+
+1.  **Executar Testes:** Após implementar cada sub-passo acima, testar exaustivamente os comandos `/youtube` e `/youtube_resumo`.
+2.  **Cenários:**
+    * Vídeos curtos e longos.
+    * Vídeos sem legendas ou com legendas em outros idiomas.
+    * Trocar de chat rapidamente durante o processamento.
+    * Enviar múltiplos comandos YouTube em sequência.
+    * Interromper o resumo com o botão "Stop".
+3.  **Validar:**
+    * Ausência de duplicações.
+    * Mensagem do usuário sempre visível para `/youtube`.
+    * Ordem correta das mensagens do resumo.
+    * Logs de frontend e backend consistentes com o fluxo esperado e IDs corretos.
+    * Estabilidade geral e ausência de erros no console.
+
+---
+
+Com este plano detalhado para a Fase 2, podemos atacar os problemas do YouTube de forma sistemática, usando a base sólida da Fase 1 e os insights dos logs. Boa caçada aos bugs!
+)**
+*Cole o bloco de Markdown que começa com `# 🔥 Fase 2: Alinhamento dos Comandos YouTube (Em Andamento)` e termina antes de `--- Com este plano detalhado...`.*
+
+**Pedido:**
+
+Com base neste contexto e no plano detalhado acima (que você colou), por favor, me ajude a implementar o **Passo 2.1: Verificação Rigorosa do Fluxo de IDs (YouTube e Resumo)**. Vamos começar verificando o código e os logs para garantir que os `messageId`s estão fluindo corretamente do frontend para o backend e sendo usados de forma consistente nas emissões do Socket.IO para ambos os comandos `/youtube` e `/youtube_resumo`.
+
+Vamos prestar atenção para não quebrar o sistema!
