@@ -504,19 +504,23 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         return;
     }
 
-    logger.debug('Enviando mensagem', { 
-        conversationId,
+    // Gerar um messageId único
+    // Usando função local para evitar dependência direta do messageRegistry
+    const messageId = gerarMessageId();
+    
+    logger.trackMessage('enviando', messageId, conversationId, {
+        mensagemTamanho: mensagem?.length || 0,
         timestamp: new Date().toISOString()
     });
 
     // Verificar se é um comando para resumir YouTube
     if (mensagem.toLowerCase().startsWith('/youtube_resumo')) {
-        logger.info('Comando de resumo do YouTube detectado', { mensagem });
+        logger.trackMessage('comando_youtube_resumo', messageId, conversationId, { mensagem });
         try {
             await handleYoutubeResumoCommand(mensagem, conversationId, chatContainer);
-            logger.info('Comando de resumo do YouTube processado com sucesso');
+            logger.trackMessage('comando_youtube_resumo_success', messageId, conversationId);
         } catch (error) {
-            logger.error('Erro ao processar comando de resumo do YouTube', { 
+            logger.trackMessage('comando_youtube_resumo_error', messageId, conversationId, { 
                 error: error.message,
                 stack: error.stack
             });
@@ -526,12 +530,12 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
     
     // Verificar se é um comando de YouTube
     if (mensagem.toLowerCase().startsWith('/youtube')) {
-        logger.info('Comando do YouTube detectado', { mensagem });
+        logger.trackMessage('comando_youtube', messageId, conversationId, { mensagem });
         try {
             await handleYoutubeCommand(mensagem, conversationId, chatContainer);
-            logger.info('Comando do YouTube processado com sucesso');
+            logger.trackMessage('comando_youtube_success', messageId, conversationId);
         } catch (error) {
-            logger.error('Erro ao processar comando do YouTube', { 
+            logger.trackMessage('comando_youtube_error', messageId, conversationId, { 
                 error: error.message,
                 stack: error.stack
             });
@@ -541,8 +545,7 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
 
     // Verificar duplicação de mensagem
     if (isDuplicateMessage(conversationId, mensagem)) {
-        logger.warn('Mensagem duplicada detectada e ignorada', {
-            conversationId,
+        logger.trackMessage('duplicada', messageId, conversationId, {
             mensagemPreview: mensagem.substring(0, 30)
         });
         return;
@@ -688,6 +691,11 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         if (sendBtn) sendBtn.disabled = false;
         if (stopBtn) stopBtn.style.display = 'none';
     }
+}
+
+// Função local para gerar messageId
+function gerarMessageId() {
+    return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 // Adicionar MutationObserver para garantir renderização

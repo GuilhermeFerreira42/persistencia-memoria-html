@@ -86,14 +86,14 @@ class StreamingManager {
         
         // Criar ou obter o container da mensagem
         let container;
-        let entry = messageRegistry.getMessage(message_id);
+        let entry = messageRegistry.messages.get(message_id);
         
         logger.debug('Processando chunk', {
             messageId: message_id,
             conversationId: conversation_id,
             chunkNumber: chunk_number,
             contentSize: content?.length,
-            processedChunks: messageRegistry.getMessage(message_id)?.processedChunks || [],
+            processedChunks: messageRegistry.messages.get(message_id)?.processedChunks || [],
             timestamp: Date.now()
         });
 
@@ -209,7 +209,7 @@ class StreamingManager {
         }
         
         // Verificar se a mensagem existe no registry
-        if (!messageRegistry.has(message_id)) {
+        if (!messageRegistry.messages.has(message_id)) {
             logger.warn(`Mensagem não encontrada no registry: ${message_id}`);
             
             // Se temos o complete_response, podemos criar agora
@@ -226,7 +226,7 @@ class StreamingManager {
             }
         } else {
             // Marcar como completa
-            const entry = messageRegistry.get(message_id);
+            const entry = messageRegistry.messages.get(message_id);
             if (entry) {
                 if (complete_response && complete_response !== entry.content) {
                     entry.content = complete_response;
@@ -261,13 +261,13 @@ class StreamingManager {
         logger.info('Finalizando processamento de mensagem', {
             messageId: message_id,
             conversationId: conversation_id,
-            totalChunksProcessed: messageRegistry.getMessage(message_id)?.processedChunks?.length || 0,
+            totalChunksProcessed: messageRegistry.messages.get(message_id)?.processedChunks?.length || 0,
             expectedTotalChunks: total_chunks,
             timingInfo: this.getMessageTimingInfo(message_id),
             contentMatch: this.validateContentMatch(message_id, complete_response)
         });
 
-        const entry = messageRegistry.getMessage(message_id);
+        const entry = messageRegistry.messages.get(message_id);
         if (entry) {
             // Verificar se todos os chunks foram recebidos
             const processedCount = entry.processedChunks?.length || 0;
@@ -309,7 +309,7 @@ class StreamingManager {
             logger.debug('Animação de carregamento ocultada após erro no streaming');
         }
         
-        const entry = messageRegistry.get(message_id);
+        const entry = messageRegistry.messages.get(message_id);
         if (entry && entry.container) {
             entry.container.innerHTML = `<div class="error-message">Erro: ${error}</div>`;
             entry.container.classList.add('error');
@@ -331,7 +331,7 @@ class StreamingManager {
      * Atualiza a UI para uma mensagem
      */
     updateMessageUI(messageId, conversationId) {
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry) return;
         
         // Verificar se há um container válido
@@ -418,7 +418,7 @@ class StreamingManager {
      * Renderiza o conteúdo de streaming
      */
     renderStreamingContent(messageId, conversationId) {
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry || !entry.container) return;
         
         const content = entry.content;
@@ -443,7 +443,7 @@ class StreamingManager {
      * Renderiza uma mensagem completa
      */
     renderCompleteMessage(messageId, conversationId) {
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry || !entry.container) {
             logger.error('Container não encontrado para renderização completa', { 
                 messageId, 
@@ -597,7 +597,7 @@ class StreamingManager {
             isStreaming: !isCursor     // false se for apenas cursor, true se estiver recebendo chunks
         };
         
-        messageRegistry.set(messageId, entry);
+        messageRegistry.messages.set(messageId, entry);
         logger.info(`Registrada entrada para messageId: ${messageId}, isCursor: ${isCursor}`);
         
         return entry;
@@ -617,15 +617,15 @@ class StreamingManager {
             return;
         }
         
-        // Usar .entries() para iterar sobre o Map em vez de .forEach
-        for (const [messageId, entry] of messageRegistry.entries()) {
+        // Usar .messages.entries() para iterar sobre o Map em vez de .entries()
+        for (const [messageId, entry] of messageRegistry.messages.entries()) {
             if (entry.isCursor && !entry.isStreaming) {
                 // Remover containers de cursor sem streaming ativo
                 // Isto evita cursores "fantasmas" que não estão mais em uso
                 if (entry.container && entry.container.isConnected) {
                     entry.container.remove();
                 }
-                messageRegistry.delete(messageId);
+                messageRegistry.messages.delete(messageId);
                 logger.debug(`Removido container de cursor órfão: ${messageId}`);
             } else if (!entry.isStreaming && !entry.isComplete) {
                 // Remover mensagens incompletas sem streaming
@@ -633,7 +633,7 @@ class StreamingManager {
                 if (entry.container && entry.container.isConnected) {
                     entry.container.remove();
                 }
-                messageRegistry.delete(messageId);
+                messageRegistry.messages.delete(messageId);
                 logger.debug(`Removido container de mensagem incompleta: ${messageId}`);
             }
             // Não remover NUNCA containers com isComplete=true
@@ -662,7 +662,7 @@ class StreamingManager {
      * @private
      */
     getMessageTimingInfo(messageId) {
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry) return null;
 
         return {
@@ -692,7 +692,7 @@ class StreamingManager {
      * @private
      */
     validateContentMatch(messageId, completeResponse) {
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry || !completeResponse) return { matches: true };  // assume match if can't verify
 
         const accumulated = entry.content || '';

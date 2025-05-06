@@ -514,7 +514,7 @@ export const renderMessageChunk = (messageId, chunk, conversationId) => {
     }
     
     // Verificar e registrar a mensagem no messageRegistry
-    let entry = messageRegistry.getMessage(messageId);
+    let entry = messageRegistry.messages.get(messageId);
     
     if (!entry) {
         entry = messageRegistry.registerMessage(messageId, {
@@ -567,6 +567,15 @@ export const renderMessageChunk = (messageId, chunk, conversationId) => {
  */
 const renderContent = (entry) => {
     try {
+        // Verificar se o conteúdo é válido antes de usar marked.parse()
+        if (!entry.content || typeof entry.content !== 'string') {
+            logger.warn('Conteúdo inválido para renderização', { 
+                messageId: entry.id || entry.container.dataset.messageId,
+                content: entry.content
+            });
+            return;
+        }
+
         // Preparar o conteúdo com marcador de cursor para streaming
         const htmlContent = marked.parse(entry.content + '<span class="streaming-cursor">█</span>');
         const sanitizedHtml = DOMPurify.sanitize(htmlContent);
@@ -620,14 +629,14 @@ const renderContent = (entry) => {
  */
 const cleanupOrphan = (messageId) => {
     logger.debug('Verificando container órfão', { messageId });
-    const entry = messageRegistry.getMessage(messageId);
+    const entry = messageRegistry.messages.get(messageId);
     
     if (entry && (!entry.container || !entry.container.textContent.trim() || !document.body.contains(entry.container))) {
         logger.info('Removendo container órfão', { messageId });
         if (entry.container && document.body.contains(entry.container)) {
             entry.container.remove();
         }
-        messageRegistry.removeMessage(messageId);
+        messageRegistry.messages.delete(messageId);
     }
 };
 
@@ -673,7 +682,7 @@ export const completeMessage = (messageId, conversationId, content) => {
         }
         
         // Usar messageRegistry para obter a entrada da mensagem
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         
         if (!entry || !entry.container) {
             logger.error('Container não encontrado para completar mensagem', { messageId, conversationId });
@@ -714,15 +723,29 @@ export const completeMessage = (messageId, conversationId, content) => {
         const contentElement = entry.container.querySelector('.message-content');
         
         if (contentElement) {
-            // Atualizar apenas o conteúdo sem a cursor de streaming
-            contentElement.innerHTML = DOMPurify.sanitize(marked.parse(content));
-            logger.debug('Conteúdo atualizado mantendo estrutura', { messageId });
+            // Verificar se o conteúdo é válido antes de usar marked.parse()
+            if (!content || typeof content !== 'string') {
+                logger.warn('Conteúdo inválido para completar mensagem', { 
+                    messageId, 
+                    content 
+                });
+                contentElement.innerHTML = '';
+            } else {
+                // Atualizar apenas o conteúdo sem a cursor de streaming
+                contentElement.innerHTML = DOMPurify.sanitize(marked.parse(content));
+                logger.debug('Conteúdo atualizado mantendo estrutura', { messageId });
+            }
         } else {
             // Se não existir, criar a estrutura completa
             logger.warn('Elemento message-content não encontrado ao completar mensagem', { messageId });
             
+            // Verificar se o conteúdo é válido antes de usar marked.parse()
+            const sanitizedContent = (!content || typeof content !== 'string') 
+                ? '' 
+                : DOMPurify.sanitize(marked.parse(content));
+            
             // Preservar a estrutura original com o conteúdo atualizado
-            entry.container.innerHTML = `<div class="message-content">${DOMPurify.sanitize(marked.parse(content))}</div>`;
+            entry.container.innerHTML = `<div class="message-content">${sanitizedContent}</div>`;
             
             // Re-adicionar os botões de ação se já existiam
             if (actionsElement) {

@@ -24,6 +24,7 @@ const currentLogLevel = LOG_LEVELS.DEBUG; // Começando com DEBUG para capturar 
 export function log(level, message, data = {}) {
   if (LOG_LEVELS[level] >= currentLogLevel) {
     const timestamp = new Date().toISOString();
+    const context = 'frontend';
     
     // Log local no console com estilo
     const styles = {
@@ -35,18 +36,27 @@ export function log(level, message, data = {}) {
     
     console.log(`%c[${level}] ${timestamp} - ${message}`, styles[level], data);
     
+    // Extrair messageId se estiver presente nos dados
+    const messageId = data.messageId || data.message_id;
+    const conversationId = data.conversationId || data.conversation_id || window.conversaAtual?.id;
+    
+    // Preparar payload JSON estruturado para o backend
+    const logData = {
+      level,
+      message,
+      data,
+      timestamp,
+      context,
+      url: window.location.href,
+      messageId,
+      conversationId
+    };
+    
     // Enviar log para o backend (assíncrono)
     fetch('/log-frontend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        level, 
-        message, 
-        data, 
-        timestamp,
-        url: window.location.href,
-        currentConversation: window.conversaAtual?.id
-      })
+      body: JSON.stringify(logData)
     }).catch(err => console.error('[ERROR] Falha ao enviar log ao backend:', err));
   }
 }
@@ -56,7 +66,17 @@ export const logger = {
   debug: (message, data) => log('DEBUG', message, data),
   info: (message, data) => log('INFO', message, data),
   warn: (message, data) => log('WARN', message, data),
-  error: (message, data) => log('ERROR', message, data)
+  error: (message, data) => log('ERROR', message, data),
+  
+  // Função específica para rastreamento de mensagens
+  trackMessage: (action, messageId, conversationId, extra = {}) => {
+    log('INFO', `Message ${action}`, {
+      messageId,
+      conversationId,
+      action,
+      ...extra
+    });
+  }
 };
 
 // Interceptar erros não capturados

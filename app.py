@@ -19,9 +19,11 @@ from flask import Flask, render_template, request, jsonify, Response
 import json
 import os
 import logging
+import logging.handlers
 import traceback
 from datetime import datetime
 import requests
+import argparse
 from youtube_handler import YoutubeHandler
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from uuid import uuid4
@@ -34,30 +36,74 @@ from utils.chat_storage import (
     rename_conversation,
     update_message_in_conversation
 )
+import re
 
 # Configuração do sistema de logging
 def setup_logger():
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     os.makedirs(log_dir, exist_ok=True)
     
+    # Nome do arquivo de log com data
+    log_filename = os.path.join(log_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log')
+    
+    # Configurar logger principal
     logger = logging.getLogger('chat_app')
     logger.setLevel(logging.DEBUG)
     
-    # Log para arquivo
-    file_handler = logging.FileHandler(os.path.join(log_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log'))
+    # Limpar handlers existentes para evitar duplicação
+    if logger.handlers:
+        logger.handlers.clear()
+    
+    # Log para arquivo com rotação por tamanho
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_filename, 
+        maxBytes=10*1024*1024,  # 10 MB
+        backupCount=5
+    )
     file_handler.setLevel(logging.DEBUG)
     
     # Log para console
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     
-    # Formato dos logs
-    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+    # Formato detalhado dos logs com timestamp ISO, nível, contexto e mensagem
+    log_format = '%(asctime)s [%(levelname)s] %(message)s'
+    formatter = logging.Formatter(log_format, datefmt='%Y-%m-%d %H:%M:%S')
+    
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
     
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+    
+    # Criar uma função de log auxiliar para encapsular o contexto
+    def log_with_context(level, message, context=None, message_id=None, conversation_id=None, **kwargs):
+        parts = []
+        
+        if context:
+            parts.append(f"[{context}]")
+        if conversation_id:
+            parts.append(f"[conv:{conversation_id}]")
+        if message_id:
+            parts.append(f"[msg:{message_id}]")
+            
+        parts.append(message)
+        log_message = " ".join(parts)
+        
+        if kwargs:
+            # Limitar tamanho dos dados extras
+            kwargs_str = str(kwargs)
+            if len(kwargs_str) > 500:
+                kwargs_str = kwargs_str[:500] + "..."
+            log_message += f" - {kwargs_str}"
+        
+        logger.log(level, log_message)
+    
+    # Adicionar as funções auxiliares ao logger
+    logger.debug_with_context = lambda msg, **kwargs: log_with_context(logging.DEBUG, msg, **kwargs)
+    logger.info_with_context = lambda msg, **kwargs: log_with_context(logging.INFO, msg, **kwargs)
+    logger.warning_with_context = lambda msg, **kwargs: log_with_context(logging.WARNING, msg, **kwargs)
+    logger.error_with_context = lambda msg, **kwargs: log_with_context(logging.ERROR, msg, **kwargs)
     
     return logger
 
@@ -175,7 +221,11 @@ def send_message():
         if not conversation_id:
             conversation_id = create_new_conversation()
             
-        logger.info(f"Processando mensagem para conversa: {conversation_id}, message_id: {message_id}")
+        logger.info_with_context("Processando mensagem do usuário", 
+                                context="backend",
+                                message_id=message_id,
+                                conversation_id=conversation_id,
+                                length=len(message))
         
         # Adicionar a mensagem do usuário ao histórico com o message_id explícito
         user_message_id = add_message_to_conversation(conversation_id, message, "user", message_id=f"user_{message_id}")
@@ -184,14 +234,22 @@ def send_message():
         if message.lower().startswith('/youtube '):
             # Comando para processar vídeo do YouTube
             url = message[9:].strip()
-            logger.info(f"Processando comando YouTube para URL: {url}")
+            logger.info_with_context("Processando comando YouTube", 
+                                    context="backend",
+                                    message_id=message_id,
+                                    conversation_id=conversation_id,
+                                    url=url)
             process_youtube_background(url, conversation_id)
             return jsonify({'status': 'processing_youtube', 'conversation_id': conversation_id})
             
         elif message.lower().startswith('/youtube_resumo '):
             # Comando para resumir vídeo do YouTube
             url = message[16:].strip()
-            logger.info(f"Processando comando YouTube Resumo para URL: {url}")
+            logger.info_with_context("Processando comando YouTube Resumo",
+                                    context="backend",
+                                    message_id=message_id,
+                                    conversation_id=conversation_id,
+                                    url=url)
             process_youtube_resumo_background(url, conversation_id)
             return jsonify({'status': 'processing_youtube_resumo', 'conversation_id': conversation_id})
         
@@ -199,77 +257,118 @@ def send_message():
         process_streaming_response(message, conversation_id, message_id)
         
         return jsonify({
-            'status': 'streaming',
+            'status': 'processing', 
+            'message_id': message_id,
             'conversation_id': conversation_id,
-            'message_id': message_id
+            'user_message_id': user_message_id
         })
         
     except Exception as e:
-        logger.error(f"Erro ao processar mensagem: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error_with_context("Erro ao processar mensagem", 
+                                context="backend", 
+                                error=str(e),
+                                traceback=traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-# Nova função para processar respostas em streaming via Socket.IO
 def process_streaming_response(message, conversation_id, message_id):
     """
-    Processa uma mensagem e envia a resposta em streaming via Socket.IO
+    Processa a resposta da IA em modo streaming usando Socket.IO
     
     Args:
         message: Texto da mensagem do usuário
         conversation_id: ID da conversa
         message_id: ID único da mensagem
     """
-    logger.info(f"Iniciando streaming via Socket.IO para conversa {conversation_id}, mensagem {message_id}")
-    
-    # Inicia o processamento em background
-    def background_task():
-        accumulated_response = ""
-        chunk_number = 0
-        
-        try:
-            for part in process_with_ai_stream(message, conversation_id):
-                if part:
-                    accumulated_response += part
-                    # Emitir apenas para a conversa atual com messageId consistente
-                    socketio.emit('message_chunk', {
-                        'content': part,
-                        'conversation_id': conversation_id,
-                        'message_id': message_id,
-                        'chunk_number': chunk_number
-                    }, room=conversation_id)
-                    chunk_number += 1
+    try:
+        # Inicializar uma entrada para a mensagem em streaming
+        if message_id not in streaming_messages:
+            streaming_messages[message_id] = {
+                'content': '',
+                'complete': False,
+                'conversation_id': conversation_id
+            }
             
-            # Salvar apenas a resposta final
-            if accumulated_response:
-                # Passar explicitamente o message_id para a função
-                add_message_to_conversation(
-                    conversation_id, 
-                    accumulated_response, 
-                    "assistant", 
-                    message_id=message_id
-                )
-                # Notificar que a resposta está completa
-                socketio.emit('response_complete', {
-                    'conversation_id': conversation_id,
+        logger.debug_with_context("Iniciando processamento de resposta em streaming", 
+                                context="backend",
+                                message_id=message_id, 
+                                conversation_id=conversation_id)
+        
+        def background_task():
+            try:
+                # Obter a resposta da IA em streaming
+                for chunk in process_with_ai_stream(message, conversation_id):
+                    if chunk:
+                        # Adicionar o chunk à mensagem em streaming
+                        streaming_messages[message_id]['content'] += chunk
+                        
+                        # Emitir o chunk para o cliente
+                        socketio.emit('message_chunk', {
+                            'message_id': message_id,
+                            'chunk': chunk,
+                            'conversation_id': conversation_id
+                        }, room=conversation_id)
+                        
+                        logger.debug_with_context("Chunk enviado", 
+                                                context="backend",
+                                                message_id=message_id, 
+                                                conversation_id=conversation_id,
+                                                chunk_size=len(chunk))
+                
+                # Marcar a mensagem como completa
+                streaming_messages[message_id]['complete'] = True
+                
+                # Notificar o cliente que a mensagem está completa
+                socketio.emit('message_complete', {
                     'message_id': message_id,
-                    'total_chunks': chunk_number,
-                    'complete_response': accumulated_response
+                    'conversation_id': conversation_id,
+                    'content': streaming_messages[message_id]['content']
                 }, room=conversation_id)
-                # Notificar que a conversa foi atualizada
-                socketio.emit('conversation_updated', {
-                    'conversation_id': conversation_id
-                })
-        except Exception as e:
-            logger.error(f"Erro durante streaming Socket.IO: {str(e)}")
-            logger.error(traceback.format_exc())
-            # Em caso de erro, notificar o cliente
-            socketio.emit('stream_error', {
-                'conversation_id': conversation_id,
-                'message_id': message_id,
-                'error': str(e)
-            }, room=conversation_id)
-    
-    socketio.start_background_task(background_task)
+                
+                # Salvar a mensagem completa na conversa
+                assistant_message_id = add_message_to_conversation(
+                    conversation_id, 
+                    streaming_messages[message_id]['content'], 
+                    "assistant",
+                    message_id=f"assistant_{message_id}"
+                )
+                
+                logger.info_with_context("Mensagem completa processada", 
+                                        context="backend",
+                                        message_id=message_id,
+                                        assistant_message_id=assistant_message_id,
+                                        conversation_id=conversation_id,
+                                        content_length=len(streaming_messages[message_id]['content']))
+                
+                # Limpar a mensagem do cache
+                if message_id in streaming_messages:
+                    del streaming_messages[message_id]
+                    
+            except Exception as e:
+                logger.error_with_context("Erro no processamento em background", 
+                                        context="backend",
+                                        message_id=message_id,
+                                        conversation_id=conversation_id,
+                                        error=str(e),
+                                        traceback=traceback.format_exc())
+                
+                # Notificar o cliente do erro
+                socketio.emit('message_error', {
+                    'message_id': message_id,
+                    'conversation_id': conversation_id,
+                    'error': str(e)
+                }, room=conversation_id)
+        
+        # Iniciar o processamento em background
+        socketio.start_background_task(background_task)
+        
+    except Exception as e:
+        logger.error_with_context("Erro ao iniciar processamento streaming", 
+                                context="backend",
+                                message_id=message_id,
+                                conversation_id=conversation_id,
+                                error=str(e),
+                                traceback=traceback.format_exc())
+        raise
 
 @app.route('/save_message', methods=['POST'])
 def save_message():
@@ -710,10 +809,18 @@ def log_frontend():
     """Endpoint para registrar logs do frontend"""
     try:
         log_data = request.json
+        if not isinstance(log_data, dict):
+            logger.error(f"Formato inválido de log recebido: {log_data}")
+            return jsonify({'error': 'Formato de log inválido'}), 400
+            
+        # Extrair campos do log
         log_level = log_data.get('level', 'INFO')
         message = log_data.get('message', '')
         data = log_data.get('data', {})
-        conversation_id = data.get('conversationId') or log_data.get('currentConversation')
+        timestamp = log_data.get('timestamp', '')
+        context = log_data.get('context', 'frontend')
+        message_id = log_data.get('messageId')
+        conversation_id = log_data.get('conversationId')
         
         # Mapear níveis de log do frontend para os do Python
         level_map = {
@@ -725,25 +832,32 @@ def log_frontend():
         
         log_level_num = level_map.get(log_level, logging.INFO)
         
-        # Formatar a mensagem de log
+        # Criar mensagem de log estruturada
+        log_parts = []
+        if context:
+            log_parts.append(f"[{context}]")
         if conversation_id:
-            log_message = f"[FRONTEND] [{conversation_id}] {message}"
-        else:
-            log_message = f"[FRONTEND] {message}"
+            log_parts.append(f"[conv:{conversation_id}]")
+        if message_id:
+            log_parts.append(f"[msg:{message_id}]")
             
+        log_parts.append(message)
+        log_message = " ".join(log_parts)
+        
+        # Limitar tamanho dos dados extras para evitar logs muito grandes
         if data:
-            # Limitar tamanho dos dados para evitar logs muito grandes
             data_str = str(data)
             if len(data_str) > 500:
                 data_str = data_str[:500] + "..."
             log_message += f" - {data_str}"
             
-        # Registrar o log
+        # Registrar o log com o formato adequado
         logger.log(log_level_num, log_message)
         
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Erro ao processar log do frontend: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @app.route('/test_socket', methods=['POST'])
@@ -765,6 +879,220 @@ def test_socket():
         return jsonify({'status': 'Evento de teste enviado'})
     except Exception as e:
         print(f"[ERRO] Falha ao enviar evento de teste: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/view-logs')
+def view_logs():
+    """Endpoint para visualizar os logs da aplicação"""
+    try:
+        # Verificar se estamos em ambiente de desenvolvimento
+        is_dev = os.environ.get('FLASK_ENV') == 'development'
+        
+        # Por segurança, apenas disponível em desenvolvimento
+        if not is_dev and request.remote_addr != '127.0.0.1':
+            return jsonify({'error': 'Acesso não autorizado'}), 403
+            
+        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+        log_file = os.path.join(log_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log')
+        
+        if not os.path.exists(log_file):
+            return jsonify({'error': 'Arquivo de log não encontrado'}), 404
+            
+        # Ler as últimas 200 linhas do arquivo de log
+        with open(log_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            last_lines = lines[-200:] if len(lines) > 200 else lines
+        
+        # Filtros disponíveis
+        message_id = request.args.get('message_id')
+        conversation_id = request.args.get('conversation_id')
+        level = request.args.get('level')
+        context = request.args.get('context')
+        
+        # Aplicar filtros
+        filtered_lines = []
+        for line in last_lines:
+            if message_id and f"[msg:{message_id}]" not in line:
+                continue
+            if conversation_id and f"[conv:{conversation_id}]" not in line:
+                continue
+            if level and f"[{level}]" not in line:
+                continue
+            if context and f"[{context}]" not in line:
+                continue
+            filtered_lines.append(line)
+                
+        # Renderizar template HTML simples para visualização
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Logs da Aplicação</title>
+            <style>
+                body {
+                    font-family: monospace;
+                    background-color: #f5f5f5;
+                    padding: 20px;
+                }
+                h1 {
+                    color: #333;
+                    margin-bottom: 20px;
+                }
+                .filters {
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background-color: #fff;
+                    border-radius: 5px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                .filter-item {
+                    margin-right: 15px;
+                    display: inline-block;
+                }
+                .filter-item input, .filter-item select {
+                    margin-left: 5px;
+                    padding: 4px;
+                }
+                button {
+                    padding: 5px 10px;
+                    background-color: #4285f4;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                .logs {
+                    background-color: #202020;
+                    color: #f8f8f8;
+                    padding: 15px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    white-space: pre-wrap;
+                    margin-top: 20px;
+                    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+                }
+                .logs span {
+                    display: block;
+                    margin-bottom: 2px;
+                    font-size: 13px;
+                    line-height: 1.5;
+                }
+                .log-debug { color: #b5b5b5; }
+                .log-info { color: #8ab4f8; }
+                .log-warning { color: #fdd663; }
+                .log-error { color: #f28b82; }
+                .message-id { color: #a2e9a2; }
+                .conversation-id { color: #e9a2a2; }
+                .highlight { background-color: rgba(255,255,0,0.2); }
+            </style>
+        </head>
+        <body>
+            <h1>Logs da Aplicação</h1>
+            
+            <div class="filters">
+                <form method="GET" action="/view-logs">
+                    <div class="filter-item">
+                        <label for="message_id">Message ID:</label>
+                        <input type="text" id="message_id" name="message_id" value="{message_id}">
+                    </div>
+                    <div class="filter-item">
+                        <label for="conversation_id">Conversation ID:</label>
+                        <input type="text" id="conversation_id" name="conversation_id" value="{conversation_id}">
+                    </div>
+                    <div class="filter-item">
+                        <label for="level">Nível:</label>
+                        <select id="level" name="level">
+                            <option value="">Todos</option>
+                            <option value="DEBUG" {selected_debug}>DEBUG</option>
+                            <option value="INFO" {selected_info}>INFO</option>
+                            <option value="WARNING" {selected_warning}>WARNING</option>
+                            <option value="ERROR" {selected_error}>ERROR</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="context">Contexto:</label>
+                        <select id="context" name="context">
+                            <option value="">Todos</option>
+                            <option value="frontend" {selected_frontend}>Frontend</option>
+                            <option value="backend" {selected_backend}>Backend</option>
+                        </select>
+                    </div>
+                    <button type="submit">Filtrar</button>
+                    <button type="button" onclick="window.location.href='/view-logs'">Limpar Filtros</button>
+                </form>
+            </div>
+            
+            <div class="logs">
+                {logs}
+            </div>
+            
+            <script>
+                // Auto-refresh a cada 10 segundos
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+                
+                // Destaque de termos de busca
+                function highlightTerms() {
+                    const msgId = document.getElementById('message_id').value;
+                    const convId = document.getElementById('conversation_id').value;
+                    
+                    if (msgId || convId) {
+                        const logEntries = document.querySelectorAll('.logs span');
+                        
+                        logEntries.forEach(entry => {
+                            if (msgId && entry.textContent.includes(msgId)) {
+                                entry.classList.add('highlight');
+                            }
+                            if (convId && entry.textContent.includes(convId)) {
+                                entry.classList.add('highlight');
+                            }
+                        });
+                    }
+                }
+                
+                window.onload = highlightTerms;
+            </script>
+        </body>
+        </html>
+        """
+        
+        # Colorir as linhas de log conforme o nível
+        formatted_logs = []
+        for line in filtered_lines:
+            css_class = "log-info"
+            if "[DEBUG]" in line:
+                css_class = "log-debug"
+            elif "[WARNING]" in line:
+                css_class = "log-warning"
+            elif "[ERROR]" in line:
+                css_class = "log-error"
+                
+            # Substituir IDs com formatação especial
+            for msg_id in set(re.findall(r'\[msg:([^\]]+)\]', line)):
+                line = line.replace(f"[msg:{msg_id}]", f'<span class="message-id">[msg:{msg_id}]</span>')
+                
+            for conv_id in set(re.findall(r'\[conv:([^\]]+)\]', line)):
+                line = line.replace(f"[conv:{conv_id}]", f'<span class="conversation-id">[conv:{conv_id}]</span>')
+                
+            formatted_logs.append(f'<span class="{css_class}">{line}</span>')
+        
+        # Formatar o HTML com os valores apropriados
+        html = html.format(
+            message_id = message_id or '',
+            conversation_id = conversation_id or '',
+            selected_debug = 'selected' if level == 'DEBUG' else '',
+            selected_info = 'selected' if level == 'INFO' else '',
+            selected_warning = 'selected' if level == 'WARNING' else '',
+            selected_error = 'selected' if level == 'ERROR' else '',
+            selected_frontend = 'selected' if context == 'frontend' else '',
+            selected_backend = 'selected' if context == 'backend' else '',
+            logs = ''.join(formatted_logs)
+        )
+        
+        return html
+    except Exception as e:
+        logger.error_with_context("Erro ao exibir logs", error=str(e), traceback=traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # ---- WebSocket event handlers ----
@@ -953,9 +1281,35 @@ def process_with_ai_stream(text, conversation_id=None):
         yield f"Erro no processamento: {str(e)}"
 
 if __name__ == '__main__':
+    # Configurar o parser de argumentos
+    parser = argparse.ArgumentParser(description='Servidor de chat com persistência e logs')
+    parser.add_argument('--port', type=int, default=5000, help='Porta para o servidor (padrão: 5000)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host para o servidor (padrão: 0.0.0.0)')
+    
+    # Processar os argumentos
+    args = parser.parse_args()
+    
     logger.info("Iniciando servidor Socket.IO")
     try:
-        socketio.run(app, debug=True)
+        # Usar a porta especificada via linha de comando
+        port = args.port
+        host = args.host
+        logger.info(f"Tentando iniciar servidor em {host}:{port}")
+        socketio.run(app, debug=True, host=host, port=port)
+    except OSError as e:
+        if 'Address already in use' in str(e) or 'endereço de soquete' in str(e):
+            # Tentar uma porta alternativa
+            alt_port = port + 1
+            logger.warning(f"Porta {port} já em uso. Tentando porta alternativa {alt_port}")
+            try:
+                socketio.run(app, debug=True, host=host, port=alt_port)
+            except Exception as e2:
+                logger.critical(f"Falha ao iniciar servidor na porta alternativa: {str(e2)}")
+                logger.critical(traceback.format_exc())
+                print(f"\nERRO: Todas as portas estão em uso. Execute python cleanup_ports.py para liberar as portas.")
+        else:
+            logger.critical(f"Falha ao iniciar servidor: {str(e)}")
+            logger.critical(traceback.format_exc())
     except Exception as e:
         logger.critical(f"Falha ao iniciar servidor: {str(e)}")
         logger.critical(traceback.format_exc())

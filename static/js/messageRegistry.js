@@ -47,6 +47,16 @@ class MessageRegistry {
     }
     
     /**
+     * Gera um ID único para mensagens
+     * @returns {string} ID único para mensagem
+     */
+    generateMessageId() {
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        logger.trackMessage('generated', messageId);
+        return messageId;
+    }
+    
+    /**
      * Registra uma nova mensagem
      * @param {string} messageId - ID único da mensagem
      * @param {Object} data - Dados da mensagem
@@ -79,8 +89,8 @@ class MessageRegistry {
         };
         
         this.messages.set(messageId, entry);
-        logger.info(`Mensagem registrada: ${messageId}`, { 
-            conversationId: entry.conversationId 
+        logger.trackMessage('registered', messageId, entry.conversationId, {
+            contentLength: entry.content?.length || 0
         });
         
         return entry;
@@ -110,8 +120,9 @@ class MessageRegistry {
         const entry = this.messages.get(messageId);
         Object.assign(entry, data);
         
-        logger.debug(`Mensagem ${messageId} atualizada`, {
-            contentLength: entry.content?.length
+        logger.trackMessage('updated', messageId, entry.conversationId, {
+            contentLength: entry.content?.length || 0,
+            updatedFields: Object.keys(data)
         });
         
         return true;
@@ -134,7 +145,7 @@ class MessageRegistry {
         entry.content += chunk;
         entry.lastUpdated = Date.now();
         
-        logger.debug(`Chunk adicionado à mensagem ${messageId}`, {
+        logger.trackMessage('chunk_added', messageId, entry.conversationId, {
             chunkSize: chunk.length,
             totalSize: entry.content.length
         });
@@ -155,9 +166,12 @@ class MessageRegistry {
             return false;
         }
         
-        logger.info(`Marcando mensagem como completa: ${messageId}`);
         entry.complete = true;
         entry.conversationId = conversationId || entry.conversationId;
+        
+        logger.trackMessage('completed', messageId, entry.conversationId, {
+            contentLength: entry.content?.length || 0
+        });
         
         // Emitir evento de mensagem completa
         document.dispatchEvent(new CustomEvent('message:complete', {
@@ -177,10 +191,11 @@ class MessageRegistry {
             return false;
         }
         
+        const entry = this.messages.get(messageId);
         const result = this.messages.delete(messageId);
         
         if (result) {
-            logger.debug(`Mensagem removida: ${messageId}`);
+            logger.trackMessage('removed', messageId, entry.conversationId);
         }
         
         return result;
@@ -198,37 +213,39 @@ class MessageRegistry {
     /**
      * Obtém todas as mensagens de uma conversa
      * @param {string} conversationId - ID da conversa
-     * @returns {Array} Lista de mensagens
+     * @returns {Array} Lista de mensagens da conversa
      */
     getMessagesByConversation(conversationId) {
         if (!conversationId) return [];
         
         return Array.from(this.messages.values())
-            .filter(entry => entry.conversationId === conversationId);
+            .filter(msg => msg.conversationId === conversationId);
     }
     
     /**
-     * Limpa containers que estão vazios ou abandonados
+     * Limpa containers órfãos
      */
     cleanOrphanContainers() {
-        document.querySelectorAll('.message.assistant').forEach(container => {
-            // Verificar se o container está vazio ou não tem messageId
-            if (!container.dataset.messageId || !container.innerHTML.trim()) {
-                logger.debug('Removendo container órfão ou vazio', {
-                    id: container.id,
-                    messageId: container.dataset.messageId
+        const now = Date.now();
+        let orphansRemoved = 0;
+        
+        for (const [messageId, entry] of this.messages.entries()) {
+            // Remover mensagens antigas (mais de 2 horas)
+            if (now - entry.timestamp > 7200000) {
+                this.messages.delete(messageId);
+                orphansRemoved++;
+                logger.trackMessage('auto_removed', messageId, entry.conversationId, {
+                    reason: 'timeout'
                 });
-                container.remove();
             }
-        });
+        }
+        
+        if (orphansRemoved > 0 && this.debug) {
+            logger.debug(`Limpeza: ${orphansRemoved} mensagens removidas`);
+        }
     }
 }
 
-// Exportar uma instância única do messageRegistry
+// Exportar uma instância única
 export const messageRegistry = new MessageRegistry();
-
-// Também exportar uma referência à instância global para conveniência
-export const registry = messageRegistry;
-
-// Para retrocompatibilidade
 export default messageRegistry; 

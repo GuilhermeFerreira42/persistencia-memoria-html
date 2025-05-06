@@ -135,6 +135,13 @@ export function adicionarMensagem(chatContainer, texto, tipo) {
     // Adicionar ao DOM com animação
     mensagemDiv.style.opacity = '0';
     mensagemDiv.style.transform = 'translateY(20px)';
+    
+    // Verificar novamente se o chatContainer existe antes de adicionar a mensagem
+    if (!chatContainer) {
+        console.error('[ERRO] Container de chat se tornou null durante o processamento da mensagem');
+        return messageId;
+    }
+    
     chatContainer.appendChild(mensagemDiv);
 
     // Forçar reflow e aplicar transição
@@ -187,6 +194,13 @@ export function mostrarCarregamento(chatContainer) {
 
     // Adicionar com animação
     loadingDiv.style.opacity = '0';
+    
+    // Verificar novamente se o chatContainer existe antes de adicionar o carregamento
+    if (!chatContainer) {
+        console.error('[ERRO] Container de chat se tornou null durante a criação do carregamento');
+        return null;
+    }
+    
     chatContainer.appendChild(loadingDiv);
 
     // Forçar reflow e aplicar transição
@@ -240,12 +254,10 @@ export function adicionarMensagemStreaming(chatContainer, messageId, conversatio
     }
 
     // Verificar se já existe uma mensagem com este ID no registry
-    if (messageRegistry.hasMessage(messageId)) {
-        const entry = messageRegistry.getMessage(messageId);
-        if (entry.container && document.body.contains(entry.container)) {
-            logger.debug('Mensagem já existe no registry, reutilizando container', { messageId });
-            return entry.container;
-        }
+    const entry = messageRegistry.messages.get(messageId);
+    if (entry && document.body.contains(entry.container)) {
+        logger.debug('Mensagem já existe no registry, reutilizando container', { messageId });
+        return entry.container;
     }
 
     // Criar novo container de mensagem
@@ -336,7 +348,7 @@ export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = tr
         }
         
         // Acumular conteúdo no registro
-        const entry = messageRegistry.getMessage(messageId);
+        const entry = messageRegistry.messages.get(messageId);
         if (!entry) {
             // Registrar no messageRegistry se ainda não estiver lá
             messageRegistry.registerMessage(messageId, {
@@ -350,7 +362,7 @@ export function atualizarMensagemStreaming(messageId, chunk, renderMarkdown = tr
         }
         
         // Obter conteúdo acumulado
-        const newContent = messageRegistry.getMessage(messageId)?.content || '';
+        const newContent = messageRegistry.messages.get(messageId)?.content || '';
         
         // Renderizar com Markdown se necessário
         if (renderMarkdown) {

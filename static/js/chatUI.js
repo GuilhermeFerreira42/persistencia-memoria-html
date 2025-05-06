@@ -242,6 +242,11 @@ class ChatUI {
 
     appendUserMessage(message) {
         const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado para adicionar mensagem do usuário');
+            return;
+        }
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message user';
         messageDiv.innerHTML = `<p>${this.escapeHtml(message)}</p>`;
@@ -254,6 +259,11 @@ class ChatUI {
         
         // Limpar chat atual
         const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado para mudança de conversa');
+            return;
+        }
+        
         chatContainer.innerHTML = '';
         
         if (conversationId) {
@@ -282,6 +292,10 @@ class ChatUI {
 
     displayConversationHistory(messages) {
         const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado para exibir histórico de conversas');
+            return;
+        }
         
         messages.forEach(message => {
             const messageDiv = document.createElement('div');
@@ -304,12 +318,23 @@ class ChatUI {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
         errorDiv.textContent = message;
-        document.getElementById('chat-container').appendChild(errorDiv);
+        
+        const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado para mostrar erro:', message);
+            return;
+        }
+        
+        chatContainer.appendChild(errorDiv);
         this.scrollToBottom();
     }
 
     scrollToBottom() {
         const chatContainer = document.getElementById('chat-container');
+        if (!chatContainer) {
+            console.error('[ERRO] Container de chat não encontrado para rolagem');
+            return;
+        }
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
