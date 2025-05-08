@@ -1,4 +1,4 @@
-### 1. Árvore
+### 1. ÁRVORE
 ```
 Listagem de caminhos de pasta
 C:.
@@ -588,6 +588,114 @@ C:.
 │   │   ├── 📤 handleYoutubeResumoCommand()
 ```
 
+## 2.2. ARQUIVOS PYTHON E HTML
+
+```
+📁 persistencia-memoria-html/           # Pasta raiz do projeto
+├── 📄 app.py                           # Arquivo principal da aplicação Flask
+│   ├── 🔧 setup_logger()               # Configura o sistema de logging com rotação de arquivos e formatos detalhados
+│   ├── 🔧 log_with_context()           # Função auxiliar para log com contexto adicional (conversa, mensagem, etc.)
+│   ├── 📤 home()                       # Rota principal que renderiza a página inicial com o histórico de conversas
+│   ├── 📤 conversation_history()       # Endpoint para obter o histórico de todas as conversas
+│   ├── 📤 get_conversation()           # Endpoint para obter uma conversa específica pelo ID
+│   ├── 📤 get_conversation_batch()     # Endpoint para carregar mensagens em lotes para lazy loading
+│   ├── 📤 stream()                     # [DEPRECATED] Endpoint para streaming de respostas usando SSE
+│   ├── 📤 send_message()               # Endpoint para enviar mensagens para a IA e receber respostas
+│   ├── 🔧 process_streaming_response() # Processa a resposta da IA em modo streaming usando Socket.IO
+│   ├── 📤 save_message()               # Endpoint para salvar mensagens na conversa
+│   ├── 📤 process_youtube()            # Endpoint para processar vídeos do YouTube
+│   ├── 🔧 process_youtube_background() # Função em background para processar vídeos do YouTube
+│   ├── 📤 save_youtube_message()       # Endpoint para salvar mensagens relacionadas ao YouTube
+│   ├── 📤 process_youtube_resumo()     # Endpoint para processar resumos de vídeos do YouTube
+│   ├── 🔧 process_youtube_resumo_background() # Função em background para gerar resumos de vídeos
+│   ├── 📤 handle_rename_conversation() # Endpoint para renomear uma conversa
+│   ├── 📤 handle_delete_conversation() # Endpoint para excluir uma conversa
+│   ├── 📤 log_frontend()               # Endpoint para registrar logs do frontend
+│   ├── 📤 test_socket()                # Endpoint para testar a conectividade do Socket.IO
+│   ├── 📤 view_logs()                  # Endpoint para visualizar os logs da aplicação
+│   ├── 📤 handle_connect()             # Evento Socket.IO para nova conexão
+│   ├── 📤 handle_disconnect()          # Evento Socket.IO para desconexão
+│   ├── 📤 handle_join_conversation()   # Evento Socket.IO para entrar em uma sala de conversa
+│   ├── 📤 handle_leave_conversation()  # Evento Socket.IO para sair de uma sala de conversa
+│   ├── 🔧 process_with_ai()            # Processa um texto com a IA de forma síncrona
+│   ├── 🔧 process_with_ai_stream()     # Processa um texto com a IA em modo streaming
+│   ├── ⬇️ render_template() [from flask] # Função para renderizar templates HTML
+│   ├── ⬇️ request() [from flask]       # Objeto para acessar dados da requisição HTTP
+│   ├── ⬇️ jsonify() [from flask]       # Função para retornar respostas JSON
+│   ├── ⬇️ Response() [from flask]      # Classe para criar respostas HTTP customizadas
+│   ├── ⬇️ json [importado]             # Módulo para manipulação de JSON
+│   ├── ⬇️ os [importado]               # Módulo para interagir com o sistema operacional
+│   ├── ⬇️ logging [importado]          # Módulo para logging
+│   ├── ⬇️ logging.handlers [importado] # Handlers para logging, como RotatingFileHandler
+│   ├── ⬇️ traceback [importado]        # Módulo para manipular stack traces
+│   ├── ⬇️ datetime [importado]         # Módulo para manipulação de datas e horas
+│   ├── ⬇️ requests [importado]         # Módulo para fazer requisições HTTP
+│   ├── ⬇️ argparse [importado]         # Módulo para parsing de argumentos de linha de comando
+│   ├── ⬇️ Flask() [from flask]         # Classe para criar a aplicação Flask
+│   ├── ⬇️ SocketIO() [from flask_socketio] # Classe para integrar Socket.IO com Flask
+│   ├── ⬇️ emit() [from flask_socketio] # Função para emitir eventos Socket.IO
+│   ├── ⬇️ join_room() [from flask_socketio] # Função para entrar em uma sala Socket.IO
+│   ├── ⬇️ leave_room() [from flask_socketio] # Função para sair de uma sala Socket.IO
+│   ├── ⬇️ uuid4() [from uuid]          # Função para gerar UUIDs únicos
+│   ├── ⬇️ create_new_conversation() [from utils.chat_storage] # Função para criar novas conversas
+│   ├── ⬇️ add_message_to_conversation() [from utils.chat_storage] # Função para adicionar mensagens a conversas
+│   ├── ⬇️ get_conversation_by_id() [from utils.chat_storage] # Função para obter conversa por ID
+│   ├── ⬇️ get_conversation_history() [from utils.chat_storage] # Função para obter histórico de conversas
+│   ├── ⬇️ delete_conversation() [from utils.chat_storage] # Função para excluir conversas
+│   ├── ⬇️ rename_conversation() [from utils.chat_storage] # Função para renomear conversas
+│   ├── ⬇️ update_message_in_conversation() [from utils.chat_storage] # Função para atualizar mensagens
+│   ├── ⬇️ re [importado]               # Módulo para expressões regulares
+├── 📄 cleanup_ports.py                 # Script utilitário para verificar e liberar portas em uso
+│   ├── 🔧 check_port()                 # Verifica se uma porta está em uso e retorna o PID do processo
+│   ├── 🔧 kill_process()               # Tenta encerrar um processo pelo PID
+│   ├── 🔧 main()                       # Função principal que executa a lógica do script
+│   ├── ⬇️ os [importado]               # Módulo para interagir com o sistema operacional
+│   ├── ⬇️ sys [importado]              # Módulo para acessar variáveis e funções do sistema
+│   ├── ⬇️ subprocess [importado]       # Módulo para criar subprocessos
+│   ├── ⬇️ time [importado]             # Módulo para manipulação de tempo
+├── 📄 init_eventlet.py                 # Inicializa o monkey patching do Eventlet para suportar operações assíncronas
+│   ├── ⬇️ eventlet [importado]         # Biblioteca para programação assíncrona
+│   ├── ⬇️ eventlet.monkey_patch() [from eventlet] # Aplica monkey patching para tornar bibliotecas padrão assíncronas
+├── 📄 linha_de_raciocinio              # [conteúdo não fornecido]
+├── 📁 templates/                       # Pasta para templates HTML renderizados pelo Flask
+│   ├── 📄 index.html                   # Template principal da página inicial
+│   │   └── [conteúdo fornecido, mas sem funções] # HTML com estrutura da página e scripts incorporados
+│   └── 📄 youtube.html                 # Template para a página ou seção relacionada ao YouTube
+│       └── [conteúdo fornecido, mas sem funções] # HTML com elementos para exibir legendas e mensagens de status
+├── 📁 utils/                           # Pasta para utilitários Python
+│   └── 📄 chat_storage.py              # Módulo para gerenciar o armazenamento persistente de conversas em formato JSON
+│       ├── 🔧 ensure_directories()     # Garante que os diretórios necessários para armazenamento existam
+│       ├── 🔧 create_new_conversation()# Cria uma nova conversa com ID único
+│       ├── 🔧 save_conversation()      # Salva uma conversa em seu arquivo JSON correspondente
+│       ├── 🔧 update_index()           # Atualiza o arquivo de índice com metadados da conversa
+│       ├── 🔧 get_conversation_by_id() # Recupera uma conversa específica pelo ID
+│       ├── 🔧 get_conversation_history()# Recupera o histórico de todas as conversas
+│       ├── 🔧 add_message_to_conversation()# Adiciona uma mensagem a uma conversa existente
+│       ├── 🔧 update_message_in_conversation()# Atualiza o conteúdo de uma mensagem existente
+│       ├── 🔧 delete_conversation()    # Exclui uma conversa e sua entrada no índice
+│       ├── 🔧 rename_conversation()    # Renomeia uma conversa existente
+│       ├── ⬇️ json [importado]         # Módulo para manipulação de JSON
+│       ├── ⬇️ os [importado]           # Módulo para interagir com o sistema operacional
+│       ├── ⬇️ uuid [importado]         # Módulo para gerar UUIDs
+│       ├── ⬇️ datetime [importado]     # Módulo para manipulação de datas e horas
+└── 📄 youtube_handler.py               # Contém a classe YoutubeHandler para manipular vídeos do YouTube
+    └── [class] YoutubeHandler          # Classe para baixar e processar legendas de vídeos do YouTube
+        ├── 🔧 __init__()               # Inicializa o manipulador com caminho para arquivos temporários
+        ├── 🔧 download_subtitles()     # Baixa legendas do vídeo em PT-BR, PT ou EN
+        ├── 🔧 clean_subtitles()        # Limpa as legendas removendo timestamps e formatação
+        ├── 🔧 download_and_clean_transcript()# Combina download e limpeza de legendas
+        ├── 🔧 split_transcript_into_chunks()# Divide a transcrição em blocos de texto
+        ├── ⬇️ os [importado]           # Módulo para interagir com o sistema operacional
+        ├── ⬇️ json [importado]         # Módulo para manipulação de JSON
+        ├── ⬇️ yt_dlp [importado]       # Biblioteca para download de vídeos e legendas do YouTube
+        ├── ⬇️ re [importado]           # Módulo para expressões regulares
+        ├── ⬇️ logging [importado]      # Módulo para logging
+        ├── ⬇️ traceback [importado]    # Módulo para manipular stack traces
+        ├── ⬇️ Optional [from typing]   # Tipo para indicar valores opcionais
+        ├── ⬇️ Dict [from typing]       # Tipo para dicionários
+        ├── ⬇️ Any [from typing]        # Tipo para qualquer valor
+        ├── ⬇️ Tuple [from typing]      # Tipo para tuplas
+        ```
 
 ### 3 Árvore Completa do Sistema com Legendas
 

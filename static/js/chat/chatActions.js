@@ -1,5 +1,4 @@
-import { mostrarCarregamento, adicionarMensagemStreaming, atualizarMensagemStreaming } from './chatUI.js';
-import { adicionarMensagem } from './chatUI.js';
+import { chatUI } from './chatUI.js';
 import { adicionarMensagemAoHistorico, criarNovaConversa, atualizarListaConversas } from './chatStorage.js';
 import { renderMessage, renderMessageChunk, completeMessage } from '../messageRenderer.js';
 import { messageRegistry } from '../modules/messageRegistry.js';
@@ -586,12 +585,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
         `;
         chatContainer.appendChild(userMessageDiv);
         
-        // Mostrar animação de carregamento centralizada
-        const loadingAnimation = document.getElementById('loading-animation');
-        if (loadingAnimation) {
-            loadingAnimation.style.display = 'block';
-            logger.debug('Animação de carregamento exibida');
-        }
+        // Mostrar carregamento usando chatUI
+        const loadingDiv = chatUI.mostrarCarregamento();
         
         // Remover placeholders existentes para evitar duplicação
         logger.debug('Removendo placeholders de mensagens existentes');
@@ -612,8 +607,8 @@ export async function enviarMensagem(mensagem, input, chatContainer, sendBtn, st
             });
         }
         
-        // Adicionar mensagem de loading para o assistente
-        adicionarMensagemStreaming(chatContainer, messageId, conversationId);
+        // Adicionar mensagem em streaming usando chatUI
+        const messageElement = chatUI.adicionarMensagemStreaming(messageId, conversationId);
         
         // Ativar estado de streaming para esta conversa
         streamingStates.set(conversationId, true);

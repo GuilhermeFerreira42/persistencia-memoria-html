@@ -20,8 +20,9 @@ const currentLogLevel = LOG_LEVELS.DEBUG; // Começando com DEBUG para capturar 
  * @param {string} level - Nível do log (DEBUG, INFO, WARN, ERROR)
  * @param {string} message - Mensagem do log
  * @param {Object} data - Dados adicionais para contexto do log
+ * @param {string} source - Origem do log (arquivo/módulo)
  */
-export function log(level, message, data = {}) {
+export function log(level, message, data = {}, source = '') {
   if (LOG_LEVELS[level] >= currentLogLevel) {
     const timestamp = new Date().toISOString();
     const context = 'frontend';
@@ -34,7 +35,8 @@ export function log(level, message, data = {}) {
       ERROR: 'color: red; font-weight: bold'
     };
     
-    console.log(`%c[${level}] ${timestamp} - ${message}`, styles[level], data);
+    const logMessage = source ? `[${level}] [${source}] ${timestamp} - ${message}` : `[${level}] ${timestamp} - ${message}`;
+    console.log(`%c${logMessage}`, styles[level], data);
     
     // Extrair messageId se estiver presente nos dados
     const messageId = data.messageId || data.message_id;
@@ -47,6 +49,7 @@ export function log(level, message, data = {}) {
       data,
       timestamp,
       context,
+      source,
       url: window.location.href,
       messageId,
       conversationId
@@ -63,10 +66,10 @@ export function log(level, message, data = {}) {
 
 // Interface simplificada para diferentes níveis de log
 export const logger = {
-  debug: (message, data) => log('DEBUG', message, data),
-  info: (message, data) => log('INFO', message, data),
-  warn: (message, data) => log('WARN', message, data),
-  error: (message, data) => log('ERROR', message, data),
+  debug: (message, data, source) => log('DEBUG', message, data, source),
+  info: (message, data, source) => log('INFO', message, data, source),
+  warn: (message, data, source) => log('WARN', message, data, source),
+  error: (message, data, source) => log('ERROR', message, data, source),
   
   // Função específica para rastreamento de mensagens
   trackMessage: (action, messageId, conversationId, extra = {}) => {
@@ -98,4 +101,4 @@ window.addEventListener('unhandledrejection', (event) => {
   });
 });
 
-export default logger; 
+export default logger;

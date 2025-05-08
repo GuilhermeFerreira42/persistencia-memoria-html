@@ -1,4 +1,4 @@
-import { chatUI } from './chatUI.js';
+import { chatUI } from './chat/chatUI.js';
 import { streamingManager } from './modules/streamingManager.js';
 import { logger } from './utils/logger.js';
 

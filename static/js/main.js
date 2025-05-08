@@ -19,7 +19,7 @@ import {
 } from './chat/chatStorage.js';
 import { initializeInputBar, destroyInputBar } from './modules/inputBar.js';
 import { copiarMensagem, regenerarResposta } from './chat/chatUtils.js';
-import { chatUI } from './chatUI.js';
+import { chatUI } from './chat/chatUI.js';
 import { streamingManager } from './modules/streamingManager.js';
 import { initializeTheme } from './theme.js';
 import { initSidebar } from './sidebar.js';

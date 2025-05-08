@@ -13,16 +13,17 @@ import { logger } from '../utils/logger.js';
  */
 class MessageRegistry {
     constructor() {
+        logger.info('Inicializando MessageRegistry', { source: 'messageRegistry.js' });
         this.messages = new Map();
         this.debug = false; // Configurar como true para habilitar logs adicionais
         
         // Criar global para garantir acesso em todos os módulos
         if (!window.messageRegistry) {
             window.messageRegistry = this.messages;
-            logger.info('Inicializando messageRegistry global');
+            logger.info('Inicializando messageRegistry global', { source: 'messageRegistry.js' });
         } else {
             this.messages = window.messageRegistry;
-            logger.debug('Usando messageRegistry global existente');
+            logger.debug('Usando messageRegistry global existente', { source: 'messageRegistry.js' });
         }
         
         // Monitoramento periódico para limpeza e depuração
@@ -35,7 +36,7 @@ class MessageRegistry {
     setupPeriodicCheck() {
         setInterval(() => {
             if (this.debug) {
-                logger.debug('Estado atual do messageRegistry', {
+                this._log('debug', 'Estado atual do messageRegistry', {
                     totalEntries: this.messages.size,
                     entries: Array.from(this.messages.keys())
                 });
@@ -45,7 +46,15 @@ class MessageRegistry {
             this.cleanOrphanContainers();
         }, 5000);
     }
-    
+
+    /**
+     * Registra logs do sistema
+     * @private
+     */
+    _log(level, message, data = {}) {
+        logger[level](message, { ...data, source: 'messageRegistry.js' });
+    }
+
     /**
      * Registra uma nova mensagem
      * @param {string} messageId - ID único da mensagem
@@ -53,51 +62,28 @@ class MessageRegistry {
      * @returns {Object} Entrada criada no registry
      */
     registerMessage(messageId, data = {}) {
+        this._log('debug', `Adicionando mensagem ${messageId}`);
+        
         if (!messageId) {
-            logger.error('Tentativa de registrar mensagem sem ID');
+            this._log('error', 'Tentativa de registrar mensagem sem ID');
             return null;
         }
         
         if (this.messages.has(messageId)) {
-            logger.debug(`Mensagem ${messageId} já registrada, atualizando`);
-            const entry = this.messages.get(messageId);
-            
-            // Atualizar dados existentes preservando flags importantes
-            const updatedEntry = {
-                ...entry,
-                ...data,
-                isComplete: entry.isComplete || false,
-                isStreaming: entry.isStreaming || false,
-                timestamp: entry.timestamp || Date.now()
-            };
-            
-            this.messages.set(messageId, updatedEntry);
-            return updatedEntry;
+            this._log('warn', `Mensagem ${messageId} já existe no registro`);
+            return this.messages.get(messageId);
         }
         
         // Criar nova entrada com flags padrão
         const entry = {
-            id: messageId,
-            content: data.content || '',
-            container: data.container || null,
-            timestamp: Date.now(),
-            conversationId: data.conversationId || null,
+            ...data,
+            created: Date.now(),
             isComplete: false,
-            isStreaming: false,
-            rendered: false,
-            ...data
+            isStreaming: true
         };
         
         this.messages.set(messageId, entry);
-        logger.info(`Nova mensagem registrada: ${messageId}`, { 
-            conversationId: entry.conversationId,
-            hasContainer: !!entry.container
-        });
-        
-        // Emitir evento de nova mensagem
-        document.dispatchEvent(new CustomEvent('message:registered', {
-            detail: { messageId, entry }
-        }));
+        this._log('debug', `Mensagem ${messageId} registrada com sucesso`);
         
         return entry;
     }
@@ -108,6 +94,7 @@ class MessageRegistry {
      * @returns {Object|null} Dados da mensagem ou null se não existir
      */
     getMessage(messageId) {
+        this._log('debug', `Buscando mensagem ${messageId}`);
         if (!messageId) return null;
         return this.messages.get(messageId) || null;
     }
@@ -126,7 +113,7 @@ class MessageRegistry {
         const entry = this.messages.get(messageId);
         Object.assign(entry, data);
         
-        logger.debug(`Mensagem ${messageId} atualizada`, {
+        this._log('debug', `Mensagem ${messageId} atualizada`, {
             contentLength: entry.content?.length
         });
         
@@ -140,21 +127,14 @@ class MessageRegistry {
      * @returns {boolean} Sucesso da operação
      */
     addChunk(messageId, chunk) {
-        if (!messageId) return false;
-        
-        let entry = this.getMessage(messageId);
+        const entry = this.messages.get(messageId);
         if (!entry) {
-            entry = this.registerMessage(messageId, { content: '' });
+            this._log('error', `Tentativa de adicionar chunk a mensagem inexistente: ${messageId}`);
+            return false;
         }
-        
-        entry.content += chunk;
-        entry.lastUpdated = Date.now();
-        
-        logger.debug(`Chunk adicionado à mensagem ${messageId}`, {
-            chunkSize: chunk.length,
-            totalSize: entry.content.length
-        });
-        
+
+        entry.content = (entry.content || '') + chunk;
+        this._log('debug', `Chunk adicionado à mensagem ${messageId}`);
         return true;
     }
     
@@ -164,20 +144,17 @@ class MessageRegistry {
      * @returns {boolean} Sucesso da operação
      */
     completeMessage(messageId) {
-        if (!messageId || !this.messages.has(messageId)) {
-            logger.warn(`Tentativa de finalizar mensagem não registrada: ${messageId}`);
+        const entry = this.messages.get(messageId);
+        if (!entry) {
+            this._log('error', `Tentativa de completar mensagem inexistente: ${messageId}`);
             return false;
         }
+
+        entry.isComplete = true;
+        entry.isStreaming = false;
+        entry.completedAt = Date.now();
         
-        const entry = this.messages.get(messageId);
-        entry.complete = true;
-        entry.completed = Date.now();
-        
-        logger.info(`Mensagem finalizada: ${messageId}`, {
-            contentSize: entry.content?.length,
-            elapsedTime: entry.completed - entry.timestamp
-        });
-        
+        this._log('info', `Mensagem ${messageId} marcada como completa`);
         return true;
     }
     
@@ -194,7 +171,7 @@ class MessageRegistry {
         const result = this.messages.delete(messageId);
         
         if (result) {
-            logger.debug(`Mensagem removida: ${messageId}`);
+            this._log('debug', `Mensagem removida: ${messageId}`);
         }
         
         return result;
@@ -228,7 +205,7 @@ class MessageRegistry {
         document.querySelectorAll('.message.assistant').forEach(container => {
             // Verificar se o container está vazio ou não tem messageId
             if (!container.dataset.messageId || !container.innerHTML.trim()) {
-                logger.debug('Removendo container órfão ou vazio', {
+                this._log('debug', 'Removendo container órfão ou vazio', {
                     id: container.id,
                     messageId: container.dataset.messageId
                 });
@@ -270,7 +247,7 @@ class MessageRegistry {
         });
         
         if (similarMessages.length > 1) {
-            logger.warn('Múltiplas mensagens com conteúdo similar detectadas', {
+            this._log('warn', 'Múltiplas mensagens com conteúdo similar detectadas', {
                 count: similarMessages.length,
                 ids: similarMessages
             });
@@ -287,4 +264,4 @@ export const messageRegistry = new MessageRegistry();
 export const registry = messageRegistry;
 
 // Para retrocompatibilidade
-export default messageRegistry; 
+export default messageRegistry;

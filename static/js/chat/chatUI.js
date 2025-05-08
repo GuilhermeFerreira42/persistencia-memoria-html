@@ -3,6 +3,71 @@ import { renderMessage, renderMessageChunk, messageRegistry } from '../messageRe
 import { melhorarBlocosCodigo } from './chatUtils.js';
 import { logger } from '../utils/logger.js';
 
+export class ChatUI {
+    constructor() {
+        logger.info('Inicializando ChatUI', 'chat/chatUI.js');
+    }
+
+    adicionarMensagem(message) {
+        logger.debug('Chamada adicionarMensagem', 'chat/chatUI.js');
+        const chatContainer = document.querySelector('.chat-container');
+        return adicionarMensagem(chatContainer, message.content, message.role);
+    }
+
+    adicionarMensagemStreaming(messageId, conversationId) {
+        logger.debug('Chamada adicionarMensagemStreaming', 'chat/chatUI.js');
+        const chatContainer = document.querySelector('.chat-container');
+        return adicionarMensagemStreaming(chatContainer, messageId, conversationId);
+    }
+
+    atualizarMensagemStreaming(messageId, chunk, renderMarkdown = true) {
+        logger.debug('Chamada atualizarMensagemStreaming', 'chat/chatUI.js');
+        return atualizarMensagemStreaming(messageId, chunk, renderMarkdown);
+    }
+
+    iniciarChat() {
+        logger.debug('Chamada iniciarChat', 'chat/chatUI.js');
+        const welcomeScreen = document.querySelector('.welcome-screen');
+        const chatContainer = document.querySelector('.chat-container');
+        const inputContainer = document.querySelector('.input-container');
+        iniciarChat(welcomeScreen, chatContainer, inputContainer);
+    }
+
+    mostrarCarregamento() {
+        logger.debug('Chamada mostrarCarregamento', 'chat/chatUI.js');
+        const chatContainer = document.querySelector('.chat-container');
+        return mostrarCarregamento(chatContainer);
+    }
+
+    mostrarTelaInicial() {
+        logger.debug('Chamada mostrarTelaInicial', 'chat/chatUI.js');
+        const welcomeScreen = document.querySelector('.welcome-screen');
+        const chatContainer = document.querySelector('.chat-container');
+        const inputContainer = document.querySelector('.input-container');
+        const welcomeInput = document.querySelector('.welcome-input');
+        const chatInput = document.querySelector('.chat-input');
+        mostrarTelaInicial(welcomeScreen, chatContainer, inputContainer, welcomeInput, chatInput);
+    }
+
+    scrollToBottom() {
+        logger.debug('Chamada scrollToBottom', 'chat/chatUI.js');
+        scrollToBottom();
+    }
+
+    updateStreamingMessage(messageId, content) {
+        logger.debug('Chamada updateStreamingMessage', 'chat/chatUI.js');
+        updateStreamingMessage(messageId, content);
+    }
+
+    updateStreamingScroll(messageElement) {
+        logger.debug('Chamada updateStreamingScroll', 'chat/chatUI.js');
+        updateStreamingScroll(messageElement);
+    }
+}
+
+// Criar e exportar uma instância única do ChatUI
+export const chatUI = new ChatUI();
+
 export function iniciarChat(welcomeScreen, chatContainer, inputContainer) {
     welcomeScreen.style.display = 'none';
     chatContainer.style.display = 'block';

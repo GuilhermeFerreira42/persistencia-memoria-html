@@ -1,4 +1,4 @@
-import { adicionarMensagem } from './chatUI.js';
+import { chatUI } from './chatUI.js';
 import { atualizarBotoes } from './chatActions.js';
 import { entrarNaSalaDeConversa } from './chatSync.js';
 import { melhorarBlocosCodigo, escapeHTML } from './chatUtils.js';
@@ -508,6 +508,9 @@ export function adicionarMensagemAoHistorico(mensagem, tipo, conversationId = nu
             role: tipo,
             timestamp: new Date().toISOString()
         };
+        
+        // Adicionar mensagem à UI usando chatUI
+        chatUI.adicionarMensagem(message);
         
         // Adicionar mensagem ao histórico da conversa atual
         if (window.conversaAtual && window.conversaAtual.id === conversationId) {
