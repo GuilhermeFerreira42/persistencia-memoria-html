@@ -986,160 +986,10 @@ export function carregarConversa(conversationId) {
         });
 }
 
-// Sistema de debug
-class ChatDebugger {
-    constructor() {
-        this.logs = [];
-        this.maxLogSize = 100;
-    }
-
-    log(eventType, data) {
-        this.logs.push({ timestamp: Date.now(), eventType, data });
-        if (this.logs.length > this.maxLogSize) this.logs.shift();
-        console.debug(`[ChatDebug] ${eventType}:`, data);
-    }
-
-    info(eventType, data) {
-        this.log(`INFO:${eventType}`, data);
-        console.info(`[ChatDebug-INFO] ${eventType}:`, data);
-    }
-    
-    debug(eventType, data) {
-        this.log(`DEBUG:${eventType}`, data);
-        console.debug(`[ChatDebug-DEBUG] ${eventType}:`, data);
-    }
-    
-    warn(eventType, data) {
-        this.log(`WARN:${eventType}`, data);
-        console.warn(`[ChatDebug-WARN] ${eventType}:`, data);
-    }
-    
-    error(eventType, data) {
-        this.log(`ERROR:${eventType}`, data);
-        console.error(`[ChatDebug-ERROR] ${eventType}:`, data);
-    }
-
-    exportLogs() {
-        const data = JSON.stringify(this.logs, null, 2);
-        const blob = new Blob([data], { type: 'application/json' });
-        return URL.createObjectURL(blob);
-    }
-}
-
-const chatDebugger = new ChatDebugger();
-
-/**
- * Processa um chunk de mensagem recebido via streaming
- * @param {Object} data - Dados recebidos do servidor
- */
-export const handleStreamChunk = (data) => {
-    try {
-        if (!data || !data.chunk || !data.message_id || !data.conversation_id) {
-            chatDebugger.warn('Chunk inválido recebido', { data });
-            return;
-        }
-
-        const { message_id, chunk, conversation_id } = data;
-
-        // Verificar se este é um chunk duplicado
-        if (processedChunks.has(`${message_id}-${chunk}`)) {
-            chatDebugger.warn('Chunk duplicado detectado e ignorado', { 
-                message_id, 
-                chunk_length: chunk.length 
-            });
-            return;
-        }
-
-        // Registrar este chunk como processado
-        processedChunks.add(`${message_id}-${chunk}`);
-        
-        // Verificar se a mensagem já está em streaming (já está sendo renderizada)
-        const isStreaming = streamingMessageIds.has(message_id);
-        
-        // Se não estiver em streaming, iniciar a renderização desta mensagem
-        if (!isStreaming) {
-            streamingMessageIds.add(message_id);
-            chatDebugger.info('Iniciando streaming de nova mensagem', { message_id, conversation_id });
-            
-            // Limpar containers órfãos existentes com o mesmo ID
-            const existingContainers = document.querySelectorAll(`[data-message-id="${message_id}"]`);
-            if (existingContainers.length > 0) {
-                chatDebugger.warn('Containers existentes detectados para novo stream', { 
-                    message_id, 
-                    count: existingContainers.length 
-                });
-                
-                // Remover containers antigos
-                existingContainers.forEach(container => container.remove());
-                
-                // Limpar qualquer entrada existente no registry
-                if (messageRegistry.has(message_id)) {
-                    messageRegistry.delete(message_id);
-                }
-            }
-        }
-
-        // Acumular o conteúdo em memória
-        accumulateChunk(chunk, conversation_id);
-        
-        // Renderizar o chunk
-        renderMessageChunk(message_id, chunk, conversation_id);
-        
-        chatDebugger.debug('Chunk processado com sucesso', { 
-            message_id,
-            chunk_length: chunk.length, 
-            streaming_count: streamingMessageIds.size 
-        });
-        
-    } catch (error) {
-        chatDebugger.error('Erro ao processar chunk de mensagem', { 
-            error: error.message, 
-            stack: error.stack 
-        });
-    }
-};
-
-// Processar evento de mensagem completa
-socket.on('response_complete', (data) => {
-    try {
-        const { message_id, conversation_id } = data;
-        
-        chatDebugger.info('Resposta completa recebida', { message_id, conversation_id });
-        
-        // Finalizar a mensagem no renderer
-        completeMessage(message_id);
-        
-        // Remover da lista de mensagens em streaming
-        streamingMessageIds.delete(message_id);
-        
-        // Processar resposta completa para o estado da conversa
-        renderCompleteResponse(conversation_id);
-        
-        // Limpar chunks processados para esta mensagem 
-        // (otimização de memória para conversas longas)
-        for (const key of processedChunks.keys()) {
-            if (key.startsWith(`${message_id}-`)) {
-                processedChunks.delete(key);
-            }
-        }
-        
-        chatDebugger.debug('Processamento de resposta completa finalizado', { 
-            message_id, 
-            streaming_count: streamingMessageIds.size 
-        });
-        
-    } catch (error) {
-        chatDebugger.error('Erro ao processar resposta completa', { 
-            error: error.message, 
-            stack: error.stack 
-        });
-    }
-});
-
 // Monitoramento periódico de streams ativos
 setInterval(() => {
     try {
-        chatDebugger.log('active_streams', {
+        logger.debug('Monitorando streams ativos', {
             streamingMessages: Array.from(streamingMessages),
             messageRegistry: Array.from(messageRegistry.messages.keys())
         });
@@ -1150,19 +1000,16 @@ setInterval(() => {
             if (messageElement) {
                 const messageId = messageElement.dataset.messageId;
                 if (messageId) {
+                    logger.warn('Container órfão detectado', { messageId });
                     cleanupOrphan(messageId);
                 }
             }
         });
         
-        chatDebugger.debug('Monitoramento de streams concluído', {
-            activeStreams: streamingMessages.size,
-            registrySize: messageRegistry.messages.size
-        });
     } catch (error) {
-        chatDebugger.error('Erro no monitoramento de streams', { 
+        logger.error('Erro no monitoramento de streams', { 
             error: error.message,
-            stack: error.stack
+            stack: error.stack 
         });
     }
 }, 10000);

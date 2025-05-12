@@ -12,8 +12,8 @@ const LOG_LEVELS = {
   ERROR: 3
 };
 
-// Configuração do nível de log atual (ajustável conforme necessidade)
-const currentLogLevel = LOG_LEVELS.DEBUG; // Começando com DEBUG para capturar tudo
+// Configuração do nível de log atual
+const currentLogLevel = LOG_LEVELS.DEBUG;
 
 /**
  * Função principal de log que gerencia tanto logs locais (console) quanto remotos (backend)
@@ -35,14 +35,17 @@ export function log(level, message, data = {}, source = '') {
       ERROR: 'color: red; font-weight: bold'
     };
     
-    const logMessage = source ? `[${level}] [${source}] ${timestamp} - ${message}` : `[${level}] ${timestamp} - ${message}`;
+    // Formatação consistente da mensagem
+    const logMessage = `[${level}] ${source ? `[${source}] ` : ''}${timestamp} - ${message}`;
+    
+    // Log no console local
     console.log(`%c${logMessage}`, styles[level], data);
     
-    // Extrair messageId se estiver presente nos dados
+    // Extrair IDs relevantes dos dados ou contexto global
     const messageId = data.messageId || data.message_id;
     const conversationId = data.conversationId || data.conversation_id || window.conversaAtual?.id;
     
-    // Preparar payload JSON estruturado para o backend
+    // Preparar payload para o backend
     const logData = {
       level,
       message,
@@ -66,10 +69,10 @@ export function log(level, message, data = {}, source = '') {
 
 // Interface simplificada para diferentes níveis de log
 export const logger = {
-  debug: (message, data, source) => log('DEBUG', message, data, source),
-  info: (message, data, source) => log('INFO', message, data, source),
-  warn: (message, data, source) => log('WARN', message, data, source),
-  error: (message, data, source) => log('ERROR', message, data, source),
+  debug: (message, data = {}, source = '') => log('DEBUG', message, data, source),
+  info: (message, data = {}, source = '') => log('INFO', message, data, source),
+  warn: (message, data = {}, source = '') => log('WARN', message, data, source),
+  error: (message, data = {}, source = '') => log('ERROR', message, data, source),
   
   // Função específica para rastreamento de mensagens
   trackMessage: (action, messageId, conversationId, extra = {}) => {
@@ -78,7 +81,7 @@ export const logger = {
       conversationId,
       action,
       ...extra
-    });
+    }, 'message-tracker');
   }
 };
 
@@ -90,7 +93,7 @@ window.addEventListener('error', (event) => {
     lineno: event.lineno,
     colno: event.colno,
     error: event.error?.stack || 'Sem stack disponível'
-  });
+  }, 'window');
 });
 
 // Interceptar rejeições de promises não tratadas
@@ -98,7 +101,7 @@ window.addEventListener('unhandledrejection', (event) => {
   logger.error('Promise rejeitada não tratada', {
     reason: event.reason?.message || event.reason,
     stack: event.reason?.stack || 'Sem stack disponível'
-  });
+  }, 'window');
 });
 
 export default logger;

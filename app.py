@@ -58,7 +58,8 @@ def setup_logger():
     file_handler = logging.handlers.RotatingFileHandler(
         log_filename, 
         maxBytes=10*1024*1024,  # 10 MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
     
@@ -76,7 +77,7 @@ def setup_logger():
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
     
-    # Criar uma função de log auxiliar para encapsular o contexto
+    # Função auxiliar para encapsular o contexto
     def log_with_context(level, message, context=None, message_id=None, conversation_id=None, **kwargs):
         parts = []
         
@@ -99,7 +100,7 @@ def setup_logger():
         
         logger.log(level, log_message)
     
-    # Adicionar as funções auxiliares ao logger
+    # Adicionar funções auxiliares ao logger
     logger.debug_with_context = lambda msg, **kwargs: log_with_context(logging.DEBUG, msg, **kwargs)
     logger.info_with_context = lambda msg, **kwargs: log_with_context(logging.INFO, msg, **kwargs)
     logger.warning_with_context = lambda msg, **kwargs: log_with_context(logging.WARNING, msg, **kwargs)
